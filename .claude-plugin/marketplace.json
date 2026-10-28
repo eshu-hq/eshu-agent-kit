@@ -1,0 +1,15 @@
+{
+  "name": "eshu-agent-kit",
+  "description": "Shared agent toolkit for eshu-hq repos: skills, agents, hooks, and process docs with versioned releases.",
+  "owner": {
+    "name": "eshu-hq",
+    "url": "https://github.com/eshu-hq/eshu-agent-kit"
+  },
+  "plugins": [
+    {
+      "name": "eshu-agent-kit",
+      "source": "./",
+      "description": "Eshu agent kit: review, publishing, session-lifecycle, and issue-driving skills plus shared process docs."
+    }
+  ]
+}
