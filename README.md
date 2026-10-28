@@ -1,24 +1,29 @@
+<div align="center">
+
 # eshu-agent-kit
 
-Shared agent toolkit for `eshu-hq` repos. Single source of truth for skills, agents, rules, and hooks.
+**One kit for every agent that works your repos. Skills, subagents, hooks, and rules — pinned, versioned, never copy-pasted.**
 
-Each product repo stays thin: it holds a version pin plus a small overlay, and installs this kit globally or per repo.
+<a href="https://github.com/eshu-hq/eshu-agent-kit/stargazers"><img src="https://img.shields.io/github/stars/eshu-hq/eshu-agent-kit?style=flat-square" alt="GitHub stars"></a>
 
-## Layout
+**[Install](#install) · [What you get](#what-you-get) · [Two harnesses](#two-harnesses-one-kit) · [Pin a version](#pin-a-version) · [Repo overlay](#repo-overlay)**
 
-- `skills/core/` — portable skills, no Eshu coupling.
-- `skills/eshu/` — Eshu-coupled adapters (graph, queue, collector contracts).
-- `skills/registry.md` — the rename and migration map. Read this before moving a skill.
-- `agents/` — `roles.json` + `agent-roles.py` generator and rendered per-harness mirrors (`arbiter`, `develop`, `review`, `debug`, `perf`, `scan`).
-- `rules/` — harness rules, ported from per-repo `.claude/rules/`.
-- `hooks/` — hook scripts plus per-harness wiring notes.
-- `scripts/` — repo-side tooling the hooks delegate to (`check-docs-stale.sh`); `install.sh --hooks` links it into the consuming repo's `scripts/`.
-- `templates/repo-overlay/` — the thin files a product repo keeps.
-- `install.sh` — links this checkout into `~/.claude/skills`, `~/.codex/skills`, or a target repo.
+</div>
 
-## Use it
+---
 
-Pin a version in the product repo (`.agent-kit-version`), then install.
+Without the kit, every repo carries its own copy of the same skills and hooks. Copies drift. Fixes land in one repo and never reach the others. Nobody knows which copy is current.
+
+With the kit, product repos stay thin: a version pin plus a two-file overlay. Everything shared lives here and ships by version.
+
+| | Before | After |
+|---|---|---|
+| Skills | copied per repo, drifted | `install.sh --repo` symlinks all 21 |
+| Hooks | wired by hand, half missing | plugin registers 8, or one installer command |
+| Fixes | patched N times | patched once, repos re-run the installer |
+| Versions | "which copy?" | `.agent-kit-version` says exactly |
+
+## Install
 
 Claude Code (marketplace, versioned):
 
@@ -33,35 +38,45 @@ Or inside Claude Code:
 /plugin install eshu-agent-kit --marketplace eshu-hq/eshu-agent-kit
 ```
 
-Releases are SemVer git tags; the `version` in `.claude-plugin/plugin.json` keeps installs on the cataloged version until the marketplace refreshes to a new tag.
-
 Codex (no marketplace — open-standard skills, symlinked):
 
 ```sh
-./install.sh --global
-./install.sh --repo /path/to/repo
+./install.sh --global          # this machine
+./install.sh --repo /path/to/repo   # one repo
 ```
 
-Subagents ship through `install.sh` on every harness until plugin hosts support them; skills and hooks ride the plugin on Claude Code (`hooks/hooks.json` registers skill enforcement, goal continuation, the live-gate guard, and the doc-staleness signal — every hook fails open outside its scope).
+That is the whole install. The plugin registers skills and hooks automatically. `install.sh` symlinks them, so updates arrive by re-running it — nothing is ever copied.
 
-```sh
-./install.sh --agents --global
-./install.sh --agents --repo /path/to/repo
-```
+## What you get
 
-Hooks and rules install per repo (scripts only; wiring stays explicit except through the marketplace plugin, which registers `hooks/hooks.json` automatically):
+| | Count | Lives in | Loads on |
+|---|---|---|---|
+| Skills | 21 | `skills/` | Claude Code plugin, Codex via `install.sh` |
+| Subagent roles | 10 | `agents/` | `install.sh --agents` (Claude, Codex, Cursor, OpenCode) |
+| Hooks | 8 | `hooks/` | plugin via `hooks/hooks.json`, or `install.sh --hooks` |
+| Path-scoped rules | 12 | `rules/` | `install.sh --rules` (Claude Code) |
+| Process docs | 16 | `docs/eshu/` | linked from the skills that cite them |
 
-```sh
-./install.sh --hooks --repo /path/to/repo
-./install.sh --rules --repo /path/to/repo
-```
+Skills split two ways: `skills/core/` holds portable skills with zero repo coupling; `skills/eshu/` holds adapters for Eshu-family repos (graph, queue, collector contracts). The rename and layer map is [`skills/registry.md`](skills/registry.md).
 
-Agent source of truth is `agents/roles.json`; `agents/agent-roles.py generate` renders the per-harness mirrors (`agents/`, `.claude/agents/`, `.codex/agents/`, `.opencode/agent/`, `.cursor/agents/`) and `check` fails on drift. Role names keep their `*-eshu` suffix until consumer cutover.
+## Two harnesses, one kit
 
-## Versioning
+- **Claude Code.** The marketplace plugin carries skills and registers all 8 hooks (`hooks/hooks.json`): skill enforcement, goal continuation, the live-gate guard, and the doc-staleness signal. Every hook fails open outside its scope — installing the plugin never breaks an unrelated repo.
+- **Codex.** No plugin host, so `install.sh` symlinks skills, agents, hooks, and rules into the repo's `.agents/`, `.codex/`, and `.claude/` trees. Same files, same behavior.
 
-Tags (`v0.1.0`, …). Repos upgrade by moving the pin and re-running the installer. Never copy a skill into a product repo; point at the kit.
+Subagents ship through `install.sh` on every harness until plugin hosts support them. Their source of truth is `agents/roles.json`; `agents/agent-roles.py generate` renders the per-harness mirrors and `check` fails on drift.
 
-## Migration status
+## Pin a version
 
-Source of record today is still the `eshu` monorepo (`.agents/skills/`, `.agents/agents/`, `.claude/rules/`, `.claude/hooks/`, `.codex/hooks/`). `skills/registry.md` tracks what moves, in which order, and under which new name.
+Releases are SemVer git tags. A product repo pins one line in `.agent-kit-version` and installs against it. Upgrade by moving the pin and re-running the installer. Never copy a skill into a product repo; point at the kit.
+
+## Repo overlay
+
+Everything a product repo keeps lives in [`templates/repo-overlay/`](templates/repo-overlay/): the version pin and a pointer-style `AGENTS.md`. Copy both, set the pin, run the installer. Details in [its README](templates/repo-overlay/README.md).
+
+## Further reading
+
+- [`hooks/README.md`](hooks/README.md) — every hook, its matcher, and the manual wiring block.
+- [`rules/README.md`](rules/README.md) — the routing-layer contract and the rules lint script.
+- [`docs/eshu/README.md`](docs/eshu/README.md) — vendored process docs and the sync rule.
+- [`skills/registry.md`](skills/registry.md) — rename map and layer rule.
