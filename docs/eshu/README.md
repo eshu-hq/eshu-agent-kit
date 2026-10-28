@@ -12,6 +12,7 @@ cutover; this tree is a byte-identical mirror plus one marked extract.
 | writing-for-agents.md | `docs/internal/writing-for-agents.md` | 123 | byte-identical |
 | agent-verification-details.md | `docs/internal/agent-verification-details.md` | 126 | byte-identical |
 | agent-guide.md | `docs/internal/agent-guide.md` | 500 | byte-identical, at the file cap |
+| agent-hooks.md | `docs/internal/agent-hooks.md` | 499 | byte-identical, near the file cap |
 | orchestration-pr-ci-discipline.md | `AGENTS.md` § Orchestration, PR, And CI Discipline | 33 | extract, skill names updated to kit renames |
 
 Sync rule: if the eshu source changes, copy it over byte-identical (plus the

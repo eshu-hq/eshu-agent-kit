@@ -1,0 +1,473 @@
+#!/usr/bin/env bash
+# Sourced by hooks/tests/test-goal-continue-hook.sh -- not run on its own.
+#
+# The Stop mirror's BUDGET half: the progress-aware continuation budget, the
+# transcript-scanning progress detector, and everything the review rounds
+# turned up about them. Split from the consent/parallel-session companion when
+# that file crossed the repo's 500-line cap -- the third split on this branch,
+# and the reason the cap is worth having rather than an annoyance.
+#
+# A trigger path for the agent-canon gate; its sentinel is the last line,
+# asserted by test-agent-hooks.sh along with every sibling. Append ABOVE it.
+
+# ── 5. the budget counts no-progress stops ─────────────────────────────────
+#
+# The budget bounded CONTINUATIONS per user message, so an agent doing real
+# work shared a ceiling of three with an agent emitting status reports.
+# Measured on a live six-lane run: every one of that session's eight prompt
+# counters read 3, and the run that finally ended had made exactly one tool
+# call since the previous nudge. The ceiling released it, not an escape --
+# which reads like a clean finish and is not one.
+#
+# So progress resets the soft budget, and a hard ceiling still bounds the loop:
+# an agent making one token call per turn cannot spin forever.
+
+tx="${work}/transcript.jsonl"
+: >"${tx}"
+
+tx_payload() { # prompt_id
+	PID="$1" SID="${sid}" CWD="${work}" TX="${tx}" python3 -c '
+import json, os
+print(json.dumps({"session_id": os.environ["SID"], "prompt_id": os.environ["PID"],
+                  "stop_hook_active": False, "cwd": os.environ["CWD"],
+                  "transcript_path": os.environ["TX"],
+                  "hook_event_name": "Stop"}))
+'
+}
+work_happened() { # append one assistant turn that actually called a tool
+	printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{}}]}}' >>"${tx}"
+}
+said_something() { # append an assistant turn that only talked
+	printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"here is a status report"}]}}' >>"${tx}"
+}
+
+printf 'Grind through six lanes.\n' >"${goal}"
+
+# An agent that keeps working keeps getting handed the goal, well past three.
+blocks=0
+for _ in 1 2 3 4 5 6; do
+	work_happened
+	rg -q '"block"' <<<"$(run "$(tx_payload progress)")" && blocks=$((blocks + 1))
+done
+if [[ "${blocks}" -eq 6 ]]; then
+	ok "progress between stops keeps the budget from running out"
+else
+	no "progress between stops keeps the budget from running out (blocked ${blocks}/6)"
+fi
+
+# An agent that only narrates still runs out at three -- the original bound,
+# and the behaviour the hook was written for.
+: >"${tx}"
+noprog=0
+for _ in 1 2 3 4 5; do
+	said_something
+	rg -q '"block"' <<<"$(run "$(tx_payload narrate)")" && noprog=$((noprog + 1))
+done
+if [[ "${noprog}" -eq 3 ]]; then
+	ok "a stop with no tool calls still burns the budget, out at three"
+else
+	no "a stop with no tool calls still burns the budget, out at three (blocked ${noprog}/5)"
+fi
+
+# Mixed: two narrated stops then real work, and the budget is whole again.
+: >"${tx}"
+said_something; run "$(tx_payload mixed)" >/dev/null
+said_something; run "$(tx_payload mixed)" >/dev/null
+work_happened
+check "work after two narrated stops restores the budget" block "$(run "$(tx_payload mixed)")"
+said_something
+check "and the restored budget is a full one" block "$(run "$(tx_payload mixed)")"
+
+# There is no ceiling any more: one budget, spent only by no-progress stops.
+# This block used to set CLAUDE_GOAL_MAX_TOTAL=4 and assert a working session
+# survived it -- which passed vacuously the moment the knob was deleted, since
+# an ignored env var cannot release anything. A test that exercises a removed
+# feature as though it were alive is worse than no test: it reads as coverage.
+# What it asserts now is the property that replaced it, with no env var at all.
+: >"${tx}"
+ceil=0
+for _ in 1 2 3 4 5 6 7 8; do
+	work_happened
+	rg -q '"block"' <<<"$(run "$(tx_payload ceiling)")" && ceil=$((ceil + 1))
+done
+if [[ "${ceil}" -eq 8 ]]; then
+	ok "a working session is never released, with no ceiling knob involved"
+else
+	no "a working session is never released, with no ceiling knob involved (blocked ${ceil}/8)"
+fi
+
+# No transcript, or an unreadable one, must behave exactly as before: three and
+# out. A progress signal that fails open would remove the bound entirely.
+notx="$(printf '%s' "$(payload notx)" | CLAUDE_GOAL_FILE="${goal}" bash "${HOOK}" 2>/dev/null)"
+check "a payload with no transcript_path still blocks" block "${notx}"
+missing=0
+for _ in 1 2 3 4 5; do
+	out_m="$(PID=gone SID="${sid}" CWD="${work}" TX="${work}/nope.jsonl" python3 -c '
+import json, os
+print(json.dumps({"session_id": os.environ["SID"], "prompt_id": os.environ["PID"],
+                  "stop_hook_active": False, "cwd": os.environ["CWD"],
+                  "transcript_path": os.environ["TX"], "hook_event_name": "Stop"}))
+' | CLAUDE_GOAL_FILE="${goal}" bash "${HOOK}" 2>/dev/null)"
+	rg -q '"block"' <<<"${out_m}" && missing=$((missing + 1))
+done
+if [[ "${missing}" -eq 3 ]]; then
+	ok "a missing transcript falls back to the plain three-stop bound"
+else
+	no "a missing transcript falls back to the plain three-stop bound (blocked ${missing}/5)"
+fi
+
+# When the budget is what released the stop, say so. It looked like a clean
+# finish on a live run, and nobody could tell the difference afterwards.
+: >"${tx}"
+for _ in 1 2 3; do said_something; run "$(tx_payload audit)" >/dev/null; done
+said_something
+audit_err="$(printf '%s' "$(tx_payload audit)" | CLAUDE_GOAL_FILE="${goal}" \
+	bash "${HOOK}" 2>&1 >/dev/null)"
+if rg -qi 'no progress' <<<"${audit_err}"; then
+	ok "the release-by-budget is announced on stderr"
+else
+	no "the release-by-budget is announced on stderr (got: ${audit_err})"
+fi
+
+# A counter written by the previous version holds a bare number. Reading it
+# must not crash or silently reset the bound to zero.
+: >"${tx}"
+printf '2' >"${state_probe:=${TMPDIR:-/tmp}/claude-goal-nudge-${sid}-legacy}"
+said_something
+check "a legacy counter file is still honoured" block "$(run "$(tx_payload legacy)")"
+said_something
+legacy_out="$(run "$(tx_payload legacy)")"
+if rg -q '"block"' <<<"${legacy_out}"; then
+	no "a legacy counter of 2 leaves exactly one nudge"
+else
+	ok "a legacy counter of 2 leaves exactly one nudge"
+fi
+
+# ── 6. what the reviewers proved wrong ─────────────────────────────────────
+#
+# Three defects found by execution, not by reading. Each case below is the
+# probe that found one.
+
+# Consent used to narrow or retire an "irreversible act" stop reason, and a
+# substring test once read "install deps" as blanket because it contains "all".
+# The owner retired that stop reason outright, so no CONSENT value -- narrow,
+# blanket, or one that merely contains "all" -- may bring it back, and the acts
+# must still be echoed verbatim.
+for grant in 'install deps' 'call the API' 'allow push' 'all' '*' 'push, all' 'ALL'; do
+	printf 'CONSENT: %s\nDo the work.\n' "${grant}" >"${goal}"
+	gout="$(run "$(payload "grant-${grant%% *}")")"
+	if rg -qi 'you need consent' <<<"${gout}" ||
+		! rg -qiF "granted for: ${grant}" <<<"${gout}"; then
+		no "CONSENT: ${grant} is echoed and offers no consent stop"
+	else
+		ok "CONSENT: ${grant} is echoed and offers no consent stop"
+	fi
+done
+
+# A CONSENT line above a SESSION header shadowed the ownership escape: the
+# stripping re-checked DONE but not SESSION, so a foreign session was handed
+# another session's goal AND its consent grant. Verbatim the leak the header
+# exists to stop.
+printf 'CONSENT: push\nSESSION: somebody-else\nTheir private objective.\n' >"${goal}"
+shadow="$(run "$(payload shadow)")"
+check "a CONSENT line cannot shadow the SESSION escape" allow "${shadow}"
+if rg -q 'Their private objective' <<<"${shadow}"; then
+	no "a foreign goal is not leaked through a CONSENT line"
+else
+	ok "a foreign goal is not leaked through a CONSENT line"
+fi
+
+# Consent above MY session header must still work.
+printf 'CONSENT: push\nSESSION: %s\nMy objective.\n' "${sid}" >"${goal}"
+mine="$(run "$(payload mineconsent)")"
+check "a CONSENT line above my own SESSION header still blocks" block "${mine}"
+if rg -qi 'already granted' <<<"${mine}"; then
+	ok "consent above my own header is honoured"
+else
+	no "consent above my own header is honoured"
+fi
+
+# The two sides of the format disagreed on leading whitespace: the refresher
+# stripped an indented CONSENT line and the Stop hook did not, so the same file
+# meant two different things to the producer and the consumer.
+printf '  CONSENT: push\nDo the work.\n' >"${goal}"
+indent="$(run "$(payload indent)")"
+if rg -q 'CONSENT:' <<<"${indent}"; then
+	no "an indented CONSENT line is read the same as a flush one"
+else
+	ok "an indented CONSENT line is read the same as a flush one"
+fi
+
+# Honouring consent removes the requirement to ask before push, merge, deploy
+# and delete. The strictly weaker BLOCKED escape echoes its claim to stderr
+# precisely because the agent writes the file; this one echoed nothing.
+printf 'CONSENT: push, merge, deploy\nDo the work.\n' >"${goal}"
+cerr="$(printf '%s' "$(payload consenterr)" | CLAUDE_GOAL_FILE="${goal}" \
+	bash "${HOOK}" 2>&1 >/dev/null)"
+if rg -q 'push, merge, deploy' <<<"${cerr}"; then
+	ok "honouring consent is announced on stderr with the acts"
+else
+	no "honouring consent is announced on stderr with the acts (got: ${cerr})"
+fi
+
+# ── 7. what round three proved wrong ───────────────────────────────────────
+
+# The progress detector was pinned to one JSON spelling. A serializer that ever
+# wrote `"type": "tool_use"` -- one space -- would silently restore the exact
+# behaviour the budget change exists to remove: an agent doing real work
+# released by exhaustion, with a green mirror and no stderr.
+: >"${tx}"
+spaced_blocks=0
+for _ in 1 2 3 4 5; do
+	printf '%s\n' '{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash"}]}}' >>"${tx}"
+	rg -q '"block"' <<<"$(run "$(tx_payload spaced)")" && spaced_blocks=$((spaced_blocks + 1))
+done
+if [[ "${spaced_blocks}" -eq 5 ]]; then
+	ok "progress is detected whatever spacing the transcript uses"
+else
+	no "progress is detected whatever spacing the transcript uses (blocked ${spaced_blocks}/5)"
+fi
+
+# The counter path was built from the RAW session id while the goal path used
+# the sanitized one, so a session id with a slash made the counter write fail
+# and `|| exit 0` allowed the stop -- enforcement silently off, which is the
+# failure the sanitizing exists to prevent.
+printf 'A goal for a session with an awkward id.\n' >"${goal}"
+# Run-unique, not a literal: the counter is keyed on (session_id, prompt_id)
+# and lives in TMPDIR, so a hardcoded id passes three runs on a machine and
+# fails every run after -- the trap this suite already documents once.
+slash_out="$(SID="${sid}/awkward" CWD="${work}" python3 -c '
+import json, os
+print(json.dumps({"session_id": os.environ["SID"], "prompt_id": "slash",
+                  "stop_hook_active": False, "cwd": os.environ["CWD"],
+                  "hook_event_name": "Stop"}))
+' | CLAUDE_GOAL_FILE="${goal}" bash "${HOOK}" 2>/dev/null)"
+check "a session id containing a slash still blocks" block "${slash_out}"
+
+# A transcript that QUOTES the pattern -- an agent reading a transcript, or
+# this very diff -- must not earn progress credit. JSON escaping is what makes
+# that safe: the embedded copy serializes with backslashes and cannot match.
+# Pinned here because it is the property the whole heuristic rests on.
+: >"${tx}"
+quoted_blocks=0
+for _ in 1 2 3 4 5; do
+	printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","content":"the pattern is {\"type\":\"tool_use\"} in the file"}]}}' >>"${tx}"
+	rg -q '"block"' <<<"$(run "$(tx_payload quoted)")" && quoted_blocks=$((quoted_blocks + 1))
+done
+if [[ "${quoted_blocks}" -eq 3 ]]; then
+	ok "a transcript quoting the pattern earns no progress credit"
+else
+	no "a transcript quoting the pattern earns no progress credit (blocked ${quoted_blocks}/5)"
+fi
+
+# Applying the header rules twice made the hook consume a header twice: a goal
+# whose BODY starts a line with `SESSION:` was read by the second pass as an
+# ownership header, the id did not match, and the stop was SILENTLY ALLOWED --
+# enforcement off, no output. Worse, it depended on whether a CONSENT line was
+# present, so the same file enforced or did not depending on an unrelated line.
+printf 'SESSION: %s\nCONSENT: push\nSESSION: is the header we document\nmore goal\n' \
+	"${sid}" >"${goal}"
+body_out="$(run "$(payload bodyheader)")"
+check "a body line starting SESSION: does not disable the hook" block "${body_out}"
+if rg -q 'is the header we document' <<<"${body_out}"; then
+	ok "that body line survives into the quoted goal"
+else
+	no "that body line survives into the quoted goal"
+fi
+
+# The control the defect was found with: same file, no CONSENT line. Both must
+# behave identically now.
+printf 'SESSION: %s\nSESSION: is the header we document\nmore goal\n' "${sid}" >"${goal}"
+check "the same goal without a CONSENT line behaves identically" block \
+	"$(run "$(payload bodyheader2)")"
+# ── 8. the ceiling resets on progress too ──────────────────────────────────
+#
+# The owner's call, and it inverts what the ceiling was for. `total` used to
+# increment unconditionally, so a session making real progress across one long
+# user message was still released at 20 -- release-by-exhaustion moved from 3
+# to 20 rather than removed, which is what both PR reviewers said and what the
+# docs admitted. An agent that keeps working must never be handed back to the
+# owner by the budget.
+#
+# What still bounds the loop is the SOFT budget: a stop with no tool calls
+# since the last nudge burns one, and three of those release it. The residual
+# risk is an agent making one token tool call per turn forever. That is
+# deliberate and it is the owner's trade: being cut off mid-goal cost more than
+# that risk does.
+: >"${tx}"
+long_run=0
+for _ in $(seq 1 30); do
+	work_happened
+	rg -q '"block"' <<<"$(run "$(tx_payload longrun)")" && long_run=$((long_run + 1))
+done
+if [[ "${long_run}" -eq 30 ]]; then
+	ok "a session making progress is never released by the ceiling"
+else
+	no "a session making progress is never released by the ceiling (blocked ${long_run}/30)"
+fi
+
+# The soft budget is what still bounds a stuck one, unchanged at three.
+: >"${tx}"
+stuck=0
+for _ in 1 2 3 4 5; do
+	said_something
+	rg -q '"block"' <<<"$(run "$(tx_payload stuckrun)")" && stuck=$((stuck + 1))
+done
+if [[ "${stuck}" -eq 3 ]]; then
+	ok "a stuck session is still released after three no-progress stops"
+else
+	no "a stuck session is still released after three no-progress stops (blocked ${stuck}/5)"
+fi
+
+# Mixed: a long working run then three narrated stops must still release, so
+# the reset cannot be read as "the budget no longer applies".
+: >"${tx}"
+for _ in $(seq 1 25); do work_happened; run "$(tx_payload mixedlong)" >/dev/null; done
+mixed=0
+for _ in 1 2 3 4; do
+	said_something
+	rg -q '"block"' <<<"$(run "$(tx_payload mixedlong)")" && mixed=$((mixed + 1))
+done
+# Three. An earlier revision of this case said two, because the working stop
+# still spent a nudge -- and rather than question that, the expectation was
+# edited to match it. A test adjusted to fit the behaviour stops being able to
+# find the behaviour wrong, which is what a PR reviewer then caught. Only
+# no-progress stops spend the budget, so a narrated run after a long working
+# one gets the full three. The point of the case is unchanged: a long working
+# run does not buy immunity, the budget still closes.
+if [[ "${mixed}" -eq 3 ]]; then
+	ok "after a long working run, narrated stops still release it"
+else
+	no "after a long working run, narrated stops still release it (blocked ${mixed}/4)"
+fi
+
+# The release has to be a HANDOFF, not a shrug. When the budget lets go, the
+# owner is about to be interrupted, so the message must say why and what would
+# have avoided it -- the agent never writing DONE or BLOCKED is the actual
+# cause of most of these releases.
+: >"${tx}"
+for _ in 1 2 3; do said_something; run "$(tx_payload handoff)" >/dev/null; done
+said_something
+handoff_err="$(printf '%s' "$(tx_payload handoff)" | CLAUDE_GOAL_FILE="${goal}" \
+	bash "${HOOK}" 2>&1 >/dev/null)"
+if rg -qi 'no progress' <<<"${handoff_err}"; then
+	ok "the release says it was no-progress stops that spent the budget"
+else
+	no "the release says it was no-progress stops that spent the budget (got: ${handoff_err})"
+fi
+if rg -q 'DONE' <<<"${handoff_err}" && rg -q 'BLOCKED' <<<"${handoff_err}"; then
+	ok "the release names the two escapes the agent should have used"
+else
+	no "the release names the two escapes the agent should have used"
+fi
+
+# And the LAST nudge before release must warn, so the agent gets one chance to
+# retire or block the goal itself rather than landing on the owner.
+: >"${tx}"
+said_something; run "$(tx_payload warn)" >/dev/null
+said_something; run "$(tx_payload warn)" >/dev/null
+said_something
+last_out="$(run "$(tx_payload warn)")"
+if rg -qi 'last continuation' <<<"${last_out}"; then
+	ok "the final nudge warns that the next stop will be allowed"
+else
+	no "the final nudge warns that the next stop will be allowed"
+fi
+# ── 9. what the PR review found on the pushed head ─────────────────────────
+#
+# Metadata is a LEADING BLOCK, not a pattern that applies anywhere. The
+# `SESSION:` fix taught this once and the `CONSENT:` strip still had the
+# original shape: every line matching `consent:` was removed from the goal
+# ANYWHERE in the body and echoed as a grant. So an objective discussing the
+# consent format lost that line and told the agent the owner had granted it.
+printf 'CONSENT: push\nSESSION: %s\nObjective line.\nconsent: make it whole-token\ntail line.\n' \
+	"${sid}" >"${goal}"
+meta_out="$(run "$(payload metaleading)")"
+if rg -q 'make it whole-token' <<<"${meta_out}"; then
+	ok "a body line starting consent: survives into the goal"
+else
+	no "a body line starting consent: survives into the goal"
+fi
+if rg -q 'GRANTED for: push' <<<"${meta_out}"; then
+	ok "the leading CONSENT line is still read as the grant"
+else
+	no "the leading CONSENT line is still read as the grant"
+fi
+if rg -q 'GRANTED for:.*whole-token' <<<"${meta_out}"; then
+	no "a body consent: line is not echoed as a grant"
+else
+	ok "a body consent: line is not echoed as a grant"
+fi
+
+# Only NO-PROGRESS stops spend the budget. The reset set count to zero and the
+# unconditional write immediately stored one, so a working stop still spent a
+# slot and three narrated stops after it released on the second.
+: >"${tx}"
+work_happened
+run "$(tx_payload spend)" >/dev/null
+spend=0
+for _ in 1 2 3 4; do
+	said_something
+	rg -q '"block"' <<<"$(run "$(tx_payload spend)")" && spend=$((spend + 1))
+done
+if [[ "${spend}" -eq 3 ]]; then
+	ok "a working stop spends no budget: three narrated stops still follow it"
+else
+	no "a working stop spends no budget: three narrated stops still follow it (blocked ${spend}/4)"
+fi
+
+# And the knob that no longer bounds anything is gone rather than left inert.
+# With both counters resetting together and MAX_NUDGES below it, the ceiling
+# could never fire -- dead code an operator would still read as a safety net.
+# Scan the hook AND the suite: a case still setting the knob is how the removal
+# gets quietly undone, and one was doing exactly that when a reviewer looked.
+#
+# Match the CODE form on a non-comment line, not the bare word. The first
+# version of this guard searched for the word and so matched its own failure
+# message and the comment above it -- a check that fails because it can see
+# itself, which is the same self-match that made a sibling session's poller
+# report BUSY forever. A guard whose subject includes its own text is not a
+# guard.
+if rg -q '^[^#]*CLAUDE_GOAL_MAX_TOTAL[=}]' "${HOOK}" "${repo_root}/scripts/"test-goal-*.sh; then
+	no "no live use of the removed ceiling knob remains in the hook or the cases"
+else
+	ok "no live use of the removed ceiling knob remains in the hook or the cases"
+fi
+# The metadata block ends at the first line that is not the HEADER. Only the
+# first `SESSION:` line is a header -- a second one is body text, and this repo
+# writes goals that discuss the hook format. Leaving metadata mode open across
+# any number of SESSION: lines meant a body `CONSENT:` line after one was still
+# consumed and echoed as a grant: the exact spurious-grant class this branch
+# removed for the single-line case, surviving one layout deeper.
+printf 'SESSION: %s\nSESSION: this is body text\nCONSENT: this is also body text\nreal objective.\n' \
+	"${sid}" >"${goal}"
+second_out="$(run "$(payload secondsession)")"
+if rg -q 'GRANTED for: this is also body text' <<<"${second_out}"; then
+	no "a CONSENT line after a body SESSION line is not read as a grant"
+else
+	ok "a CONSENT line after a body SESSION line is not read as a grant"
+fi
+if rg -q 'CONSENT: this is also body text' <<<"${second_out}"; then
+	ok "that body line survives into the goal"
+else
+	no "that body line survives into the goal"
+fi
+if rg -q 'SESSION: this is body text' <<<"${second_out}"; then
+	ok "the second SESSION line survives as body text"
+else
+	no "the second SESSION line survives as body text"
+fi
+
+# A real leading block still works: consent above the header, header, objective.
+printf 'CONSENT: push\nSESSION: %s\nreal objective.\n' "${sid}" >"${goal}"
+lead_out="$(run "$(payload realleading)")"
+if rg -q 'GRANTED for: push' <<<"${lead_out}"; then
+	ok "a genuine leading CONSENT line is still the grant"
+else
+	no "a genuine leading CONSENT line is still the grant"
+fi
+
+
+
+# LAST line on purpose -- see the sibling companions.
+goal_hook_budget_cases_loaded=1

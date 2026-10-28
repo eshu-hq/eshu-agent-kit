@@ -4,11 +4,14 @@ docs/eshu/agent-git-hygiene.md:../public/reference/local-testing/pre-push-merge.
 docs/eshu/agent-guide.md:measurement-ledger.md
 docs/eshu/agent-guide.md:naming.md
 docs/eshu/agent-guide.md:telemetry-discipline-precedent.md
-docs/eshu/agent-hooks-issues.md:agent-hooks.md
-docs/eshu/agent-hooks-issues.md:agent-hooks.md
+docs/eshu/agent-hooks.md:../../.agents/skills/eshu-issue-driver/references/sustained-drives.md
+docs/eshu/agent-hooks.md:agent-goal-conditions.md
+docs/eshu/agent-hooks.md:agent-hooks-codex-goal.md
+docs/eshu/agent-hooks.md:agent-hooks-cursor.md
+docs/eshu/agent-hooks.md:agent-hooks-installing.md
+docs/eshu/agent-hooks.md:agent-hooks-muse.md
 docs/eshu/agent-orchestration.md:../../.agents/agents/review-eshu.md
 docs/eshu/agent-orchestration.md:../../.agents/skills/eshu-session-lifecycle/SKILL.md
-docs/eshu/agent-orchestration.md:agent-hooks.md
 docs/eshu/agent-orchestration.md:performance-map.md
 docs/eshu/agent-verification-details.md:../public/reference/local-testing.md
 docs/eshu/timing-proof-rules.md:evidence/7127-ledger-retention-lock-hold.md
