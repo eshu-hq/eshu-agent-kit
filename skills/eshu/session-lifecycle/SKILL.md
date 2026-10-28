@@ -96,5 +96,5 @@ state it describes is gone. This applies across every playbook.
   session mechanics that driver depends on.
 - `code-review` owns the pre-push verdict. Pickup and babysit hand off to
   it, they do not replace it.
-- `eshu-publish` is the last pass over any status update, resume note, or PR
+- `publish` is the last pass over any status update, resume note, or PR
   reply these playbooks produce.

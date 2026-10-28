@@ -18,7 +18,7 @@ Load the project skills whose contracts match the diff, using root skill routing
    changed files, proof actually run, and open findings. Build the bounded
    [review packet](references/review-packet.md) for a separate reviewer or a
    self-review; never substitute chat history for it. Before any expensive
-   proof, run `eshu-publish`'s `check-shape.sh` on the PR body when one exists.
+   proof, run `publish`'s `check-shape.sh` on the PR body when one exists.
    Re-measure each SHA, file list, and decision-bearing claim that the body or
    changed docs make at this head. A mismatch in a derivable figure is P3 and
    never restarts the review (see
