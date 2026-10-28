@@ -1,0 +1,52 @@
+skills/eshu/code-review/SKILL.md
+  h_78a442cba0b3e6 21
+skills/eshu/publish/SKILL.md
+  h_78a442cba0b3e6 1-140
+skills/eshu/publish/references/commit-trailers.md
+  h_78a442cba0b3e6 1-33
+skills/eshu/publish/references/decision-record.md
+  h_78a442cba0b3e6 1-53
+skills/eshu/publish/references/issue.md
+  h_78a442cba0b3e6 1-118
+skills/eshu/publish/references/owner-report-skeleton.html
+  h_78a442cba0b3e6 1-91
+skills/eshu/publish/references/owner-report.md
+  h_78a442cba0b3e6 1-64
+skills/eshu/publish/references/pr-templates.md
+  h_78a442cba0b3e6 1-156
+skills/eshu/publish/references/pull-request.md
+  h_78a442cba0b3e6 1-145
+skills/eshu/publish/references/replies.md
+  h_78a442cba0b3e6 1-71
+skills/eshu/publish/references/wording.md
+  h_78a442cba0b3e6 1-82
+skills/eshu/publish/scripts/check-shape.sh
+  h_78a442cba0b3e6 1-187
+skills/eshu/publish/scripts/lib/private-identifier-pattern.sh
+  h_78a442cba0b3e6 1-59
+skills/eshu/publish/scripts/test-check-shape.sh
+  h_78a442cba0b3e6 1-281
+skills/eshu/publish/scripts/testdata/issue-bad.md
+  h_78a442cba0b3e6 1
+skills/eshu/publish/scripts/testdata/issue-good.md
+  h_78a442cba0b3e6 1-59
+skills/eshu/publish/scripts/testdata/pr-bad.md
+  h_78a442cba0b3e6 1-40
+skills/eshu/publish/scripts/testdata/pr-good.md
+  h_78a442cba0b3e6 1-36
+skills/eshu/session-lifecycle/SKILL.md
+  h_78a442cba0b3e6 99
+skills/registry.md
+  h_78a442cba0b3e6 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40da86733cca05209666607328e6d46f8e0c7001",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
