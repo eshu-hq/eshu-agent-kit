@@ -1,0 +1,15 @@
+{
+  "name": "eshu-agent-kit",
+  "displayName": "Eshu Agent Kit",
+  "version": "0.1.0",
+  "description": "Review, publishing, session-lifecycle, and issue-driving skills plus shared process docs for eshu-hq repos.",
+  "author": {
+    "name": "eshu-hq",
+    "url": "https://github.com/eshu-hq/eshu-agent-kit"
+  },
+  "homepage": "https://github.com/eshu-hq/eshu-agent-kit",
+  "repository": "https://github.com/eshu-hq/eshu-agent-kit",
+  "keywords": ["eshu", "code-review", "skills", "agents", "hooks"],
+  "skills": ["./skills/eshu", "./skills/core"],
+  "agents": []
+}

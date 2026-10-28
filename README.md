@@ -17,12 +17,31 @@ Each product repo stays thin: it holds a version pin plus a small overlay, and i
 
 ## Use it
 
-Pin a version in the product repo (`.agent-kit-version`), then install:
+Pin a version in the product repo (`.agent-kit-version`), then install.
+
+Claude Code (marketplace, versioned):
+
+```sh
+claude plugin marketplace add eshu-hq/eshu-agent-kit
+claude plugin install eshu-agent-kit@eshu-agent-kit
+```
+
+Or inside Claude Code:
+
+```
+/plugin install eshu-agent-kit --marketplace eshu-hq/eshu-agent-kit
+```
+
+Releases are SemVer git tags; the `version` in `.claude-plugin/plugin.json` keeps installs on the cataloged version until the marketplace refreshes to a new tag.
+
+Codex (no marketplace — open-standard skills, symlinked):
 
 ```sh
 ./install.sh --global
 ./install.sh --repo /path/to/repo
 ```
+
+Subagents ship through `install.sh` on every harness until plugin hosts support them; skills and (once migrated) hooks ride the plugin on Claude Code.
 
 ## Versioning
 
