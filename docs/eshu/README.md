@@ -1,7 +1,9 @@
 # docs/eshu
 
-Process docs the moved skills link to. Eshu stays the source until consumer
-cutover; this tree is a byte-identical mirror plus one marked extract.
+Process docs the kit skills link to: session mechanics, review policy,
+verification gates, telemetry, and the writing standard. Eshu stays the source
+until the consumer cutover; this tree mirrors it file for file (plus one
+marked extract), so skill links resolve inside the kit.
 
 | File | Eshu source | Lines | Status |
 |---|---|---|---:|
@@ -23,16 +25,14 @@ cutover; this tree is a byte-identical mirror plus one marked extract.
 | RELEASING.md | `RELEASING.md` (repo root) | 113 | byte-identical |
 
 Sync rule: if the eshu source changes, copy it over byte-identical (plus the
-two renames in the extract) in a follow-up PR. Do not edit these files for any
-other reason.
+skill renames in the extract) in a follow-up PR. Do not edit these files for
+any other reason.
 
 Deliberately excluded:
 
 - `docs/public/reference/local-testing.md` and `local-testing/*` (5,718 lines):
   Eshu's verification-gate corpus, not portable process truth. Moves with the
-  consumer cutover. One skill link (`session-lifecycle` "See local testing")
-  still resolves in the eshu checkout.
-- Second-order links inside these files (`naming.md`, `agent-hooks.md`,
-  `performance-map.md`, `measurement-ledger.md`,
-  `telemetry-discipline-precedent.md`, agent-role files, `.agents/` paths):
-  out of scope for this batch; they resolve in the eshu checkout.
+  consumer cutover; the one skill link there still resolves in the eshu checkout.
+- Links these files make into eshu-only material (measurement ledgers,
+  performance maps, agent-role files, `.agents/` paths): they resolve in the
+  eshu checkout and are recorded in the link baseline, not vendored here.

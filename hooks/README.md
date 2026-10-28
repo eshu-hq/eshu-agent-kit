@@ -1,39 +1,33 @@
 # Hooks
 
-Executable enforcement for the skill system. Scripts are harness-agnostic
-bash + python3; wiring is per harness (see Wiring below).
+Executable enforcement for the skill system. Plain bash + python3 scripts; wiring is per harness.
 
-Moved (generic skill-enforcement trio):
+Install them two ways. The marketplace plugin registers everything below automatically through `hooks/hooks.json`. Everywhere else, `install.sh` symlinks the scripts and you wire them explicitly:
 
-- `skill-nudge.sh` — PreToolUse on Edit|MultiEdit|Write. Blocks edits to a
-  governed surface until the governing skill is loaded. Table is overridable
-  per repo via `.agents/nudge-table.sh` redefining `nudge_ids_for`.
-- `skill-loaded.sh` — PostToolUse on Skill. Records loaded skills as
-  `/tmp` markers that the nudge checks.
-- `on-compact.sh` — SessionStart on compact|resume. Clears stale markers
-  and re-points at `session-lifecycle`. Speaks only in kit-pinned checkouts
-  (`.agent-kit-version` marker).
-- `lib/skill-nudge-lib.sh` — shared `kit_root_path`/`kit_root` gate.
+```sh
+./install.sh --hooks --repo /path/to/repo
+```
 
-Also moved (goal workflow): `goal-continue.sh` (Stop gate), `goal-refresh.sh`
-(prompt restatement + producer), `issue-capture.sh` (PostToolUse ledger),
-`lib/` goal machinery, `tests/` mirror suite (run it after any edit),
-`codex/goal-continue.sh` (Codex Stop adapter delegating to the shared hook).
-Goal files resolve through the kit pin; the `goal-role-router.py` expansion
-stays guarded-off until that script moves.
+## What fires when
 
-Also moved (eshu-coupled guards): `guard-live-gate.sh` (PreToolUse on Bash;
-refuses a second live gate while Eshu ports are bound; speaks only inside
-checkouts carrying `.agents/skills/code-review` or the legacy
-`.agents/skills/eshu-code-review`), `eshu-doc-staleness.sh` (PostToolUse
-signal delegating to `<repo>/scripts/check-docs-stale.sh`, which
-`install.sh --hooks` links in; degrades to a no-op when absent),
-`codex/eshu-doc-staleness.sh` (Codex `apply_patch` adapter).
+| Hook | Event | Matcher | What it does |
+|---|---|---|---|
+| `skill-nudge.sh` | PreToolUse | `Edit\|MultiEdit\|Write` | Refuses edits to a governed surface until the governing skill loads. Table overridable per repo via `.agents/nudge-table.sh`. |
+| `guard-live-gate.sh` | PreToolUse | `Bash` | Refuses a second live gate while Eshu ports are bound. Silent outside Eshu checkouts. |
+| `skill-loaded.sh` | PostToolUse | `Skill` | Records loaded skills as `/tmp` markers the nudge checks. |
+| `issue-capture.sh` | PostToolUse | `Bash` | Ledgers issues filed during a goal so the Stop gate can enforce them. |
+| `eshu-doc-staleness.sh` | PostToolUse | `Edit\|MultiEdit\|Write` | Rebuilds the doc-drift snapshot via `<repo>/scripts/check-docs-stale.sh`. No-op when the checker is absent. |
+| `goal-refresh.sh` | UserPromptSubmit | — | Restates the active goal every turn; writes the goal file `/goal` commands create. |
+| `on-compact.sh` | SessionStart | `compact\|resume` | Clears stale markers, re-points at `session-lifecycle`. Kit-pinned checkouts only. |
+| `goal-continue.sh` | Stop | — | Refuses to end the session while a declared goal is unfinished. Fail-open with no goal file. |
 
-## Wiring
+Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`).
 
-The installer links scripts only; hook registration stays explicit in the
-consuming repo. Claude Code (`settings.json`):
+## Contract
+
+Every hook fails open outside its scope: missing interpreter, missing checker, non-Eshu checkout, no goal file — all allow. A hook that cannot read its input has no basis to refuse anything. One-off override for the guard: prefix the command with `CLAUDE_HOOK_ALLOW=1`.
+
+## Manual wiring (Claude Code)
 
 ```json
 {
@@ -41,11 +35,25 @@ consuming repo. Claude Code (`settings.json`):
     "PreToolUse": [
       {"matcher": "Edit|MultiEdit|Write", "hooks": [
         {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/skill-nudge.sh"}
+      ]},
+      {"matcher": "Bash", "hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-live-gate.sh"}
       ]}
     ],
     "PostToolUse": [
       {"matcher": "Skill", "hooks": [
         {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/skill-loaded.sh"}
+      ]},
+      {"matcher": "Bash", "hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/issue-capture.sh"}
+      ]},
+      {"matcher": "Edit|MultiEdit|Write", "hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/eshu-doc-staleness.sh"}
+      ]}
+    ],
+    "UserPromptSubmit": [
+      {"hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/goal-refresh.sh"}
       ]}
     ],
     "SessionStart": [
@@ -53,27 +61,13 @@ consuming repo. Claude Code (`settings.json`):
         {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/on-compact.sh"}
       ]}
     ],
-    "PreToolUse": [
-      {"matcher": "Bash", "hooks": [
-        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-live-gate.sh"}
-      ]}
-    ],
-    "PostToolUse": [
-      {"matcher": "Edit|MultiEdit|Write", "hooks": [
-        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/eshu-doc-staleness.sh"}
+    "Stop": [
+      {"hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/goal-continue.sh"}
       ]}
     ]
   }
 }
 ```
 
-Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on
-`apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
-
-`install.sh --hooks --repo PATH` links `hooks/` + `hooks/lib/` into
-`PATH/.claude/hooks/` and prints the settings block above. The Claude Code
-marketplace plugin registers the same scripts automatically through
-`hooks/hooks.json` (plugin root, `${CLAUDE_PLUGIN_ROOT}` paths): installing
-the plugin opts into skill enforcement, goal continuation, the live-gate
-guard, and the doc-staleness signal. Every hook fails open outside its scope
-(see each script's header). Codex has no plugin host; `install.sh` covers it.
+Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on `apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
