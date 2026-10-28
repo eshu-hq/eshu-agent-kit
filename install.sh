@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Install eshu-agent-kit skills, agents, and hooks into a harness or a repo checkout.
+# Install eshu-agent-kit skills, agents, hooks, and rules into a harness or a repo checkout.
 # Usage:
 #   ./install.sh --global | ./install.sh --repo /path/to/repo
 #   ./install.sh --agents --global | ./install.sh --agents --repo /path/to/repo
 #   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
+#   ./install.sh --rules --repo /path/to/repo   (Claude Code path-scoped rules + rules lint script)
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,6 +57,15 @@ install_hooks_repo() {
   echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
 }
 
+install_rules_repo() {
+  local target="$1"
+  mkdir -p "$target/.claude/rules" "$target/scripts"
+  link_files "$KIT_DIR/rules/*.md" "$target/.claude/rules"
+  link_files "$KIT_DIR/scripts/claude-rules-lint.sh" "$target/scripts"
+  echo "installed kit rules into $target/.claude/rules (+ scripts/claude-rules-lint.sh)"
+  echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"
+}
+
 case "$MODE" in
   --global)
     link_dir "$KIT_DIR/skills/core" "$HOME/.claude/skills"
@@ -103,8 +113,22 @@ case "$MODE" in
         ;;
     esac
     ;;
+  --rules)
+    SCOPE="${2:-}"
+    case "$SCOPE" in
+      --repo)
+        TARGET="${3:-}"
+        [ -n "$TARGET" ] || { echo "usage: ./install.sh --rules --repo /path/to/repo" >&2; exit 1; }
+        install_rules_repo "$TARGET"
+        ;;
+      *)
+        echo "usage: ./install.sh --rules --repo /path/to/repo" >&2
+        exit 1
+        ;;
+    esac
+    ;;
   *)
-    echo "usage: ./install.sh --global | ./install.sh --repo /path/to/repo | ./install.sh --agents (--global | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo" >&2
+    echo "usage: ./install.sh --global | ./install.sh --repo /path/to/repo | ./install.sh --agents (--global | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo | ./install.sh --rules --repo /path/to/repo" >&2
     exit 1
     ;;
 esac
