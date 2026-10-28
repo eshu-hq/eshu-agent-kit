@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Install eshu-agent-kit skills and agents into a harness or a repo checkout.
+# Install eshu-agent-kit skills, agents, and hooks into a harness or a repo checkout.
 # Usage:
 #   ./install.sh --global | ./install.sh --repo /path/to/repo
 #   ./install.sh --agents --global | ./install.sh --agents --repo /path/to/repo
+#   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,6 +45,15 @@ install_agents_repo() {
   echo "installed kit agents into $target"
 }
 
+install_hooks_repo() {
+  local target="$1"
+  mkdir -p "$target/.claude/hooks/lib"
+  link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
+  link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
+  echo "installed kit hook scripts into $target/.claude/hooks"
+  echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
+}
+
 case "$MODE" in
   --global)
     link_dir "$KIT_DIR/skills/core" "$HOME/.claude/skills"
@@ -77,8 +87,22 @@ case "$MODE" in
         ;;
     esac
     ;;
+  --hooks)
+    SCOPE="${2:-}"
+    case "$SCOPE" in
+      --repo)
+        TARGET="${3:-}"
+        [ -n "$TARGET" ] || { echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2; exit 1; }
+        install_hooks_repo "$TARGET"
+        ;;
+      *)
+        echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
+        exit 1
+        ;;
+    esac
+    ;;
   *)
-    echo "usage: ./install.sh --global | ./install.sh --repo /path/to/repo | ./install.sh --agents (--global | --repo /path/to/repo)" >&2
+    echo "usage: ./install.sh --global | ./install.sh --repo /path/to/repo | ./install.sh --agents (--global | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo" >&2
     exit 1
     ;;
 esac
