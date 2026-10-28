@@ -1,0 +1,120 @@
+.claude/agents/arbiter-eshu.md
+  h_78a442cba0b3e6 1-15
+.claude/agents/debug-eshu-deep.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/debug-eshu.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/develop-eshu-deep.md
+  h_78a442cba0b3e6 1-12
+.claude/agents/develop-eshu.md
+  h_78a442cba0b3e6 1-12
+.claude/agents/perf-eshu-deep.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/perf-eshu.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/review-eshu-deep.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/review-eshu.md
+  h_78a442cba0b3e6 1-17
+.claude/agents/scan-eshu.md
+  h_78a442cba0b3e6 1-15
+.codex/agents/arbiter-eshu.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/debug-eshu-deep.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/debug-eshu.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/develop-eshu-deep.toml
+  h_78a442cba0b3e6 1-6
+.codex/agents/develop-eshu.toml
+  h_78a442cba0b3e6 1-6
+.codex/agents/perf-eshu-deep.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/perf-eshu.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/review-eshu-deep.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/review-eshu.toml
+  h_78a442cba0b3e6 1-8
+.codex/agents/scan-eshu.toml
+  h_78a442cba0b3e6 1-8
+.cursor/agents/arbiter-eshu.md
+  h_78a442cba0b3e6 1-14
+.cursor/agents/debug-eshu-deep.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/debug-eshu.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/develop-eshu-deep.md
+  h_78a442cba0b3e6 1-12
+.cursor/agents/develop-eshu.md
+  h_78a442cba0b3e6 1-12
+.cursor/agents/perf-eshu-deep.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/perf-eshu.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/review-eshu-deep.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/review-eshu.md
+  h_78a442cba0b3e6 1-15
+.cursor/agents/scan-eshu.md
+  h_78a442cba0b3e6 1-14
+.opencode/agent/arbiter-eshu.md
+  h_78a442cba0b3e6 1-23
+.opencode/agent/debug-eshu-deep.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/debug-eshu.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/develop-eshu-deep.md
+  h_78a442cba0b3e6 1-18
+.opencode/agent/develop-eshu.md
+  h_78a442cba0b3e6 1-18
+.opencode/agent/perf-eshu-deep.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/perf-eshu.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/review-eshu-deep.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/review-eshu.md
+  h_78a442cba0b3e6 1-24
+.opencode/agent/scan-eshu.md
+  h_78a442cba0b3e6 1-23
+README.md
+  h_78a442cba0b3e6 12,46-52
+agents/agent-roles.py
+  h_78a442cba0b3e6 1-326
+agents/arbiter-eshu.md
+  h_78a442cba0b3e6 1-15
+agents/debug-eshu-deep.md
+  h_78a442cba0b3e6 1-16
+agents/debug-eshu.md
+  h_78a442cba0b3e6 1-16
+agents/develop-eshu-deep.md
+  h_78a442cba0b3e6 1-13
+agents/develop-eshu.md
+  h_78a442cba0b3e6 1-13
+agents/perf-eshu-deep.md
+  h_78a442cba0b3e6 1-16
+agents/perf-eshu.md
+  h_78a442cba0b3e6 1-16
+agents/review-eshu-deep.md
+  h_78a442cba0b3e6 1-16
+agents/review-eshu.md
+  h_78a442cba0b3e6 1-16
+agents/roles.json
+  h_78a442cba0b3e6 1-90
+agents/scan-eshu.md
+  h_78a442cba0b3e6 1-15
+install.sh
+  h_78a442cba0b3e6 2-5,21-46,63-79,81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a96625b17bb6414b3bdcfb9ff37140f33a0113dc",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
