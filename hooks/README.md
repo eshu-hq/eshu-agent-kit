@@ -15,10 +15,15 @@ Moved (generic skill-enforcement trio):
   (`.agent-kit-version` marker).
 - `lib/skill-nudge-lib.sh` — shared `kit_root_path`/`kit_root` gate.
 
-Not yet moved (eshu-coupled or goal machinery): `guard-live-gate.sh`
-(eshu ports), `eshu-doc-staleness.sh` (eshu docs), `goal-continue.sh`,
-`goal-refresh.sh`, `issue-capture.sh`, `lib/goal-*` (goal workflow + its
-test rig). Each follows in its own move.
+Also moved (goal workflow): `goal-continue.sh` (Stop gate), `goal-refresh.sh`
+(prompt restatement + producer), `issue-capture.sh` (PostToolUse ledger),
+`lib/` goal machinery, `tests/` mirror suite (run it after any edit),
+`codex/goal-continue.sh` (Codex Stop adapter delegating to the shared hook).
+Goal files resolve through the kit pin; the `goal-role-router.py` expansion
+stays guarded-off until that script moves.
+
+Not yet moved (eshu-coupled): `guard-live-gate.sh` (eshu ports),
+`eshu-doc-staleness.sh` (eshu docs).
 
 ## Wiring
 

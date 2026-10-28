@@ -50,7 +50,8 @@ install_hooks_repo() {
   mkdir -p "$target/.claude/hooks/lib"
   link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
   link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
-  echo "installed kit hook scripts into $target/.claude/hooks"
+  link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
+  echo "installed kit hook scripts into $target/.claude/hooks (+ Codex adapter)"
   echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
 }
 
