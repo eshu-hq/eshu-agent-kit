@@ -1,0 +1,33 @@
+# eshu-agent-kit
+
+Shared agent toolkit for `eshu-hq` repos. Single source of truth for skills, agents, rules, and hooks.
+
+Each product repo stays thin: it holds a version pin plus a small overlay, and installs this kit globally or per repo.
+
+## Layout
+
+- `skills/core/` — portable skills, no Eshu coupling.
+- `skills/eshu/` — Eshu-coupled adapters (graph, queue, collector contracts).
+- `skills/registry.md` — the rename and migration map. Read this before moving a skill.
+- `agents/` — agent definitions (`arbiter`, `develop`, `review`, `debug`, `perf`, `scan`).
+- `rules/` — harness rules, ported from per-repo `.claude/rules/`.
+- `hooks/` — hook scripts plus per-harness wiring notes.
+- `templates/repo-overlay/` — the thin files a product repo keeps.
+- `install.sh` — links this checkout into `~/.claude/skills`, `~/.codex/skills`, or a target repo.
+
+## Use it
+
+Pin a version in the product repo (`.agent-kit-version`), then install:
+
+```sh
+./install.sh --global
+./install.sh --repo /path/to/repo
+```
+
+## Versioning
+
+Tags (`v0.1.0`, …). Repos upgrade by moving the pin and re-running the installer. Never copy a skill into a product repo; point at the kit.
+
+## Migration status
+
+Source of record today is still the `eshu` monorepo (`.agents/skills/`, `.agents/agents/`, `.claude/rules/`, `.claude/hooks/`, `.codex/hooks/`). `skills/registry.md` tracks what moves, in which order, and under which new name.

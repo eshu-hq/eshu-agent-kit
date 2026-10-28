@@ -1,0 +1,8 @@
+# AGENTS.md overlay example
+
+Copy into the product repo root and fill the brackets. Keep it short; shared rules live in the kit.
+
+- This repo owns [service/boundary]. See [contract doc path].
+- Agent toolkit: pinned at [tag] in `.agent-kit-version`. Install with `[kit-checkout]/install.sh --repo .`.
+- Skills: load from the kit via root skill routing. Repo-specific notes: [one or two lines].
+- Verification: [the repo's test gate, e.g. `make pre-push` equivalent or `go test ./...`].
