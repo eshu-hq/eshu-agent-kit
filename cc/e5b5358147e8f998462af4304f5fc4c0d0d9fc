@@ -1,0 +1,52 @@
+docs/eshu/README.md
+  h_78a442cba0b3e6 16-17
+docs/eshu/design/reducer-target-tree.md
+  h_78a442cba0b3e6 1-443
+docs/eshu/naming.md
+  h_78a442cba0b3e6 1-82
+scripts/layer-lint-known.txt
+  h_78a442cba0b3e6 16-17,20
+skills/eshu/folder-doc-keeper/SKILL.md
+  h_78a442cba0b3e6 1-40
+skills/eshu/folder-doc-keeper/references/templates.md
+  h_78a442cba0b3e6 1-261
+skills/eshu/folder-doc-keeper/references/workflows.md
+  h_78a442cba0b3e6 1-74
+skills/eshu/generator-script-discipline/SKILL.md
+  h_78a442cba0b3e6 1-55
+skills/eshu/generator-script-discipline/references/ci.md
+  h_78a442cba0b3e6 1-77
+skills/eshu/generator-script-discipline/references/shell-portability.md
+  h_78a442cba0b3e6 1-45
+skills/eshu/generator-script-discipline/references/testing.md
+  h_78a442cba0b3e6 1-55
+skills/eshu/golang-engineering/SKILL.md
+  h_78a442cba0b3e6 1-134
+skills/eshu/golang-engineering/references/documentation-guidelines.md
+  h_78a442cba0b3e6 1-95
+skills/eshu/golang-engineering/references/go-best-practices.md
+  h_78a442cba0b3e6 1-185
+skills/eshu/golang-engineering/references/shared-machine.md
+  h_78a442cba0b3e6 1-22
+skills/eshu/golang-engineering/references/tdd-workflow.md
+  h_78a442cba0b3e6 1-105
+skills/eshu/golang-engineering/references/verification-and-linting.md
+  h_78a442cba0b3e6 1-89
+skills/eshu/resolve-review-threads/SKILL.md
+  h_78a442cba0b3e6 1-126
+skills/eshu/resolve-review-threads/references/reviewer-classification.md
+  h_78a442cba0b3e6 1-85
+skills/registry.md
+  h_78a442cba0b3e6 24,26-27,38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cce5b5358147e8f998462af4304f5fc4c0d0d9fc",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
