@@ -19,6 +19,8 @@ cutover; this tree is a byte-identical mirror plus one marked extract.
 | design/contract-system-v1.md | `docs/internal/design/contract-system-v1.md` | 339 | byte-identical; second-order links recorded below |
 | naming.md | `docs/internal/naming.md` | 82 | byte-identical |
 | design/reducer-target-tree.md | `docs/internal/design/reducer-target-tree.md` | 443 | byte-identical; second-order links recorded below |
+| query-engineering.md | `docs/internal/query-engineering.md` | 258 | byte-identical |
+| RELEASING.md | `RELEASING.md` (repo root) | 113 | byte-identical |
 
 Sync rule: if the eshu source changes, copy it over byte-identical (plus the
 two renames in the extract) in a follow-up PR. Do not edit these files for any
