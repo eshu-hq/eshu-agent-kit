@@ -32,7 +32,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
 # and the compaction that invalidated it does not care which repo you are in.
 CLR_SID=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("session_id","")[:12])' 2>/dev/null)
 if [ -n "${CLR_SID:-}" ]; then
-  rm -f "/tmp/claude-skill-loaded-${CLR_SID}-"* 2>/dev/null
+	rm -f "/tmp/claude-skill-loaded-${CLR_SID}-"* 2>/dev/null
 fi
 
 # Only speak inside a kit-pinned checkout. At user level this fires on every
@@ -42,8 +42,8 @@ CWD=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.st
 [ -n "${CWD:-}" ] || CWD="$PWD"
 d="$CWD"
 while [ -n "$d" ] && [ "$d" != "/" ] && [ "$d" != "." ]; do
-  [ -e "$d/.agent-kit-version" ] && break
-  d="$(dirname "$d")"
+	[ -e "$d/.agent-kit-version" ] && break
+	d="$(dirname "$d")"
 done
 [ -e "$d/.agent-kit-version" ] || exit 0
 

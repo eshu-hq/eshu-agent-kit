@@ -71,8 +71,10 @@ fi
 
 # Mixed: two narrated stops then real work, and the budget is whole again.
 : >"${tx}"
-said_something; run "$(tx_payload mixed)" >/dev/null
-said_something; run "$(tx_payload mixed)" >/dev/null
+said_something
+run "$(tx_payload mixed)" >/dev/null
+said_something
+run "$(tx_payload mixed)" >/dev/null
 work_happened
 check "work after two narrated stops restores the budget" block "$(run "$(tx_payload mixed)")"
 said_something
@@ -119,7 +121,10 @@ fi
 # When the budget is what released the stop, say so. It looked like a clean
 # finish on a live run, and nobody could tell the difference afterwards.
 : >"${tx}"
-for _ in 1 2 3; do said_something; run "$(tx_payload audit)" >/dev/null; done
+for _ in 1 2 3; do
+	said_something
+	run "$(tx_payload audit)" >/dev/null
+done
 said_something
 audit_err="$(printf '%s' "$(tx_payload audit)" | CLAUDE_GOAL_FILE="${goal}" \
 	bash "${HOOK}" 2>&1 >/dev/null)"
@@ -322,7 +327,10 @@ fi
 # Mixed: a long working run then three narrated stops must still release, so
 # the reset cannot be read as "the budget no longer applies".
 : >"${tx}"
-for _ in $(seq 1 25); do work_happened; run "$(tx_payload mixedlong)" >/dev/null; done
+for _ in $(seq 1 25); do
+	work_happened
+	run "$(tx_payload mixedlong)" >/dev/null
+done
 mixed=0
 for _ in 1 2 3 4; do
 	said_something
@@ -346,7 +354,10 @@ fi
 # have avoided it -- the agent never writing DONE or BLOCKED is the actual
 # cause of most of these releases.
 : >"${tx}"
-for _ in 1 2 3; do said_something; run "$(tx_payload handoff)" >/dev/null; done
+for _ in 1 2 3; do
+	said_something
+	run "$(tx_payload handoff)" >/dev/null
+done
 said_something
 handoff_err="$(printf '%s' "$(tx_payload handoff)" | CLAUDE_GOAL_FILE="${goal}" \
 	bash "${HOOK}" 2>&1 >/dev/null)"
@@ -364,8 +375,10 @@ fi
 # And the LAST nudge before release must warn, so the agent gets one chance to
 # retire or block the goal itself rather than landing on the owner.
 : >"${tx}"
-said_something; run "$(tx_payload warn)" >/dev/null
-said_something; run "$(tx_payload warn)" >/dev/null
+said_something
+run "$(tx_payload warn)" >/dev/null
+said_something
+run "$(tx_payload warn)" >/dev/null
 said_something
 last_out="$(run "$(tx_payload warn)")"
 if rg -qi 'last continuation' <<<"${last_out}"; then
@@ -466,8 +479,6 @@ if rg -q 'GRANTED for: push' <<<"${lead_out}"; then
 else
 	no "a genuine leading CONSENT line is still the grant"
 fi
-
-
 
 # LAST line on purpose -- see the sibling companions.
 goal_hook_budget_cases_loaded=1

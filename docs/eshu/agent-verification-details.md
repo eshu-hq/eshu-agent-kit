@@ -2,7 +2,7 @@
 
 This page holds the detail that the root [`AGENTS.md`](../../AGENTS.md) keeps
 short under "Verification Defaults". The source of truth for gates stays
-[Local Testing](../public/reference/local-testing.md).
+[Local Testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md).
 
 ## What `make pre-push` runs
 

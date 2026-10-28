@@ -30,8 +30,8 @@ set -euo pipefail
 # above the repo (and silently report "nothing to check"). git follows the
 # symlink's directory into the consuming checkout; the cd fallback keeps the
 # one-level scripts/ layout working without git.
-repo_root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null \
-  || (cd "$(dirname "$0")/.." && pwd))"
+repo_root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null ||
+	(cd "$(dirname "$0")/.." && pwd))"
 rules_dir="${repo_root}/.claude/rules"
 
 fail=0

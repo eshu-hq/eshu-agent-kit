@@ -55,9 +55,9 @@ failures were holding up every merge; whether the check is still needed is an
 open question. It still runs and still publishes. The ruleset allows merge,
 squash, and rebase merges. Strict mode is off, so a branch need not be rebased
 just because `main` moved. Nothing tests two green PRs together, so the
-[pre-push merge step](../public/reference/local-testing/pre-push-merge.md)
+[pre-push merge step](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing/pre-push-merge.md)
 is the local guard against a red `main`.
-A red `main` is reported by the Main Health watcher: one pinned `main is red @<sha>` issue and a `main-health` commit status (see [Main Health Watcher](../public/reference/local-testing/main-health-watcher.md)).
+A red `main` is reported by the Main Health watcher: one pinned `main is red @<sha>` issue and a `main-health` commit status (see [Main Health Watcher](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing/main-health-watcher.md)).
 
 ### When a PR may merge
 
@@ -69,7 +69,7 @@ The `required-gates-complete` status is not itself a merge input: it only
 summarizes the registry's `blocking: true` gates
 (`.github/workflows/required-gates.yml`), and its own red is often the
 false-failure publisher stamp described in
-[babysit-prs](../../.agents/skills/eshu-session-lifecycle/references/babysit-prs.md).
+[babysit-prs](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-session-lifecycle/references/babysit-prs.md).
 Read the gates under it. A gate that completed red (an Ifá/Odù cell, a
 contract, performance, or end-to-end gate) is a finding: fix it, or link an
 issue that the active goal works. A cancelled gate is not red: rerun it. A

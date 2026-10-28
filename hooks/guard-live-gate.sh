@@ -31,13 +31,13 @@ command -v python3 >/dev/null 2>&1 || exit 0
 
 CMD=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input",{}).get("command",""))' 2>/dev/null)
 [ -z "${CMD:-}" ] && exit 0
-case "$CMD" in *CLAUDE_HOOK_ALLOW=1*) exit 0;; esac
+case "$CMD" in *CLAUDE_HOOK_ALLOW=1*) exit 0 ;; esac
 
 # Is this even a command this hook guards? Matched with bash globbing rather
 # than rg, so the hook carries no dependency beyond python3.
 case "$CMD" in
-  *"make pre-pr"*|*"make pre-pr-full"*|*verify-golden-corpus-gate*) ;;
-  *) exit 0;;
+*"make pre-pr"* | *"make pre-pr-full"* | *verify-golden-corpus-gate*) ;;
+*) exit 0 ;;
 esac
 
 # Only guard inside an Eshu checkout. At user level this hook sees every Bash
@@ -48,8 +48,11 @@ CWD=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.st
 d="$CWD"
 in_eshu=1
 while [ -n "$d" ] && [ "$d" != "/" ] && [ "$d" != "." ]; do
-  if [ -e "$d/.agents/skills/eshu-code-review" ] || [ -e "$d/.agents/skills/code-review" ]; then in_eshu=0; break; fi
-  d="$(dirname "$d")"
+	if [ -e "$d/.agents/skills/eshu-code-review" ] || [ -e "$d/.agents/skills/code-review" ]; then
+		in_eshu=0
+		break
+	fi
+	d="$(dirname "$d")"
 done
 [ "$in_eshu" -eq 0 ] || exit 0
 
@@ -76,23 +79,22 @@ BUSY=""
 pgrep -x ci-gates >/dev/null 2>&1 && BUSY="a ci-gates run is already in flight"
 
 if [ -z "$BUSY" ] && command -v lsof >/dev/null 2>&1; then
-  for pair in \
-    "ESHU_POSTGRES_PORT 15432" \
-    "NEO4J_BOLT_PORT 7687" \
-    "NEO4J_HTTP_PORT 7474" \
-    "GATE_API_PORT 18080" \
-    "GATE_MCP_PORT 18091"
-  do
-    var="${pair%% *}"
-    port="${pair##* }"
-    case "$CMD" in
-      *"$var"=*) continue;;
-    esac
-    if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-      BUSY="port $port is already bound ($var not overridden, so a live stack is up)"
-      break
-    fi
-  done
+	for pair in \
+		"ESHU_POSTGRES_PORT 15432" \
+		"NEO4J_BOLT_PORT 7687" \
+		"NEO4J_HTTP_PORT 7474" \
+		"GATE_API_PORT 18080" \
+		"GATE_MCP_PORT 18091"; do
+		var="${pair%% *}"
+		port="${pair##* }"
+		case "$CMD" in
+		*"$var"=*) continue ;;
+		esac
+		if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+			BUSY="port $port is already bound ($var not overridden, so a live stack is up)"
+			break
+		fi
+	done
 fi
 [ -z "$BUSY" ] && exit 0
 

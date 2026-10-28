@@ -11,6 +11,6 @@ paths:
 graph reads.
 
 OpenAPI stays in lockstep with `go/internal/query/openapi*.go`, the handler
-tests, and [HTTP API Reference](../../docs/public/reference/http-api.md). These
+tests, and [HTTP API Reference](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/http-api.md). These
 are a wire contract: a shape change that lands in one and not the others is
 visible to callers before it is visible to the tests.

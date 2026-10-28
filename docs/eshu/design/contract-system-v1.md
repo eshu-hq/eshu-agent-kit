@@ -5,7 +5,7 @@ Status: proposed design, epic tracked on GitHub (`type:epic`,
 Audience: maintainers and implementing agents.
 Companion contributor summary:
 [Contract System Contributor Summary](../contract-system-contributor-summary.md).
-Background analysis: [Architecture Review 2026-07](../architecture-review-2026-07.md).
+Background analysis: [Architecture Review 2026-07](https://github.com/eshu-hq/eshu/blob/main/docs/internal/architecture-review-2026-07.md).
 
 ## 1. Problem
 
@@ -28,7 +28,7 @@ Two consequences:
    possible failure.
 2. **Multi-repo blocker.** Every non-default collector moves to its assigned
    repository (see
-   [Collector Repository Migration Policy](../../public/reference/collector-extraction-policy.md)).
+   [Collector Repository Migration Policy](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/collector-extraction-policy.md)).
    Eshu also accepts third-party collectors through the SDK. An implicit contract
    held together by string literals duplicated across packages (see the
    intentional duplication comments in
@@ -305,7 +305,7 @@ Incremental, family by family, accuracy first:
    dependencies. A family must be typed before its collectors can become
    `ready_for_cutover`; typing does not decide whether they move
    (this remains a row in the
-   [Extraction Criteria](../../public/reference/collector-extraction-policy.md#extraction-criteria)).
+   [Extraction Criteria](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/collector-extraction-policy.md#extraction-criteria)).
 7. **PagerDuty repository cutover** re-runs the existing boundary proof on the
    published contracts: external repository, pinned contract versions,
    conformance and fixture packs in its own CI, and a dual-run parity window.

@@ -67,9 +67,9 @@ added="$(python3 "${GI_PY}" capture "${GI_LEDGER}" ${refs} 2>/dev/null)" || exit
 [ -n "${added}" ] || exit 0
 
 case "${GI_KIND}" in
-	goal) where="this goal's backlog" ;;
-	lead) where="the backlog of the one live goal in this checkout (this session has no goal of its own)" ;;
-	orphan) where="the orphan ledger, because more than one goal is live here and guessing would pin it on the wrong lead; the lead's next prompt claims it" ;;
+goal) where="this goal's backlog" ;;
+lead) where="the backlog of the one live goal in this checkout (this session has no goal of its own)" ;;
+orphan) where="the orphan ledger, because more than one goal is live here and guessing would pin it on the wrong lead; the lead's next prompt claims it" ;;
 esac
 
 msg=""

@@ -96,7 +96,7 @@ build-constraint name across `.github/workflows`, `Makefile`, and `scripts/`.
 
 Use `gofumpt` on changed Go files; it includes `gofmt` formatting. Run focused
 proof, then broader checks when callers or shared contracts are affected. Use
-[local testing](../../../docs/public/reference/local-testing.md) as the gate
+[local testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md) as the gate
 source of truth.
 
 `make pre-push` is the fast local floor before every push (except row 4a, tier S, or an owner push order):

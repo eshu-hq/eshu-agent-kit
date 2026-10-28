@@ -419,7 +419,7 @@ A rebase has nothing to re-derive, and nothing edits the baselines after landing
 - Moving files out of a directory, swapping files, or renaming inside it needs no
   action. A move that grows the destination past `max(40, base count)` needs a
   `Dirgate-Growth:` trailer in the commit message that adds the files. The
-  trailer syntax is in [Dirgate-Growth trailer](../../public/reference/local-testing/dirgate-growth-trailer.md).
+  trailer syntax is in [Dirgate-Growth trailer](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing/dirgate-growth-trailer.md).
 - Two PRs that each add one file to the same directory each carry their own
   `+1` trailer. Each is judged against the base it merges onto, so neither
   rewrites a shared row. If both land without trailers, the second push run goes

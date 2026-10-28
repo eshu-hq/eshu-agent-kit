@@ -72,28 +72,36 @@ NOTE=""
 # table by defining its own nudge_ids_for in .agents/nudge-table.sh (sourced
 # below, so a redefinition wins).
 nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
-case "$1" in
-  *.github/workflows/security-scan.yml)          IDS="eshu-security-scan-gates";;
-  */go/go.mod|*/go/go.sum)                       IDS="eshu-security-scan-gates golang-engineering"
-                                                 NOTE="a toolchain or dependency bump moves govulncheck and nancy";;
-  */internal/telemetry/*|*/scripts/verify-telemetry-coverage.sh|*eshu-operator-overview.json|*/observability/*) IDS="telemetry-coverage-discipline";;
-  */internal/queue/*)                            IDS="concurrency-deadlock-rigor eshu-postgres-rigor";;
-  */docs/internal/remote-validation/*|*/docs/internal/evidence/*|*/scripts/run-remote-e2e-*|*_bench_test.go) IDS="eshu-performance-rigor";;
-  */storage/cypher/*|*cypher*|*/storage/neo4j/*) IDS="cypher-query-rigor";;
-  */internal/reducer/*|*/internal/projector/*)   IDS="eshu-correlation-truth eshu-diagnostic-rigor";;
-  */storage/postgres/*|*.sql)                    IDS="eshu-postgres-rigor";;
-  */factschema/*|*fact-kind-registry*|*fixturepack*) IDS="eshu-contract-rigor";;
-  */testdata/cassettes/*|*/testdata/golden/*|*golden-corpus*) IDS="eshu-golden-corpus-rigor";;
-  */internal/mcp/*|*/internal/query/*)           IDS="eshu-mcp-call-rigor"
-                                                 NOTE="for tool contracts";;
-  *.github/workflows/*|*/scripts/verify-*)       IDS="generator-script-discipline";;
-  */cmd/dirgate/*|*/verify-dirgate.sh)           IDS="golang-engineering"
-                                                 NOTE="dirgate: no ledger; growth past max(40, base count) needs a Dirgate-Growth trailer in the commit message";;
-  */cmd/eshu/*|*/internal/cli/*)                 IDS="golang-engineering eshu-folder-doc-keeper"
-                                                 NOTE="cobra wrapper vs package split; doc.go/README/AGENTS lockstep";;
-  */doc.go|*/AGENTS.md|*/README.md)              IDS="eshu-folder-doc-keeper";;
-  *.go)                                          IDS="golang-engineering";;
-esac
+	case "$1" in
+	*.github/workflows/security-scan.yml) IDS="eshu-security-scan-gates" ;;
+	*/go/go.mod | */go/go.sum)
+		IDS="eshu-security-scan-gates golang-engineering"
+		NOTE="a toolchain or dependency bump moves govulncheck and nancy"
+		;;
+	*/internal/telemetry/* | */scripts/verify-telemetry-coverage.sh | *eshu-operator-overview.json | */observability/*) IDS="telemetry-coverage-discipline" ;;
+	*/internal/queue/*) IDS="concurrency-deadlock-rigor eshu-postgres-rigor" ;;
+	*/docs/internal/remote-validation/* | */docs/internal/evidence/* | */scripts/run-remote-e2e-* | *_bench_test.go) IDS="eshu-performance-rigor" ;;
+	*/storage/cypher/* | *cypher* | */storage/neo4j/*) IDS="cypher-query-rigor" ;;
+	*/internal/reducer/* | */internal/projector/*) IDS="eshu-correlation-truth eshu-diagnostic-rigor" ;;
+	*/storage/postgres/* | *.sql) IDS="eshu-postgres-rigor" ;;
+	*/factschema/* | *fact-kind-registry* | *fixturepack*) IDS="eshu-contract-rigor" ;;
+	*/testdata/cassettes/* | */testdata/golden/* | *golden-corpus*) IDS="eshu-golden-corpus-rigor" ;;
+	*/internal/mcp/* | */internal/query/*)
+		IDS="eshu-mcp-call-rigor"
+		NOTE="for tool contracts"
+		;;
+	*.github/workflows/* | */scripts/verify-*) IDS="generator-script-discipline" ;;
+	*/cmd/dirgate/* | */verify-dirgate.sh)
+		IDS="golang-engineering"
+		NOTE="dirgate: no ledger; growth past max(40, base count) needs a Dirgate-Growth trailer in the commit message"
+		;;
+	*/cmd/eshu/* | */internal/cli/*)
+		IDS="golang-engineering eshu-folder-doc-keeper"
+		NOTE="cobra wrapper vs package split; doc.go/README/AGENTS lockstep"
+		;;
+	*/doc.go | */AGENTS.md | */README.md) IDS="eshu-folder-doc-keeper" ;;
+	*.go) IDS="golang-engineering" ;;
+	esac
 }
 [ -f "$ROOT/.agents/nudge-table.sh" ] && . "$ROOT/.agents/nudge-table.sh"
 REL="${FP#"$ROOT"/}"
@@ -103,8 +111,8 @@ nudge_ids_for "/$REL"
 # Which required skills are not loaded in THIS context window?
 MISSING=""
 for id in $IDS; do
-  [ -f "/tmp/claude-skill-loaded-${SID}-${id}" ] && continue
-  MISSING="${MISSING}${MISSING:+ }${id}"
+	[ -f "/tmp/claude-skill-loaded-${SID}-${id}" ] && continue
+	MISSING="${MISSING}${MISSING:+ }${id}"
 done
 [ -z "$MISSING" ] && exit 0
 

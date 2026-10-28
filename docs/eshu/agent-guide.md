@@ -372,7 +372,7 @@ change on top. Never `--no-verify` past a format hook.
 
 Cite a `docs/internal/measurements.jsonl` row id (`ledger:<id>`) instead of
 restating a number; `scripts/verify-measurement-citations.sh` enforces it.
-See [Measurement Ledger](measurement-ledger.md) for schema and gate details.
+See [Measurement Ledger](https://github.com/eshu-hq/eshu/blob/main/docs/internal/measurement-ledger.md) for schema and gate details.
 
 ## API, MCP, And Query Reads
 
