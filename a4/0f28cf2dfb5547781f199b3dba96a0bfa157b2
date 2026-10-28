@@ -1,0 +1,42 @@
+docs/eshu/README.md
+  h_78a442cba0b3e6 16-18
+docs/eshu/contract-system-contributor-summary.md
+  h_78a442cba0b3e6 1-113
+docs/eshu/design/contract-system-v1.md
+  h_78a442cba0b3e6 1-339
+docs/eshu/telemetry-discipline-precedent.md
+  h_78a442cba0b3e6 1-261
+scripts/layer-lint-known.txt
+  h_78a442cba0b3e6 16-18,21-26
+skills/eshu/concurrency-deadlock-rigor/SKILL.md
+  h_78a442cba0b3e6 1-109
+skills/eshu/contract-rigor/SKILL.md
+  h_78a442cba0b3e6 1-163
+skills/eshu/diagnostic-rigor/SKILL.md
+  h_78a442cba0b3e6 1-71
+skills/eshu/diagnostic-rigor/references/api-mcp-validation.md
+  h_78a442cba0b3e6 1-31
+skills/eshu/diagnostic-rigor/references/gate-contention.md
+  h_78a442cba0b3e6 1-26
+skills/eshu/diagnostic-rigor/references/runtime-attribution.md
+  h_78a442cba0b3e6 1-44
+skills/eshu/executor-preflight/SKILL.md
+  h_78a442cba0b3e6 1-93
+skills/eshu/telemetry-coverage-discipline/SKILL.md
+  h_78a442cba0b3e6 1-63
+skills/eshu/telemetry-coverage-discipline/references/new-metric.md
+  h_78a442cba0b3e6 1-40
+skills/registry.md
+  h_78a442cba0b3e6 25,28-30,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a40f28cf2dfb5547781f199b3dba96a0bfa157b2",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
