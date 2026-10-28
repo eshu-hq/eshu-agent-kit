@@ -26,7 +26,7 @@ before every push (except row 4a, tier S, or an owner push order; see Rebase Wai
 changes (queue/lease/claim code, schema DDL, hot-path Cypher or graph writes,
 reducer materialization, package moves), and `review-attest verify` must match
 the reviewed inputs before push. A rebase or amend invalidates prior review
-receipts. Once pushed, CI decides the merge ([When a PR may merge](../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge)).
+receipts. Once pushed, CI decides the merge ([When a PR may merge](../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge)).
 See [local testing](../../../docs/public/reference/local-testing.md).
 
 ## Routing

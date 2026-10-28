@@ -89,7 +89,7 @@ liveness misjudgement.
    the live-gate lock and running gate process; absence of a `make pre-pr`
    process alone does not prove the machine is free. A wall-time proof owns the
    host: pause every other gate until its results are closed ([Timing Proof
-   Rules](../../../docs/internal/timing-proof-rules.md)). Never kill another
+   Rules](../../../docs/eshu/timing-proof-rules.md)). Never kill another
    session's gate.
 5. Verify the receipt with `ci-gates review-attest verify` after preflight.
    Matching inputs reuse the preliminary semantic review. A changed base,
@@ -105,7 +105,7 @@ liveness misjudgement.
    On preflight failure, diagnose and fix it, rerun affected proof, and obtain
    a clean preliminary review before another attempt. Deferred P2 and cosmetic
    P3 findings do not restart this loop. Once pushed, CI decides the merge
-   ([When a PR may merge](../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge));
+   ([When a PR may merge](../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge));
    on a red gate, reproduce only that gate locally.
 6. With authorization already established for the act, push the reviewed head
    and verify the remote SHA equals local HEAD before PR creation/update.
@@ -153,7 +153,7 @@ turn that creates it and before work on it starts:
 
 1. Be in the goal's issue ledger. The issue-capture hook records every issue
    it sees created into `<goal file>.issues`
-   ([Issue Capture Hooks](../../../docs/internal/agent-hooks-issues.md)); add
+   ([Issue Capture Hooks](../../../docs/eshu/agent-hooks-issues.md)); add
    one by hand only if the hook missed it. Also add it to the GitHub
    Project/milestone when the goal names one and access allows — never invent
    a project number. A created issue outside the ledger is an orphan and a

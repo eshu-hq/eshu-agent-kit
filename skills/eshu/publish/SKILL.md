@@ -8,7 +8,7 @@ description: Write or rewrite Eshu issues, PRs, commits, review comments, decisi
 Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` names, and eshu repo tooling (`scripts/dev/`, `make`, `ci-gates`, `specs/`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with this skill under `scripts/`.
 
 Start with what matters, then give the context and evidence a teammate needs.
-Use the repository [communication standard](../../../docs/internal/writing-for-agents.md)
+Use the repository [communication standard](../../../docs/eshu/writing-for-agents.md)
 for original writing and rewrites. It applies by default, including progress
 updates, without a personal humanizer or global skill. Pick the artifact, then
 read its reference. Keep editing passes internal unless the user requests them.
@@ -30,7 +30,7 @@ comment.
 ## Wording
 
 The shared voice and instruction rules live in
-[Writing For Agents](../../../docs/internal/writing-for-agents.md). The
+[Writing For Agents](../../../docs/eshu/writing-for-agents.md). The
 [wording reference](references/wording.md) gives examples for conversations,
 commits, PRs, and review comments. Preserve technical terms, explain unfamiliar
 ones in context, and retain reasoning, tradeoffs, and useful uncertainty.

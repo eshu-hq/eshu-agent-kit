@@ -1,6 +1,6 @@
 # Wording
 
-Follow Eshu's [communication standard](../../../../docs/internal/writing-for-agents.md)
+Follow Eshu's [communication standard](../../../../docs/eshu/writing-for-agents.md)
 for original writing and rewriting. This reference adds examples and preserves
 the distinction between clear prose and proof. It requires no global skill,
 personal configuration, external word dictionary, or writing linter.

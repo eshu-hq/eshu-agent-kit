@@ -36,7 +36,7 @@ Contents: [Steps](#steps), [Reply](#reply),
    architecture question is a research task, and settled intent admitting two
    defensible implementations means dispatch an adjudicator rather than park the
    work — see
-   [Delegate An Undecided Design](../../../../docs/internal/agent-guide.md#delegate-an-undecided-design-do-not-escalate-it).
+   [Delegate An Undecided Design](../../../../docs/eshu/agent-guide.md#delegate-an-undecided-design-do-not-escalate-it).
    Hand it the symptom and raw observations, labelled as a guess, never your
    hypothesis as fact.
 
