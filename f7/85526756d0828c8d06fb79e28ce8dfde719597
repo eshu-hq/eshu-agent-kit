@@ -1,0 +1,44 @@
+install.sh
+  h_78a442cba0b3e6 2,7,60-68,116-129,131
+rules/README.md
+  h_78a442cba0b3e6 3-6,8-11,13-26
+rules/cypher-graph.md
+  h_78a442cba0b3e6 1-17
+rules/docs.md
+  h_78a442cba0b3e6 1-21
+rules/generators.md
+  h_78a442cba0b3e6 1-16
+rules/go-packages.md
+  h_78a442cba0b3e6 1-29
+rules/golden-corpus.md
+  h_78a442cba0b3e6 1-22
+rules/mcp-api.md
+  h_78a442cba0b3e6 1-16
+rules/package-docs.md
+  h_78a442cba0b3e6 1-19
+rules/postgres.md
+  h_78a442cba0b3e6 1-14
+rules/queue-concurrency.md
+  h_78a442cba0b3e6 1-20
+rules/release.md
+  h_78a442cba0b3e6 1-10
+rules/security-gates.md
+  h_78a442cba0b3e6 1-9
+rules/telemetry.md
+  h_78a442cba0b3e6 1-20
+scripts/claude-rules-lint.sh
+  h_78a442cba0b3e6 1-173
+scripts/tests/test-claude-rules-lint.sh
+  h_78a442cba0b3e6 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f785526756d0828c8d06fb79e28ce8dfde719597",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
