@@ -34,12 +34,12 @@ Keep outward-facing comments and review requests within user authorization.
   Only the orchestrator runs `make pre-push` before every push (except row 4a, tier S, or an owner push order) and, for a
   risky change only, the late `make pre-pr`/`make pre-pr-full`; dispatched
   executors run focused proof only (see
-  [Orchestration, PR, And CI Discipline](../../../../AGENTS.md)).
+  [Orchestration, PR, And CI Discipline](../../../../docs/eshu/orchestration-pr-ci-discipline.md)).
 - **Cancelled is not failed, but a cancelled BLOCKING gate is not self-healing.**
   A cancelled job does not re-run itself — only a new push or an explicit rerun
   restarts one, and nothing else re-triggers it. Re-run a cancelled blocking
   gate explicitly (`gh run rerun <run-id>`) and read its result: a gate left
-  unrun is not a pass ([When a PR may merge](../../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge)). An aggregate failure whose only cause is cancelled
+  unrun is not a pass ([When a PR may merge](../../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge)). An aggregate failure whose only cause is cancelled
   children says nothing about the diff: read the failing job's steps before
   concluding, since a hung setup step — a package install stalling until the
   runner kills it — presents identically to a real failure.
@@ -114,7 +114,7 @@ Keep outward-facing comments and review requests within user authorization.
 
   Prefer a **different model lineage than the author's wherever the harness
   offers one** — a different lineage catches what a single family rationalizes
-  away ([Agent Orchestration Model](../../../../docs/internal/agent-orchestration.md)
+  away ([Agent Orchestration Model](../../../../docs/eshu/agent-orchestration.md)
   reaches for a cross-family model as an independent verifier for that reason).
   This is a preference, not a MUST, because some harnesses expose only one
   lineage: Claude Code's Agent tool offers Anthropic models only, so a

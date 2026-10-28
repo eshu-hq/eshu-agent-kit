@@ -112,7 +112,7 @@ Triggers: a PR you created is open; review bots are running; CI is in flight;
    the exception (see `resolve-review-threads`).
 
 7. **Merge only on the real bar.** The CI half is the
-   [merge rule](../../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge):
+   [merge rule](../../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge):
    `go-core-complete` and `go-race-complete` green on the pushed head and no
    gate on it completed red without a disposition. The other half: every thread
    from every reviewer addressed and resolved by you. A pending check the
@@ -124,7 +124,7 @@ Triggers: a PR you created is open; review bots are running; CI is in flight;
 
 `required-gates-complete` is not required by the ruleset, so its red, its
 absence, or a long wait on it does not decide a merge (see the
-[merge rule](../../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge)).
+[merge rule](../../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge)).
 Its red is often the `cancel-in-progress` and `if: always()` publisher stamping
 a false failure in `required-gates.yml`. Do not wait on it and do not chase it:
 read the gates under it, and treat a gate that completed red as a finding.

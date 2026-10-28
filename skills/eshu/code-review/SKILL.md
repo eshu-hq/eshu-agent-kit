@@ -62,7 +62,7 @@ external-review replacement has additional independence requirements in
 This skill runs at **Workhorse tier** through `review-eshu`, and at **Deep
 tier** through `review-eshu-deep` for the final review of a difficult diff
 (concurrency, locking, queues, schema, or hot-path Cypher and SQL); see
-[default model bindings by tier](../../../docs/internal/agent-orchestration.md#default-model-bindings-by-tier).
+[default model bindings by tier](../../../docs/eshu/agent-orchestration.md#default-model-bindings-by-tier).
 An orchestrator dispatches it to a reviewer role rather than reviewing inline.
 Every harness has both roles and each role carries its model binding, so this
 skill never names a model and a subagent never changes its own.
@@ -94,7 +94,7 @@ receipt. A rebase is the exception: the table in
 Do not edit between verified attestation and push. A review receipt
 reuses semantic review; it does not waive independent review, current GitHub
 state, CI, or authorization. Once pushed, CI decides the merge
-([When a PR may merge](../../../docs/internal/agent-git-hygiene.md#when-a-pr-may-merge)):
+([When a PR may merge](../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge)):
 nothing merges past a red gate without a disposition, and reproduce only the
 failing gate locally rather than re-running everything. After a rebase, a gate can be
 red on the new base itself. Reproduce it on the bare base before you attribute

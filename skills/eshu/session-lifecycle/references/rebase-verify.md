@@ -74,7 +74,7 @@ that another live agent holds is not yours; see
    same script, because a new shell does not keep it. Do not use `set -e` in it:
    a red gate on the base must not skip the branch run. If the gate runs `golangci-lint`,
    build the custom plugins in `$BASE_TREE` first; see
-   [the custom lint plugins](../../../../docs/internal/agent-verification-details.md#the-custom-lint-plugins).
+   [the custom lint plugins](../../../../docs/eshu/agent-verification-details.md#the-custom-lint-plugins).
 
    Do not run a gate twice when the registry marks it `ci-heavy` or CI-only, or
    when it needs Docker or fixed host ports. Take `ci.workflow` from the gate's

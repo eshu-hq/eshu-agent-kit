@@ -75,7 +75,7 @@ Contents: [Steps](#steps), [Resume note: required slots](#resume-note-required-s
 ## Resume note: required slots
 
 Mirror the handoff contract in
-[Agent Orchestration Model](../../../../docs/internal/agent-orchestration.md), since
+[Agent Orchestration Model](../../../../docs/eshu/agent-orchestration.md), since
 a resume note is a handoff to your future self. Every slot is required; write
 "none" rather than dropping one.
 
