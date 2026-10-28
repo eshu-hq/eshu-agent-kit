@@ -4,7 +4,7 @@
 
 A `/goal` prompt for a long drive is five slots, nothing else:
 
-- **endpoint** — the issue plus "closed per eshu-issue-driver Completion
+- **endpoint** — the issue plus "closed per issue-driver Completion
   Evidence".
 - **lane** — what this drive owns, or "per the claim comments on #N".
 - **decision pointers** — comment ids or a design doc.
@@ -26,7 +26,7 @@ changes.
 objective and the grant together, in a single chat turn:
 
 ```
-/goal consent push, pr-open -- endpoint: issues <list> closed per eshu-issue-driver Completion Evidence.
+/goal consent push, pr-open -- endpoint: issues <list> closed per issue-driver Completion Evidence.
 lane: <what this drive owns, or "per the claim comments on #N">.
 decision pointers: <comment ids or a design doc>.
 machine constraints: <e.g. worktree X only, checked before verify-golden-corpus-gate>.
@@ -46,7 +46,7 @@ first prompt instead:
 CLAUDE_GOAL_CONSENT="push, pr-open" <launch command>
 ```
 ```
-/goal endpoint: issues <list> closed per eshu-issue-driver Completion Evidence.
+/goal endpoint: issues <list> closed per issue-driver Completion Evidence.
 lane: <what this drive owns, or "per the claim comments on #N">.
 decision pointers: <comment ids or a design doc>.
 machine constraints: <e.g. worktree X only, checked before verify-golden-corpus-gate>.
@@ -71,7 +71,7 @@ proof against both hooks.
 has no `goal-continue.sh` Stop hook to enforce it:
 
 ```
-endpoint: issues <list> closed per eshu-issue-driver Completion Evidence.
+endpoint: issues <list> closed per issue-driver Completion Evidence.
 lane: <what this drive owns, or "per the claim comments on #N">.
 decision pointers: <comment ids or a design doc>.
 machine constraints: <...>.
