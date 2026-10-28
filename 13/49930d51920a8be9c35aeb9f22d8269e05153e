@@ -1,0 +1,22 @@
+README.md
+  h_78a442cba0b3e6 1-2,5-11,13,15,17,19-24,26,44-45,48,50,52-58,60-69,71,73,75,77,79-82
+docs/eshu/README.md
+  h_78a442cba0b3e6 3-6,28-29,35-38
+hooks/README.md
+  h_78a442cba0b3e6 3,5,7-22,24,26,28,30,38-40,46-56,64-66,73
+rules/README.md
+  h_78a442cba0b3e6 3-34
+templates/repo-overlay/README.md
+  h_78a442cba0b3e6 3,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1349930d51920a8be9c35aeb9f22d8269e05153e",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
