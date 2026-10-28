@@ -4,7 +4,7 @@
 
 **One kit for every agent that works your repos. Skills, subagents, hooks, and rules — pinned, versioned, never copy-pasted.**
 
-<a href="https://github.com/eshu-hq/eshu-agent-kit/stargazers"><img src="https://img.shields.io/github/stars/eshu-hq/eshu-agent-kit?style=flat-square" alt="GitHub stars"></a>
+<a href="https://github.com/eshu-hq/eshu-agent-kit"><img src="https://img.shields.io/github/stars/eshu-hq/eshu-agent-kit?style=flat-square" alt="GitHub stars"></a>
 
 **[Install](#install) · [What you get](#what-you-get) · [Two harnesses](#two-harnesses-one-kit) · [Pin a version](#pin-a-version) · [Repo overlay](#repo-overlay)**
 
