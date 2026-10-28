@@ -1,0 +1,14 @@
+skills/eshu/issue-driver/references/sustained-drives.md
+  h_78a442cba0b3e6 7,29,49,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a6fcf05cc00b8b66c20c184e20f882f578abf5e",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
