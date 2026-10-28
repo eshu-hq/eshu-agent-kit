@@ -1,0 +1,24 @@
+hooks/README.md
+  h_78a442cba0b3e6 3-4,6,8-52
+hooks/lib/skill-nudge-lib.sh
+  h_78a442cba0b3e6 1-61
+hooks/on-compact.sh
+  h_78a442cba0b3e6 1-63
+hooks/skill-loaded.sh
+  h_78a442cba0b3e6 1-48
+hooks/skill-nudge.sh
+  h_78a442cba0b3e6 1-125
+install.sh
+  h_78a442cba0b3e6 2,6,48-56,90-103,105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e99b323c16614d25feac549990979f42af8374e",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
