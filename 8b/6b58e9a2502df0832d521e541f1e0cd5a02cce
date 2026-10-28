@@ -1,0 +1,22 @@
+skills/eshu/code-review/SKILL.md
+  h_78a442cba0b3e6 8,60,102
+skills/eshu/code-review/references/merge-bar.md
+  h_78a442cba0b3e6 77
+skills/eshu/code-review/references/verdict.md
+  h_78a442cba0b3e6 86
+skills/eshu/issue-driver/SKILL.md
+  h_78a442cba0b3e6 8,69,81,98,116,119,179
+skills/eshu/issue-driver/references/monitoring.md
+  h_78a442cba0b3e6 13-14,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b6b58e9a2502df0832d521e541f1e0cd5a02cce",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
