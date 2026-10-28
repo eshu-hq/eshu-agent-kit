@@ -12,7 +12,6 @@ docs/eshu/agent-hooks.md:agent-hooks-installing.md
 docs/eshu/agent-hooks.md:agent-hooks-muse.md
 docs/eshu/agent-orchestration.md:../../.agents/agents/review-eshu.md
 docs/eshu/agent-orchestration.md:../../.agents/skills/eshu-session-lifecycle/SKILL.md
-docs/eshu/agent-orchestration.md:agent-hooks.md
 docs/eshu/agent-orchestration.md:performance-map.md
 docs/eshu/agent-verification-details.md:../public/reference/local-testing.md
 docs/eshu/timing-proof-rules.md:evidence/7127-ledger-retention-lock-hold.md
