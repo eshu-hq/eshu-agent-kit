@@ -9,7 +9,7 @@ Each product repo stays thin: it holds a version pin plus a small overlay, and i
 - `skills/core/` — portable skills, no Eshu coupling.
 - `skills/eshu/` — Eshu-coupled adapters (graph, queue, collector contracts).
 - `skills/registry.md` — the rename and migration map. Read this before moving a skill.
-- `agents/` — agent definitions (`arbiter`, `develop`, `review`, `debug`, `perf`, `scan`).
+- `agents/` — `roles.json` + `agent-roles.py` generator and rendered per-harness mirrors (`arbiter`, `develop`, `review`, `debug`, `perf`, `scan`).
 - `rules/` — harness rules, ported from per-repo `.claude/rules/`.
 - `hooks/` — hook scripts plus per-harness wiring notes.
 - `templates/repo-overlay/` — the thin files a product repo keeps.
@@ -42,6 +42,13 @@ Codex (no marketplace — open-standard skills, symlinked):
 ```
 
 Subagents ship through `install.sh` on every harness until plugin hosts support them; skills and (once migrated) hooks ride the plugin on Claude Code.
+
+```sh
+./install.sh --agents --global
+./install.sh --agents --repo /path/to/repo
+```
+
+Agent source of truth is `agents/roles.json`; `agents/agent-roles.py generate` renders the per-harness mirrors (`agents/`, `.claude/agents/`, `.codex/agents/`, `.opencode/agent/`, `.cursor/agents/`) and `check` fails on drift. Role names keep their `*-eshu` suffix until consumer cutover.
 
 ## Versioning
 
