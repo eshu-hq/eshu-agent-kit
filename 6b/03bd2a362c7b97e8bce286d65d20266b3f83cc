@@ -1,0 +1,36 @@
+skills/eshu/code-review/SKILL.md
+  h_78a442cba0b3e6 1-294
+skills/eshu/code-review/references/cold-review-probes.md
+  h_78a442cba0b3e6 1-107
+skills/eshu/code-review/references/conflict-recipes.md
+  h_78a442cba0b3e6 1-127
+skills/eshu/code-review/references/failure-classes.md
+  h_78a442cba0b3e6 1-23
+skills/eshu/code-review/references/github-truth.md
+  h_78a442cba0b3e6 1-39
+skills/eshu/code-review/references/merge-bar.md
+  h_78a442cba0b3e6 1-252
+skills/eshu/code-review/references/proof-tiers.md
+  h_78a442cba0b3e6 1-52
+skills/eshu/code-review/references/review-packet.md
+  h_78a442cba0b3e6 1-66
+skills/eshu/code-review/references/review-passes.md
+  h_78a442cba0b3e6 1-105
+skills/eshu/code-review/references/runtime-surfaces.md
+  h_78a442cba0b3e6 1-99
+skills/eshu/code-review/references/verdict.md
+  h_78a442cba0b3e6 1-188
+skills/registry.md
+  h_78a442cba0b3e6 10,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b03bd2a362c7b97e8bce286d65d20266b3f83cc",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
