@@ -1,0 +1,32 @@
+AGENTS.md
+  h_78a442cba0b3e6 1-10
+README.md
+  h_78a442cba0b3e6 1-33
+VERSION
+  h_78a442cba0b3e6 1
+agents/README.md
+  h_78a442cba0b3e6 1-7
+hooks/README.md
+  h_78a442cba0b3e6 1-7
+install.sh
+  h_78a442cba0b3e6 1-39
+rules/README.md
+  h_78a442cba0b3e6 1-7
+skills/registry.md
+  h_78a442cba0b3e6 1-31
+templates/repo-overlay/AGENTS.md.overlay.example
+  h_78a442cba0b3e6 1-8
+templates/repo-overlay/README.md
+  h_78a442cba0b3e6 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f53fa4c59b76c79e75f1117476e300cb7119235",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
