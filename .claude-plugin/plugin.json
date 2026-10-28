@@ -2,7 +2,7 @@
   "name": "eshu-agent-kit",
   "displayName": "Eshu Agent Kit",
   "version": "0.1.0",
-  "description": "Review, publishing, session-lifecycle, and issue-driving skills plus shared process docs for eshu-hq repos.",
+  "description": "Eshu agent kit: 21 review, rigor, and workflow skills, 10 subagent roles, hook enforcement, and path-scoped rules for eshu-hq repos.",
   "author": {
     "name": "eshu-hq",
     "url": "https://github.com/eshu-hq/eshu-agent-kit"
