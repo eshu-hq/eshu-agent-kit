@@ -1,0 +1,50 @@
+docs/eshu/README.md
+  h_78a442cba0b3e6 1-30
+docs/eshu/agent-git-hygiene.md
+  h_78a442cba0b3e6 1-173
+docs/eshu/agent-guide.md
+  h_78a442cba0b3e6 1-500
+docs/eshu/agent-hooks-issues.md
+  h_78a442cba0b3e6 1-249
+docs/eshu/agent-orchestration.md
+  h_78a442cba0b3e6 1-500
+docs/eshu/agent-verification-details.md
+  h_78a442cba0b3e6 1-126
+docs/eshu/orchestration-pr-ci-discipline.md
+  h_78a442cba0b3e6 1-33
+docs/eshu/timing-proof-rules.md
+  h_78a442cba0b3e6 1-106
+docs/eshu/writing-for-agents.md
+  h_78a442cba0b3e6 1-123
+skills/eshu/code-review/SKILL.md
+  h_78a442cba0b3e6 65,97
+skills/eshu/issue-driver/SKILL.md
+  h_78a442cba0b3e6 92,108,156
+skills/eshu/issue-driver/references/monitoring.md
+  h_78a442cba0b3e6 37,42,117
+skills/eshu/publish/SKILL.md
+  h_78a442cba0b3e6 11,33
+skills/eshu/publish/references/wording.md
+  h_78a442cba0b3e6 3
+skills/eshu/session-lifecycle/SKILL.md
+  h_78a442cba0b3e6 29
+skills/eshu/session-lifecycle/references/autonomous-run.md
+  h_78a442cba0b3e6 39
+skills/eshu/session-lifecycle/references/babysit-prs.md
+  h_78a442cba0b3e6 115,127
+skills/eshu/session-lifecycle/references/pause-safely.md
+  h_78a442cba0b3e6 78
+skills/eshu/session-lifecycle/references/rebase-verify.md
+  h_78a442cba0b3e6 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "768a32513909022c11e3a63aab11e47ed7efa7eb",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
