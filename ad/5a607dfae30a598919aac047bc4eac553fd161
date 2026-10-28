@@ -1,0 +1,52 @@
+docs/eshu/README.md
+  h_78a442cba0b3e6 22-23
+docs/eshu/RELEASING.md
+  h_78a442cba0b3e6 1-113
+docs/eshu/query-engineering.md
+  h_78a442cba0b3e6 1-258
+skills/eshu/correlation-truth/SKILL.md
+  h_78a442cba0b3e6 1-153
+skills/eshu/cypher-query-rigor/SKILL.md
+  h_78a442cba0b3e6 1-130
+skills/eshu/cypher-query-rigor/agents/openai.yaml
+  h_78a442cba0b3e6 1-4
+skills/eshu/cypher-query-rigor/references/backend-notes.md
+  h_78a442cba0b3e6 1-91
+skills/eshu/cypher-query-rigor/references/patterns.md
+  h_78a442cba0b3e6 1-75
+skills/eshu/golden-corpus-rigor/SKILL.md
+  h_78a442cba0b3e6 1-134
+skills/eshu/mcp-call-rigor/SKILL.md
+  h_78a442cba0b3e6 1-123
+skills/eshu/performance-rigor/SKILL.md
+  h_78a442cba0b3e6 1-108
+skills/eshu/performance-rigor/references/evidence.md
+  h_78a442cba0b3e6 1-89
+skills/eshu/performance-rigor/references/proof-plan.md
+  h_78a442cba0b3e6 1-73
+skills/eshu/performance-rigor/references/run-manifest.md
+  h_78a442cba0b3e6 1-255
+skills/eshu/performance-rigor/references/scaled-runs.md
+  h_78a442cba0b3e6 1-198
+skills/eshu/performance-rigor/references/target-triage.md
+  h_78a442cba0b3e6 1-70
+skills/eshu/postgres-rigor/SKILL.md
+  h_78a442cba0b3e6 1-115
+skills/eshu/release/SKILL.md
+  h_78a442cba0b3e6 1-195
+skills/eshu/security-scan-gates/SKILL.md
+  h_78a442cba0b3e6 1-133
+skills/registry.md
+  h_78a442cba0b3e6 22,31-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad5a607dfae30a598919aac047bc4eac553fd161",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
