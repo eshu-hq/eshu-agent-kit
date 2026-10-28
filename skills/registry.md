@@ -22,12 +22,12 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-release | release | core | queued |
 | eshu-session-lifecycle | session-lifecycle | eshu | moved |
 | resolve-review-threads | resolve-review-threads | core | queued |
-| eshu-executor-preflight | executor-preflight | core | queued |
+| eshu-executor-preflight | executor-preflight | eshu | moved |
 | generator-script-discipline | generator-script-discipline | core | queued |
 | golang-engineering | golang-engineering | core | queued |
-| concurrency-deadlock-rigor | concurrency-deadlock-rigor | core | queued |
-| eshu-diagnostic-rigor | diagnostic-rigor | core | queued |
-| eshu-contract-rigor | contract-rigor | core | queued |
+| concurrency-deadlock-rigor | concurrency-deadlock-rigor | eshu | moved |
+| eshu-diagnostic-rigor | diagnostic-rigor | eshu | moved |
+| eshu-contract-rigor | contract-rigor | eshu | moved |
 | eshu-performance-rigor | performance-rigor | core | queued |
 | eshu-postgres-rigor | postgres-rigor | eshu | queued |
 | cypher-query-rigor | cypher-query-rigor | eshu | queued |
@@ -36,6 +36,6 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-mcp-call-rigor | mcp-call-rigor | eshu | queued |
 | eshu-security-scan-gates | security-scan-gates | eshu | queued |
 | eshu-folder-doc-keeper | folder-doc-keeper | core | queued |
-| telemetry-coverage-discipline | telemetry-coverage-discipline | core | queued |
+| telemetry-coverage-discipline | telemetry-coverage-discipline | eshu | moved |
 
 Rename rule: name reflects intended consumer vocabulary (drop the `eshu-` prefix when the skill is meant to be called generically). Directory reflects the layer rule above — a portably-named skill still lives in `skills/eshu/` until it passes T1–T3.

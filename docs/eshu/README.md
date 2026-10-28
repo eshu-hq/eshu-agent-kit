@@ -14,6 +14,9 @@ cutover; this tree is a byte-identical mirror plus one marked extract.
 | agent-guide.md | `docs/internal/agent-guide.md` | 500 | byte-identical, at the file cap |
 | agent-hooks.md | `docs/internal/agent-hooks.md` | 499 | byte-identical, near the file cap |
 | orchestration-pr-ci-discipline.md | `AGENTS.md` § Orchestration, PR, And CI Discipline | 33 | extract, skill names updated to kit renames |
+| telemetry-discipline-precedent.md | `docs/internal/telemetry-discipline-precedent.md` | 261 | byte-identical |
+| contract-system-contributor-summary.md | `docs/internal/contract-system-contributor-summary.md` | 113 | byte-identical, links its `design/` companion |
+| design/contract-system-v1.md | `docs/internal/design/contract-system-v1.md` | 339 | byte-identical; second-order links recorded below |
 
 Sync rule: if the eshu source changes, copy it over byte-identical (plus the
 two renames in the extract) in a follow-up PR. Do not edit these files for any
