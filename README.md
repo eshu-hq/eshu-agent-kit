@@ -59,6 +59,44 @@ That is the whole install. The plugin registers skills and hooks automatically. 
 
 Skills split two ways: `skills/core/` holds portable skills with zero repo coupling; `skills/eshu/` holds adapters for Eshu-family repos (graph, queue, collector contracts). The rename and layer map is [`skills/registry.md`](skills/registry.md).
 
+## End to end: issue to merged
+
+This is the loop the kit exists for. The owner declares a goal against a GitHub epic or issue; the kit drives it to a merged PR without being asked twice.
+
+```text
+GitHub epic / issue
+        │
+        ▼
+issue-driver ── posts a claim, opens one worktree per leaf,
+        │        implements with proof, opens the PR
+        ▼
+code-review ── verdict on the diff:
+        │       P0/P1/P2-blocking must be zero to merge
+        ▼
+session-lifecycle (babysit) ── watches CI, fixes findings,
+        │                        rebases, re-verifies, repeats
+        ▼
+PR merged ── issue closed, worktree cleaned
+```
+
+Three pieces carry the weight:
+
+- **`issue-driver`** owns the outcome, not just the edit. It enumerates the epic's leaves, claims one publicly so concurrent agents don't collide, works each leaf in its own worktree with focused proof, and doesn't stop at "PR opened" — it monitors the PR through review and CI to merged or closed.
+- **`session-lifecycle`** owns the session mechanics that long goals die without: resume a branch mid-flight, pause with a note and pick it back up after compaction or days offline, judge whether a worker is alive before touching its tree, rebase and re-verify when `main` moves, clean up when it's done.
+- **Hooks** own enforcement at the exact point of action — no prose reminders, no asking:
+
+```text
+Edit ──▶ skill-nudge: governed file? governing skill loaded? ──▶ allow / BLOCK
+Bash ──▶ guard-live-gate: second live gate running? ──▶ allow / BLOCK
+Edit ──▶ doc-staleness: rebuild drift snapshot (signals only, never blocks)
+Stop ──▶ goal-continue: goal unfinished? ──▶ hand the goal back / allow end
+Prompt ─▶ goal-refresh: restate the goal ··· SessionStart ─▶ on-compact: restore
+```
+
+Every hook fails open outside its scope — missing interpreter, non-Eshu checkout, no goal file all allow. A hook that cannot read its input has no basis to refuse anything. [`hooks/README.md`](hooks/README.md) has the full table and wiring.
+
+`publish` is the last pass: issue bodies, PR descriptions, and status notes written so the next reader — owner, executor, or reviewer a year later — needs no other context.
+
 ## Two harnesses, one kit
 
 - **Claude Code.** The marketplace plugin carries skills and registers all 8 hooks (`hooks/hooks.json`): skill enforcement, goal continuation, the live-gate guard, and the doc-staleness signal. Every hook fails open outside its scope — installing the plugin never breaks an unrelated repo.
