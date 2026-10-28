@@ -1,0 +1,20 @@
+skills/eshu/issue-driver/SKILL.md
+  h_78a442cba0b3e6 1-216
+skills/eshu/issue-driver/references/monitoring.md
+  h_78a442cba0b3e6 1-153
+skills/eshu/issue-driver/references/sustained-drives.md
+  h_78a442cba0b3e6 1-176
+skills/registry.md
+  h_78a442cba0b3e6 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a8caa8e4c0d736aeac373a0b0e9e31f0eb847e5",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
