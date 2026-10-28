@@ -19,7 +19,7 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-issue-driver | issue-driver | eshu | moved |
 | eshu-code-review | code-review | eshu | moved |
 | eshu-publish | publish | eshu | moved |
-| eshu-release | release | core | queued |
+| eshu-release | release | eshu | moved |
 | eshu-session-lifecycle | session-lifecycle | eshu | moved |
 | resolve-review-threads | resolve-review-threads | eshu | moved |
 | eshu-executor-preflight | executor-preflight | eshu | moved |
@@ -28,13 +28,13 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | concurrency-deadlock-rigor | concurrency-deadlock-rigor | eshu | moved |
 | eshu-diagnostic-rigor | diagnostic-rigor | eshu | moved |
 | eshu-contract-rigor | contract-rigor | eshu | moved |
-| eshu-performance-rigor | performance-rigor | core | queued |
-| eshu-postgres-rigor | postgres-rigor | eshu | queued |
-| cypher-query-rigor | cypher-query-rigor | eshu | queued |
-| eshu-correlation-truth | correlation-truth | eshu | queued |
-| eshu-golden-corpus-rigor | golden-corpus-rigor | eshu | queued |
-| eshu-mcp-call-rigor | mcp-call-rigor | eshu | queued |
-| eshu-security-scan-gates | security-scan-gates | eshu | queued |
+| eshu-performance-rigor | performance-rigor | eshu | moved |
+| eshu-postgres-rigor | postgres-rigor | eshu | moved |
+| cypher-query-rigor | cypher-query-rigor | eshu | moved |
+| eshu-correlation-truth | correlation-truth | eshu | moved |
+| eshu-golden-corpus-rigor | golden-corpus-rigor | eshu | moved |
+| eshu-mcp-call-rigor | mcp-call-rigor | eshu | moved |
+| eshu-security-scan-gates | security-scan-gates | eshu | moved |
 | eshu-folder-doc-keeper | folder-doc-keeper | eshu | moved |
 | telemetry-coverage-discipline | telemetry-coverage-discipline | eshu | moved |
 
