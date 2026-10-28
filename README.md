@@ -42,10 +42,11 @@ Codex (no marketplace — open-standard skills, symlinked):
 
 ```sh
 ./install.sh --global          # this machine
+./install.sh --agents --global # global subagent roles
 ./install.sh --repo /path/to/repo   # one repo
 ```
 
-That is the whole install. The plugin registers skills and hooks automatically. `install.sh` symlinks them, so updates arrive by re-running it — nothing is ever copied.
+The global installer links core and Eshu skills into Claude and Codex. It preserves existing non-symlink skill paths and reports each collision; resolve those paths manually if you want the kit version. The plugin registers skills and hooks automatically. The installer links hook scripts separately; registration is explicit as described in [Hooks](hooks/README.md).
 
 ## What you get
 
@@ -100,7 +101,7 @@ Every hook fails open outside its scope — missing interpreter, non-Eshu checko
 ## Two harnesses, one kit
 
 - **Claude Code.** The marketplace plugin carries skills and registers all 8 hooks (`hooks/hooks.json`): skill enforcement, goal continuation, the live-gate guard, and the doc-staleness signal. Every hook fails open outside its scope — installing the plugin never breaks an unrelated repo.
-- **Codex.** No plugin host, so `install.sh` symlinks skills, agents, hooks, and rules into the repo's `.agents/`, `.codex/`, and `.claude/` trees. Same files, same behavior.
+- **Codex.** Install skills and roles globally with the commands above, or use the repo-scoped installer modes. Hook scripts require separate installation and explicit registration; see [Hooks](hooks/README.md) for supported adapters. Rules are Claude-specific.
 
 Subagents ship through `install.sh` on every harness until plugin hosts support them. Their source of truth is `agents/roles.json`; `agents/agent-roles.py generate` renders the per-harness mirrors and `check` fails on drift.
 

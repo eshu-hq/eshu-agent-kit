@@ -16,6 +16,10 @@ link_dir() {
   for skill in "$src"/*/; do
     [ -d "$skill" ] || continue
     local name; name="$(basename "$skill")"
+    if [ -e "$dest/$name" ] && [ ! -L "$dest/$name" ]; then
+      echo "preserving existing skill: $dest/$name" >&2
+      continue
+    fi
     ln -sfn "$skill" "$dest/$name"
   done
 }
@@ -71,6 +75,7 @@ case "$MODE" in
     link_dir "$KIT_DIR/skills/core" "$HOME/.claude/skills"
     link_dir "$KIT_DIR/skills/eshu" "$HOME/.claude/skills"
     link_dir "$KIT_DIR/skills/core" "$HOME/.codex/skills"
+    link_dir "$KIT_DIR/skills/eshu" "$HOME/.codex/skills"
     echo "installed kit skills globally from $KIT_DIR"
     ;;
   --repo)
