@@ -1,0 +1,30 @@
+README.md
+  h_78a442cba0b3e6 15
+hooks/README.md
+  h_78a442cba0b3e6 25-31,55-64,70-72
+hooks/codex/eshu-doc-staleness.sh
+  h_78a442cba0b3e6 1-28
+hooks/eshu-doc-staleness.sh
+  h_78a442cba0b3e6 1-30
+hooks/guard-live-gate.sh
+  h_78a442cba0b3e6 1-100
+hooks/tests/test-doc-staleness-hook.sh
+  h_78a442cba0b3e6 1-46
+hooks/tests/test-guard-live-gate.sh
+  h_78a442cba0b3e6 1-70
+install.sh
+  h_78a442cba0b3e6 50,54
+scripts/check-docs-stale.sh
+  h_78a442cba0b3e6 1-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6726e50d1f40bf5323c3fa7d40e75e52cea438a3",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
