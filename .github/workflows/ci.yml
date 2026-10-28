@@ -1,0 +1,274 @@
+# CI gates for eshu-agent-kit: shell and docs lanes with no static gates.
+#
+# Shaped to this repo (no Go code): shellcheck + shfmt + a 500-line cap over
+# **/*.sh, the self-hosted suites, and the docs staleness/link checks.
+# ci-complete is the only context the branch ruleset requires: it fails when a
+# needed lane failed and passes when lanes were legitimately skipped.
+#
+# Path selection happens once in the changes job (dorny/paths-filter). A PR
+# only pays for lanes its paths can affect; anything unclassified runs all
+# three lanes. Pushes to main, tags, schedules, and manual runs execute every
+# lane the event needs.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  schedule:
+    # Weekly docs link sweep: findings open or update an issue.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SHELLCHECK_VERSION: v0.11.0
+  SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+  ACTIONLINT_VERSION: 1.7.12
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+  SHFMT_VERSION: v3.12.0
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shell: ${{ steps.filter.outputs.shell }}
+      docs: ${{ steps.filter.outputs.docs }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+      # dorny/paths-filter v3.
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad
+        id: filter
+        with:
+          filters: |
+            shell:
+              - '**/*.sh'
+              - 'scripts/tests/**'
+              - 'hooks/tests/**'
+            docs:
+              - '**/*.md'
+              - 'skills/**'
+              - 'rules/**'
+              - 'agents/**'
+              - 'templates/**'
+              - 'docs/**'
+            workflows:
+              - '.github/workflows/**'
+
+  shell:
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.shell == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      (needs.changes.outputs.shell != 'true' &&
+      needs.changes.outputs.docs != 'true' &&
+      needs.changes.outputs.workflows != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: Install shellcheck and shfmt
+        run: |
+          curl -sL -o /tmp/shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION#v}.linux.x86_64.tar.xz"
+          printf '%s  /tmp/shellcheck.tar.xz\n' "${SHELLCHECK_SHA256}" | sha256sum -c -
+          tar -xf /tmp/shellcheck.tar.xz -C /tmp
+          printf '%s\n' "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          mkdir -p "${HOME}/.local/bin"
+          mv "/tmp/shellcheck-v${SHELLCHECK_VERSION#v}/shellcheck" "${HOME}/.local/bin/shellcheck"
+          go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
+          printf '%s\n' "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+      - name: shellcheck (errors fail, warnings stay visible)
+        run: |
+          shopt -s globstar nullglob
+          mapfile -t scripts < <(git ls-files '*.sh')
+          shellcheck --severity=error "${scripts[@]}"
+      - name: shfmt diff (unformatted files fail)
+        run: |
+          mapfile -t scripts < <(git ls-files '*.sh')
+          test -z "$(shfmt --diff "${scripts[@]}")"
+      - name: 500-line cap (the one allowed static gate)
+        run: |
+          mapfile -t scripts < <(git ls-files '*.sh')
+          over="$(awk -v cap=500 'FNR>cap{print FILENAME":"FNR}' "${scripts[@]}")"
+          test -z "${over}" || { printf 'over the 500-line cap:\n%s\n' "${over}"; exit 1; }
+
+  shell-tests:
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.shell == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      (needs.changes.outputs.shell != 'true' &&
+      needs.changes.outputs.docs != 'true' &&
+      needs.changes.outputs.workflows != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: Self-hosted suites end to end
+        run: bash scripts/run-tests.sh
+      - name: install.sh still installs from this tree
+        run: |
+          repo="$(mktemp -d)"
+          trap 'rm -rf "${repo}"' EXIT
+          ./install.sh --repo "${repo}"
+          test "$(cat "${repo}/.agent-kit-version")" = "$(cat VERSION)"
+
+  docs:
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      (needs.changes.outputs.shell != 'true' &&
+      needs.changes.outputs.docs != 'true' &&
+      needs.changes.outputs.workflows != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: Staleness drift gate (a stale doc fails the lane)
+        run: |
+          bash scripts/check-docs-stale.sh --all
+          test ! -s .eshu-doc-state/stale.jsonl
+      - name: Internal relative-link check
+        run: bash scripts/check-md-links.sh
+      - name: Layer lint (coupling plus link baseline)
+        run: bash scripts/layer-lint.sh
+      # lycheeverse/lychee-action v2.
+      - name: External link check
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --no-progress --verbose './**/*.md'
+          fail: true
+
+  actionlint:
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: actionlint (pinned release binary)
+        run: |
+          curl -sL -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          printf '%s  /tmp/actionlint.tar.gz\n' "${ACTIONLINT_SHA256}" | sha256sum -c -
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          /tmp/actionlint
+
+  release-check:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: Tag matches VERSION
+        run: test "${{ github.ref_name }}" = "$(cat VERSION)"
+
+  weekly-docs-filing:
+    needs: docs
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # actions/checkout v5.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+      - name: File or update the link-rot issue when docs failed
+        env:
+          DOCS_RESULT: ${{ needs.docs.result }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "${DOCS_RESULT}" = "success" && exit 0
+          title="Weekly docs link sweep found broken links"
+          number="$(gh issue list --search "${title} in:title" --state open \
+            --json number --jq '.[0].number // empty')"
+          body="The scheduled docs lane failed on ${GITHUB_SHA}. See the workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          if test -z "${number}"; then
+            gh issue create --title "${title}" --label documentation --body "${body}"
+          else
+            gh issue comment "${number}" --body "${body}"
+          fi
+
+  ci-complete:
+    if: always()
+    needs: [changes, shell, shell-tests, docs, actionlint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every needed lane succeeded
+        env:
+          EVENT: ${{ github.event_name }}
+          NEED_SHELL: ${{ needs.changes.outputs.shell }}
+          NEED_DOCS: ${{ needs.changes.outputs.docs }}
+          NEED_WORKFLOWS: ${{ needs.changes.outputs.workflows }}
+          RES_CHANGES: ${{ needs.changes.result }}
+          RES_SHELL: ${{ needs.shell.result }}
+          RES_TESTS: ${{ needs.shell-tests.result }}
+          RES_DOCS: ${{ needs.docs.result }}
+          RES_LINT: ${{ needs.actionlint.result }}
+        run: |
+          unclassified() {
+            test "${NEED_SHELL}" != "true" && test "${NEED_DOCS}" != "true" && test "${NEED_WORKFLOWS}" != "true"
+          }
+          needed() {
+            test "${EVENT}" != "pull_request" && return 0
+            case "$1" in
+              shell|shell-tests)
+                test "${NEED_SHELL}" = "true" || test "${NEED_WORKFLOWS}" = "true" || unclassified ;;
+              docs) test "${NEED_DOCS}" = "true" || test "${NEED_WORKFLOWS}" = "true" || unclassified ;;
+              lint) test "${NEED_WORKFLOWS}" = "true" ;;
+            esac
+          }
+          fail=0
+          check() {
+            if needed "$1"; then
+              test "$2" = "success" || { printf 'needed lane %s finished %s\n' "$1" "$2"; fail=1; }
+            else
+              case "$2" in success|skipped) ;; *) printf 'lane %s finished %s\n' "$1" "$2"; fail=1 ;; esac
+            fi
+          }
+          test "${RES_CHANGES}" = "success" || { printf 'changes job finished %s\n' "${RES_CHANGES}"; fail=1; }
+          check shell "${RES_SHELL}"
+          check shell-tests "${RES_TESTS}"
+          check docs "${RES_DOCS}"
+          check lint "${RES_LINT}"
+          test "${fail}" = "0"

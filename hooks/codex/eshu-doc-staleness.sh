@@ -15,14 +15,14 @@ set -o pipefail
 cat >/dev/null
 
 repo_root="${CODEX_PROJECT_DIR:-}"
-[ -z "$repo_root" ] && repo_root="$(git rev-parse --show-toplevel 2>/dev/null \
-  || (cd "$(dirname "$0")/../.." && pwd))"
+[ -z "$repo_root" ] && repo_root="$(git rev-parse --show-toplevel 2>/dev/null ||
+	(cd "$(dirname "$0")/../.." && pwd))"
 
 # Degrade to a no-op when the consuming repo did not install the checker
 # (install.sh --hooks links it into <repo>/scripts/): a doc-signal hook must
 # never fail an edit for a missing optional script.
 [ -x "$repo_root/scripts/check-docs-stale.sh" ] || exit 0
 ESHU_DOC_KEEPER_TOOL=codex \
-  "$repo_root/scripts/check-docs-stale.sh" --all
+	"$repo_root/scripts/check-docs-stale.sh" --all
 
 exit 0

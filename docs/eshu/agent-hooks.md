@@ -32,8 +32,8 @@ rebuilding the whole snapshot, which only works for a hook that needs no path.
 | `issue-capture.sh` | Claude, Muse | PostToolUse on Bash | side effect | Records an issue filed during a goal in the goal's ledger; `goal-continue.sh` then refuses DONE while one is open. |
 
 Muse Code runs the same files through envelope-translating wrappers in
-`.muse/hooks/` (wired by `.muse/hooks.json`): see [Muse Hooks](agent-hooks-muse.md).
-Cursor runs them through `scripts/cursor-hook.py`: see [Cursor Hooks](agent-hooks-cursor.md).
+`.muse/hooks/` (wired by `.muse/hooks.json`): see [Muse Hooks](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-hooks-muse.md).
+Cursor runs them through `scripts/cursor-hook.py`: see [Cursor Hooks](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-hooks-cursor.md).
 The issue ledger behind `issue-capture.sh`: see [Goal Issue Ledger](agent-hooks-issues.md).
 
 ## Why the nudge blocks instead of suggesting
@@ -91,7 +91,7 @@ payload shape and event equivalents pinned. Do not write adapters against guesse
 The Codex `UserPromptSubmit` goal router has a live probe on `codex-cli
 0.156.1`. The Codex `Stop` adapter is registered separately and routes the
 event through the shared goal continuation policy. See
-[Codex Goal Hook](agent-hooks-codex-goal.md) for payload and trust details,
+[Codex Goal Hook](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-hooks-codex-goal.md) for payload and trust details,
 including the 0.158.0 spawn guard matcher probe.
 
 ## The nudge table rots, so a gate watches it
@@ -315,7 +315,7 @@ strip loop in `goal-continue.sh` and its mirror in `goal-refresh.sh` both stop
 treating lines as metadata at the first ordinary line. A `CONSENT:` line
 placed after the objective is body text, never a grant: neither hook reads
 it, so the stop reason is never lifted. See
-[sustained-drives.md](../../.agents/skills/eshu-issue-driver/references/sustained-drives.md)
+[sustained-drives.md](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-issue-driver/references/sustained-drives.md)
 for the per-harness template that avoids this.
 
 Two forms grant it correctly instead, and they cover different moments.
@@ -388,7 +388,7 @@ say so where they do.
 
 The `/goal <text>` command also registers a session-level Stop condition that
 these two hooks do not control. A model judges it against the transcript, not
-the goal file. See [Writing A `/goal` Condition](agent-goal-conditions.md).
+the goal file. See [Writing A `/goal` Condition](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-goal-conditions.md).
 
 ## Why the goal is restated every turn
 
@@ -466,7 +466,7 @@ They are not alternatives to each other.
 
 Activation, the worktree-vs-main-checkout wiring, and how to diagnose a hook
 that should have fired but did not are in
-[Installing And Activating Agent Hooks](agent-hooks-installing.md), split out
+[Installing And Activating Agent Hooks](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-hooks-installing.md), split out
 to keep this file under the repo's 500-line Markdown cap.
 
 ## Escape hatches

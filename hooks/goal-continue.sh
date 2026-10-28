@@ -136,7 +136,10 @@ for candidate in \
 done
 # Nothing active. If this session's own goal was just retired, the DONE check on
 # its issue ledger still has to run: the lookup above skips retired files.
-[ -n "${goal_file}" ] || { gi_done_gate "$(gi_retired_goal_file "${session_id}" "${cwd}")" "${cwd}" "${session_id}" "${transcript:-}"; exit 0; }
+[ -n "${goal_file}" ] || {
+	gi_done_gate "$(gi_retired_goal_file "${session_id}" "${cwd}")" "${cwd}" "${session_id}" "${transcript:-}"
+	exit 0
+}
 
 goal="$(sed -e 's/[[:space:]]*$//' "${goal_file}" 2>/dev/null)"
 [ -n "${goal}" ] || exit 0
@@ -145,7 +148,10 @@ goal="$(sed -e 's/[[:space:]]*$//' "${goal_file}" 2>/dev/null)"
 # before the budget so a finished goal never costs a nudge.
 first_line="$(printf '%s\n' "${goal}" | head -1)"
 case "${first_line}" in
-	DONE*|done*) gi_done_gate "${goal_file}" "${cwd}" "${session_id}" "${transcript:-}"; exit 0 ;;
+DONE* | done*)
+	gi_done_gate "${goal_file}" "${cwd}" "${session_id}" "${transcript:-}"
+	exit 0
+	;;
 esac
 
 # A goal belongs to the session that set it. goal-refresh.sh writes a
@@ -169,17 +175,20 @@ esac
 # Returns non-zero when the stop should be allowed.
 apply_session_header() {
 	case "${first_line}" in
-		SESSION:*)
-			goal_owner="${first_line#SESSION:}"
-			goal_owner="${goal_owner# }"
-			[ "${goal_owner}" = "${session_id}" ] || return 1
-			goal="$(printf '%s\n' "${goal}" | tail -n +2)"
-			[ -n "${goal}" ] || return 1
-			first_line="$(printf '%s\n' "${goal}" | head -1)"
-			;;
+	SESSION:*)
+		goal_owner="${first_line#SESSION:}"
+		goal_owner="${goal_owner# }"
+		[ "${goal_owner}" = "${session_id}" ] || return 1
+		goal="$(printf '%s\n' "${goal}" | tail -n +2)"
+		[ -n "${goal}" ] || return 1
+		first_line="$(printf '%s\n' "${goal}" | head -1)"
+		;;
 	esac
 	case "${first_line}" in
-		DONE*|done*) gi_done_gate "${goal_file}" "${cwd}" "${session_id}" "${transcript:-}"; return 1 ;;
+	DONE* | done*)
+		gi_done_gate "${goal_file}" "${cwd}" "${session_id}" "${transcript:-}"
+		return 1
+		;;
 	esac
 	return 0
 }
@@ -212,24 +221,24 @@ while IFS= read -r line; do
 	trimmed="${line#"${line%%[![:space:]]*}"}"
 	if [ "${consent_meta}" -eq 1 ]; then
 		case "${trimmed}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*)
-				acts="${trimmed#*:}"
-				acts="${acts#"${acts%%[![:space:]]*}"}"
-				[ -n "${acts}" ] && consent="${consent:+${consent}, }${acts}"
-				continue
-				;;
-			SESSION:*)
-				# Only the FIRST one is the header -- apply_session_header
-				# consumes exactly one. A second is body text, and leaving
-				# metadata mode open across it let a following CONSENT: line be
-				# eaten and echoed as a grant, which is the spurious-grant class
-				# this hook removed for the single-line layout, one deeper.
-				if [ "${consent_seen_header}" -eq 1 ]; then
-					consent_meta=0
-				fi
-				consent_seen_header=1
-				;;
-			*) consent_meta=0 ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*)
+			acts="${trimmed#*:}"
+			acts="${acts#"${acts%%[![:space:]]*}"}"
+			[ -n "${acts}" ] && consent="${consent:+${consent}, }${acts}"
+			continue
+			;;
+		SESSION:*)
+			# Only the FIRST one is the header -- apply_session_header
+			# consumes exactly one. A second is body text, and leaving
+			# metadata mode open across it let a following CONSENT: line be
+			# eaten and echoed as a grant, which is the spurious-grant class
+			# this hook removed for the single-line layout, one deeper.
+			if [ "${consent_seen_header}" -eq 1 ]; then
+				consent_meta=0
+			fi
+			consent_seen_header=1
+			;;
+		*) consent_meta=0 ;;
 		esac
 	fi
 	stripped="${stripped}${line}
@@ -264,31 +273,31 @@ apply_session_header || exit 0
 #      question to an arbiter model and act on its verdict.
 #   3. Every claim is echoed to stderr so the owner reads the exact words.
 case "${first_line}" in
-	BLOCKED:*|blocked:*)
-		blocked_reason="${first_line#*:}"
-		blocked_reason="${blocked_reason#"${blocked_reason%%[![:space:]]*}"}"
-		if [ -n "${blocked_reason}" ]; then
-			watch_pid=""
-			case "${blocked_reason}" in
-				*WATCH=*)
-					watch_pid="${blocked_reason##*WATCH=}"
-					watch_pid="${watch_pid%%[![:digit:]]*}"
-					;;
-			esac
-			if [ -z "${watch_pid}" ]; then
-				printf 'goal-continue: BLOCKED with no WATCH refused, escalate instead: %s\n' \
-					"${blocked_reason}" >&2
-				bare_blocked="${blocked_reason}"
-			elif ! kill -0 "${watch_pid}" 2>/dev/null; then
-				printf 'goal-continue: BLOCKED claims watcher pid %s, which is not running.\n' \
-					"${watch_pid}" >&2
-				dead_watcher="${watch_pid}"
-			else
-				printf 'goal-continue: stop allowed, BLOCKED: %s\n' "${blocked_reason}" >&2
-				exit 0
-			fi
+BLOCKED:* | blocked:*)
+	blocked_reason="${first_line#*:}"
+	blocked_reason="${blocked_reason#"${blocked_reason%%[![:space:]]*}"}"
+	if [ -n "${blocked_reason}" ]; then
+		watch_pid=""
+		case "${blocked_reason}" in
+		*WATCH=*)
+			watch_pid="${blocked_reason##*WATCH=}"
+			watch_pid="${watch_pid%%[![:digit:]]*}"
+			;;
+		esac
+		if [ -z "${watch_pid}" ]; then
+			printf 'goal-continue: BLOCKED with no WATCH refused, escalate instead: %s\n' \
+				"${blocked_reason}" >&2
+			bare_blocked="${blocked_reason}"
+		elif ! kill -0 "${watch_pid}" 2>/dev/null; then
+			printf 'goal-continue: BLOCKED claims watcher pid %s, which is not running.\n' \
+				"${watch_pid}" >&2
+			dead_watcher="${watch_pid}"
+		else
+			printf 'goal-continue: stop allowed, BLOCKED: %s\n' "${blocked_reason}" >&2
+			exit 0
 		fi
-		;;
+	fi
+	;;
 esac
 
 # The budget used to count CONTINUATIONS, which put an agent grinding through
@@ -319,9 +328,9 @@ if [ -f "${counter}" ]; then
 	# revision of this branch, and older ones still a bare number; reading
 	# either must not crash or silently reset the bound.
 	read -r count second third <"${counter}" 2>/dev/null || true
-	case "${count}" in ''|*[!0-9]*) count=0 ;; esac
+	case "${count}" in '' | *[!0-9]*) count=0 ;; esac
 	offset="${third:-${second:-0}}"
-	case "${offset}" in ''|*[!0-9]*) offset=0 ;; esac
+	case "${offset}" in '' | *[!0-9]*) offset=0 ;; esac
 fi
 
 # Tool calls in the bytes appended since the last nudge. A transcript that is
@@ -411,15 +420,15 @@ fi
 
 stop_context_note=""
 case "${GOAL_CONTINUE_STOP_CATEGORY:-}" in
-	model-capacity)
-		stop_context_note="Codex stopped with a model-capacity error. Retry or select another available model if the current one remains unavailable, then continue the active goal."
-		;;
-	security-policy)
-		stop_context_note="Codex stopped with a security or policy denial. Diagnose the rejection, do not repeat a denied action unchanged, and continue the active goal through an allowed path."
-		;;
-	reported-error)
-		stop_context_note="Codex stopped after reporting an error. Diagnose and recover from it, then continue the active goal."
-		;;
+model-capacity)
+	stop_context_note="Codex stopped with a model-capacity error. Retry or select another available model if the current one remains unavailable, then continue the active goal."
+	;;
+security-policy)
+	stop_context_note="Codex stopped with a security or policy denial. Diagnose the rejection, do not repeat a denied action unchanged, and continue the active goal through an allowed path."
+	;;
+reported-error)
+	stop_context_note="Codex stopped after reporting an error. Diagnose and recover from it, then continue the active goal."
+	;;
 esac
 
 stop_context_suffix=""

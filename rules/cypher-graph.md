@@ -10,8 +10,8 @@ paths:
 hot path, and `correlation-truth` when the change decides what a correlation
 means.
 
-Read [Cypher Performance](../../docs/public/reference/cypher-performance.md)
+Read [Cypher Performance](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md)
 before changing hot-path Cypher, graph writes, or schema DDL. For NornicDB
-behavior, [NornicDB Pitfalls](../../docs/public/reference/nornicdb-pitfalls.md)
+behavior, [NornicDB Pitfalls](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md)
 documents where the backend diverges from what the query text implies — including
 cases that return wrong counts rather than failing.

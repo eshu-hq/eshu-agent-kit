@@ -33,18 +33,18 @@ goal_file_retired() { # path
 	while IFS= read -r line; do
 		head_line="${line#"${line%%[![:space:]]*}"}"
 		case "${head_line}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*|'') continue ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:* | '') continue ;;
 		esac
 		case "${head_line}" in
-			DONE*|done*) return 0 ;;
-			SESSION:*)
-				if [ "${seen_header}" -eq 0 ]; then
-					seen_header=1
-					continue
-				fi
-				return 1
-				;;
-			*) return 1 ;;
+		DONE* | done*) return 0 ;;
+		SESSION:*)
+			if [ "${seen_header}" -eq 0 ]; then
+				seen_header=1
+				continue
+			fi
+			return 1
+			;;
+		*) return 1 ;;
 		esac
 	done <"$1"
 	return 1
@@ -64,13 +64,13 @@ gi_header_session() { # file
 	[ -f "$1" ] || return 0
 	while IFS= read -r line; do
 		case "${line#"${line%%[![:space:]]*}"}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
 		esac
 		case "${line}" in
-			SESSION:*)
-				line="${line#SESSION:}"
-				printf '%s' "${line# }"
-				;;
+		SESSION:*)
+			line="${line#SESSION:}"
+			printf '%s' "${line# }"
+			;;
 		esac
 		return 0
 	done <"$1"
@@ -82,13 +82,13 @@ gi_retired_header_session() { # file
 	[ -f "$1" ] || return 0
 	while IFS= read -r line; do
 		case "${line#"${line%%[![:space:]]*}"}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*|DONE*|done*) continue ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:* | DONE* | done*) continue ;;
 		esac
 		case "${line}" in
-			SESSION:*)
-				line="${line#SESSION:}"
-				printf '%s' "${line# }"
-				;;
+		SESSION:*)
+			line="${line#SESSION:}"
+			printf '%s' "${line# }"
+			;;
 		esac
 		return 0
 	done <"$1"
@@ -171,7 +171,7 @@ gi_lead_goal_files() { # claude_dir
 	local f
 	for f in "$1"/active-goal "$1"/active-goal.*; do
 		[ -s "${f}" ] || continue
-		case "${f##*/}" in *.issues|*.lock|*.tmp|*.tmp.*) continue ;; esac
+		case "${f##*/}" in *.issues | *.lock | *.tmp | *.tmp.*) continue ;; esac
 		goal_file_retired "${f}" && continue
 		if [ "${f##*/}" = "active-goal" ] && [ -z "$(gi_header_session "${f}")" ]; then
 			continue
@@ -208,15 +208,15 @@ gi_capture_ledger() { # sid cwd
 		one="${f}"
 	done < <(gi_lead_goal_files "${dir}")
 	case "${count}" in
-		0) return 1 ;;
-		1)
-			GI_KIND=lead
-			GI_LEDGER="$(gi_sidecar "${one}")"
-			;;
-		*)
-			GI_KIND=orphan
-			GI_LEDGER="${dir}/active-goal.orphan.issues"
-			;;
+	0) return 1 ;;
+	1)
+		GI_KIND=lead
+		GI_LEDGER="$(gi_sidecar "${one}")"
+		;;
+	*)
+		GI_KIND=orphan
+		GI_LEDGER="${dir}/active-goal.orphan.issues"
+		;;
 	esac
 	return 0
 }

@@ -34,7 +34,10 @@ export HOME="${work}/home"
 unset CLAUDE_GOAL_FILE CLAUDE_GOAL_OFF CLAUDE_GOAL_CONSENT CLAUDE_GOAL_MAX_NUDGES
 # Pin the hermeticity header: if the fake HOME or an unset above is dropped,
 # fail here instead of letting ambient state silently skew the suite.
-[[ "${HOME}" == "${work}/home" && -z "${CLAUDE_GOAL_FILE:-}" && -z "${CLAUDE_GOAL_OFF:-}" && -z "${CLAUDE_GOAL_CONSENT:-}" && -z "${CLAUDE_GOAL_MAX_NUDGES:-}" ]] || { printf 'NOT OK - suite hermeticity header broken\n' >&2; exit 1; }
+[[ "${HOME}" == "${work}/home" && -z "${CLAUDE_GOAL_FILE:-}" && -z "${CLAUDE_GOAL_OFF:-}" && -z "${CLAUDE_GOAL_CONSENT:-}" && -z "${CLAUDE_GOAL_MAX_NUDGES:-}" ]] || {
+	printf 'NOT OK - suite hermeticity header broken\n' >&2
+	exit 1
+}
 goal="${work}/goal"
 passed=0
 failed=0
@@ -56,8 +59,14 @@ payload() { # prompt_id
 
 run() { printf '%s' "$1" | CLAUDE_GOAL_FILE="${goal}" bash "${HOOK}" 2>/dev/null; }
 
-ok() { printf 'ok - %s\n' "$1"; passed=$((passed + 1)); }
-no() { printf 'not ok - %s\n' "$1"; failed=$((failed + 1)); }
+ok() {
+	printf 'ok - %s\n' "$1"
+	passed=$((passed + 1))
+}
+no() {
+	printf 'not ok - %s\n' "$1"
+	failed=$((failed + 1))
+}
 
 check() { # label expect(block|allow) output
 	local label="$1" expect="$2" out="$3" got
@@ -73,7 +82,10 @@ check() { # label expect(block|allow) output
 	fi
 }
 
-[[ -f "${HOOK}" ]] || { printf 'not ok - hook missing at %s\n' "${HOOK}"; exit 1; }
+[[ -f "${HOOK}" ]] || {
+	printf 'not ok - hook missing at %s\n' "${HOOK}"
+	exit 1
+}
 [[ -x "${HOOK}" ]] || no "hook is executable"
 bash -n "${HOOK}" || no "hook parses"
 
@@ -303,7 +315,6 @@ if [[ "${sid_files_after}" -eq "${sid_files_before}" ]]; then
 else
 	no "the suite left no nudge counters in the shared TMPDIR (before ${sid_files_before}, after ${sid_files_after})"
 fi
-
 
 printf '\ngoal-continue hook mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

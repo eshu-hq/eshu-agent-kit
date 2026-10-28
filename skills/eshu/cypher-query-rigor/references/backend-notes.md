@@ -3,12 +3,12 @@
 Eshu-specific lessons beyond the canonical docs. Read the canonical docs first
 for anything not repeated here:
 
-- [Cypher Performance](../../../../docs/public/reference/cypher-performance.md) —
+- [Cypher Performance](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md) —
   research locations, the CI evidence gate, backend-specific-behavior order,
   anti-patterns, and the Neo4j/NornicDB quick reference.
-- [NornicDB Pitfalls](../../../../docs/public/reference/nornicdb-pitfalls.md) —
+- [NornicDB Pitfalls](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md) —
   known traps and "When To Patch NornicDB".
-- [NornicDB Tuning](../../../../docs/public/reference/nornicdb-tuning.md) —
+- [NornicDB Tuning](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-tuning.md) —
   runtime knobs.
 
 ## Neo4j
@@ -87,5 +87,5 @@ executor bug, the contract is:
   that fires before the pipeline handoff freezes valid queries out of the
   good executor. Teach the executor the shape rather than gating it.
 
-See [NornicDB Pitfalls: When To Patch NornicDB](../../../../docs/public/reference/nornicdb-pitfalls.md#when-to-patch-nornicdb)
+See [NornicDB Pitfalls: When To Patch NornicDB](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md#when-to-patch-nornicdb)
 for the same rule and the patch-and-repin process.

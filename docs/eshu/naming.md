@@ -24,7 +24,7 @@ refactored today.
    `billing/correlation/provenance/edges.go` reads as a sentence; the glued
    form does not. Each level clarifies responsibility. Repository and runtime
    boundaries come from the
-   [ecosystem repository plan](design/eshu-ecosystem-repository-migration.md),
+   [ecosystem repository plan](https://github.com/eshu-hq/eshu/blob/main/docs/internal/design/eshu-ecosystem-repository-migration.md),
    not path depth.
 4. **Follow the language's own conventions.** Go names follow Effective Go
    (see `golang-engineering`): no package-name stutter in exported

@@ -106,7 +106,7 @@ for candidate in \
 	[ -n "${candidate}" ] || continue
 	# With no cwd the two worktree candidates are paths built from a dash.
 	case "${candidate}" in
-		"-/.claude/"*) continue ;;
+	"-/.claude/"*) continue ;;
 	esac
 	if [ -f "${candidate}" ]; then
 		# A retired candidate is passed over, so an active one further down the
@@ -143,21 +143,21 @@ owns_goal_file() { # path
 	local line header=""
 	[ -f "$1" ] || return 1
 	case "$1" in
-		"${goal_write}") return 0 ;;
+	"${goal_write}") return 0 ;;
 	esac
 	while IFS= read -r line; do
 		case "${line#"${line%%[![:space:]]*}"}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
 		esac
 		header="${line}"
 		break
 	done <"$1"
 	case "${header}" in
-		SESSION:*)
-			header="${header#SESSION:}"
-			[ "${header# }" = "${session_id}" ]
-			;;
-		*) return 1 ;;
+	SESSION:*)
+		header="${header#SESSION:}"
+		[ "${header# }" = "${session_id}" ]
+		;;
+	*) return 1 ;;
 	esac
 }
 
@@ -208,41 +208,41 @@ writable_goal_target() { # path action
 # retires it. The SESSION header is what stops a goal outliving the session
 # that set it and nagging the next one about finished work.
 case "${prompt}" in
-	'/goal done'*|'/goal clear'*|'GOAL: done'*)
-		retire="${goal_file:-${goal_write}}"
-		if writable_goal_target "${retire}" retirement; then
-			printf 'DONE\n' > "${retire}.tmp" 2>/dev/null &&
-				cat "${retire}" >> "${retire}.tmp" 2>/dev/null &&
-				mv "${retire}.tmp" "${retire}" 2>/dev/null || true
-		fi
-		exit 0
-		;;
-	'/goal consent'|'/goal consent '*|'GOAL: consent'|'GOAL: consent '*|\
-	'/goal revoke-consent'|'/goal revoke-consent '*|\
-	'GOAL: revoke-consent'|'GOAL: revoke-consent '*)
-		# Consent the owner typed in chat dies with that turn. Written into the
-		# goal file it survives compaction, the next Stop, and the next session
-		# that adopts the file. This case has to sit ABOVE the generic `/goal
-		# <text>` producer: otherwise "/goal consent push" is read as a new
-		# objective and silently replaces the actual one with the word
-		# "consent" -- granting nothing and losing the goal in the same move.
-		# The word boundary above matters: a bare `'/goal consent'*` prefix
-		# swallowed "/goal consented users need a migration path", dropped the
-		# objective the owner was actually setting, and wrote the remainder as
-		# a grant.
-		#
-		# Every rejection below says so on stderr. A consent that silently goes
-		# nowhere is the exact loop this feature exists to close -- the owner
-		# types it, nothing records it, the next Stop asks again.
-		#
-		# One-line form: `/goal consent <acts> -- <goal text>` starts a NEW goal
-		# with the grant already attached, so an unattended launch never sits in
-		# the window between a bare `/goal <text>` and a follow-up `/goal
-		# consent` for the owner to fill. Split on the FIRST ` -- ` only -- a
-		# goal that discusses consent, or contains a later ` -- `, stays
-		# objective text. The dash check pads with a trailing space first so
-		# `push --` (acts with no text) is caught the same as `push -- text`.
-		consent_edit_py='
+'/goal done'* | '/goal clear'* | 'GOAL: done'*)
+	retire="${goal_file:-${goal_write}}"
+	if writable_goal_target "${retire}" retirement; then
+		printf 'DONE\n' >"${retire}.tmp" 2>/dev/null &&
+			cat "${retire}" >>"${retire}.tmp" 2>/dev/null &&
+			mv "${retire}.tmp" "${retire}" 2>/dev/null || true
+	fi
+	exit 0
+	;;
+'/goal consent' | '/goal consent '* | 'GOAL: consent' | 'GOAL: consent '* | \
+	'/goal revoke-consent' | '/goal revoke-consent '* | \
+	'GOAL: revoke-consent' | 'GOAL: revoke-consent '*)
+	# Consent the owner typed in chat dies with that turn. Written into the
+	# goal file it survives compaction, the next Stop, and the next session
+	# that adopts the file. This case has to sit ABOVE the generic `/goal
+	# <text>` producer: otherwise "/goal consent push" is read as a new
+	# objective and silently replaces the actual one with the word
+	# "consent" -- granting nothing and losing the goal in the same move.
+	# The word boundary above matters: a bare `'/goal consent'*` prefix
+	# swallowed "/goal consented users need a migration path", dropped the
+	# objective the owner was actually setting, and wrote the remainder as
+	# a grant.
+	#
+	# Every rejection below says so on stderr. A consent that silently goes
+	# nowhere is the exact loop this feature exists to close -- the owner
+	# types it, nothing records it, the next Stop asks again.
+	#
+	# One-line form: `/goal consent <acts> -- <goal text>` starts a NEW goal
+	# with the grant already attached, so an unattended launch never sits in
+	# the window between a bare `/goal <text>` and a follow-up `/goal
+	# consent` for the owner to fill. Split on the FIRST ` -- ` only -- a
+	# goal that discusses consent, or contains a later ` -- `, stays
+	# objective text. The dash check pads with a trailing space first so
+	# `push --` (acts with no text) is caught the same as `push -- text`.
+	consent_edit_py='
 import os, sys
 target = os.environ["TARGET"]
 acts = os.environ["ACTS"].strip()
@@ -276,75 +276,75 @@ try:
 except Exception:
     pass
 '
-		# Revoke by command prefix only: a one-line goal whose objective says
-		# "revoke-consent" must not strip the existing grant (#6714 review).
-		case "${prompt}" in
-			'/goal revoke-consent'|'/goal revoke-consent '*|'GOAL: revoke-consent'|'GOAL: revoke-consent '*)
-				target="${goal_file:-}"
-				writable_goal_target "${target}" consent || exit 0
-				ACTS="" TARGET="${target}" python3 -c "${consent_edit_py}" 2>/dev/null || true
-				exit 0
-				;;
-		esac
-		remainder="${prompt#*consent}"
-		padded="${remainder} "
-		case "${padded}" in
-			*' -- '*)
-				oneline_acts="${padded%%' -- '*}"
-				oneline_acts="${oneline_acts#"${oneline_acts%%[![:space:]]*}"}"
-				oneline_acts="${oneline_acts%"${oneline_acts##*[![:space:]]}"}"
-				oneline_text="${padded#*' -- '}"
-				oneline_text="${oneline_text#"${oneline_text%%[![:space:]]*}"}"
-				oneline_text="${oneline_text%"${oneline_text##*[![:space:]]}"}"
-				if [ -z "${oneline_acts}" ] || [ -z "${oneline_text}" ]; then
-					printf 'goal-refresh: /goal consent <acts> -- <goal text> needs a non-empty acts list and a non-empty goal; nothing written.\n' >&2
-					exit 0
-				fi
-				# Same target/permission rule as the plain `/goal <text>` producer
-				# below: have_cwd or CLAUDE_GOAL_FILE, never
-				# writable_goal_target's must-already-exist rule -- this form's
-				# whole point is starting a goal that does not exist yet.
-				[ "${have_cwd}" = "1" ] || [ -n "${CLAUDE_GOAL_FILE:-}" ] || exit 0
-				mkdir -p "$(dirname "${goal_write}")" 2>/dev/null || exit 0
-				{
-					printf 'SESSION: %s\n' "${session_id}"
-					printf 'CONSENT: %s\n' "${oneline_acts}"
-					printf '%s\n' "${oneline_text}"
-				} > "${goal_write}" 2>/dev/null || exit 0
-				goal_file="${goal_write}"
-				;;
-			*)
-				target="${goal_file:-}"
-				writable_goal_target "${target}" consent || exit 0
-				acts="${remainder# }"
-				ACTS="${acts}" TARGET="${target}" python3 -c "${consent_edit_py}" 2>/dev/null || true
-				exit 0
-				;;
-		esac
+	# Revoke by command prefix only: a one-line goal whose objective says
+	# "revoke-consent" must not strip the existing grant (#6714 review).
+	case "${prompt}" in
+	'/goal revoke-consent' | '/goal revoke-consent '* | 'GOAL: revoke-consent' | 'GOAL: revoke-consent '*)
+		target="${goal_file:-}"
+		writable_goal_target "${target}" consent || exit 0
+		ACTS="" TARGET="${target}" python3 -c "${consent_edit_py}" 2>/dev/null || true
+		exit 0
 		;;
-	'/goal '*|'GOAL: '*)
-		# Writing is what needs a cwd; without one there is no worktree to
-		# write the goal into, and CLAUDE_GOAL_FILE is the way to name a
-		# target anyway.
+	esac
+	remainder="${prompt#*consent}"
+	padded="${remainder} "
+	case "${padded}" in
+	*' -- '*)
+		oneline_acts="${padded%%' -- '*}"
+		oneline_acts="${oneline_acts#"${oneline_acts%%[![:space:]]*}"}"
+		oneline_acts="${oneline_acts%"${oneline_acts##*[![:space:]]}"}"
+		oneline_text="${padded#*' -- '}"
+		oneline_text="${oneline_text#"${oneline_text%%[![:space:]]*}"}"
+		oneline_text="${oneline_text%"${oneline_text##*[![:space:]]}"}"
+		if [ -z "${oneline_acts}" ] || [ -z "${oneline_text}" ]; then
+			printf 'goal-refresh: /goal consent <acts> -- <goal text> needs a non-empty acts list and a non-empty goal; nothing written.\n' >&2
+			exit 0
+		fi
+		# Same target/permission rule as the plain `/goal <text>` producer
+		# below: have_cwd or CLAUDE_GOAL_FILE, never
+		# writable_goal_target's must-already-exist rule -- this form's
+		# whole point is starting a goal that does not exist yet.
 		[ "${have_cwd}" = "1" ] || [ -n "${CLAUDE_GOAL_FILE:-}" ] || exit 0
-		goal_text="${prompt#*[ :]}"
-		goal_text="${goal_text# }"
-		# Persist prepared /goal file contents, not just their path, so later
-		# refreshes and compaction retain the named skills and phase instructions.
-		goal_router="$(dirname "${BASH_SOURCE[0]}")/../../scripts/goal-role-router.py"
-		if [ -f "${goal_router}" ]; then
-			expanded="$(printf '%s' "${payload}" | python3 "${goal_router}" expand 2>/dev/null)" || expanded=""
-			[ -z "${expanded}" ] || goal_text="${expanded}"
-		fi
-		if [ -n "${goal_text}" ]; then
-			mkdir -p "$(dirname "${goal_write}")" 2>/dev/null || exit 0
-			{
-				printf 'SESSION: %s\n' "${session_id}"
-				printf '%s\n' "${goal_text}"
-			} > "${goal_write}" 2>/dev/null || exit 0
-			goal_file="${goal_write}"
-		fi
+		mkdir -p "$(dirname "${goal_write}")" 2>/dev/null || exit 0
+		{
+			printf 'SESSION: %s\n' "${session_id}"
+			printf 'CONSENT: %s\n' "${oneline_acts}"
+			printf '%s\n' "${oneline_text}"
+		} >"${goal_write}" 2>/dev/null || exit 0
+		goal_file="${goal_write}"
 		;;
+	*)
+		target="${goal_file:-}"
+		writable_goal_target "${target}" consent || exit 0
+		acts="${remainder# }"
+		ACTS="${acts}" TARGET="${target}" python3 -c "${consent_edit_py}" 2>/dev/null || true
+		exit 0
+		;;
+	esac
+	;;
+'/goal '* | 'GOAL: '*)
+	# Writing is what needs a cwd; without one there is no worktree to
+	# write the goal into, and CLAUDE_GOAL_FILE is the way to name a
+	# target anyway.
+	[ "${have_cwd}" = "1" ] || [ -n "${CLAUDE_GOAL_FILE:-}" ] || exit 0
+	goal_text="${prompt#*[ :]}"
+	goal_text="${goal_text# }"
+	# Persist prepared /goal file contents, not just their path, so later
+	# refreshes and compaction retain the named skills and phase instructions.
+	goal_router="$(dirname "${BASH_SOURCE[0]}")/../../scripts/goal-role-router.py"
+	if [ -f "${goal_router}" ]; then
+		expanded="$(printf '%s' "${payload}" | python3 "${goal_router}" expand 2>/dev/null)" || expanded=""
+		[ -z "${expanded}" ] || goal_text="${expanded}"
+	fi
+	if [ -n "${goal_text}" ]; then
+		mkdir -p "$(dirname "${goal_write}")" 2>/dev/null || exit 0
+		{
+			printf 'SESSION: %s\n' "${session_id}"
+			printf '%s\n' "${goal_text}"
+		} >"${goal_write}" 2>/dev/null || exit 0
+		goal_file="${goal_write}"
+	fi
+	;;
 esac
 
 # ── refresher ──────────────────────────────────────────────────────────────
@@ -370,7 +370,7 @@ goal="$(cat "${goal_file}" 2>/dev/null)"
 # layout against BOTH hooks and asserts they decide alike.
 first_line="$(printf '%s\n' "${goal}" | head -1)"
 case "${first_line}" in
-	DONE*|done*) exit 0 ;;
+DONE* | done*) exit 0 ;;
 esac
 
 # CONSENT lines are metadata, not the objective and not a header. They are held
@@ -385,13 +385,13 @@ goal_seen_header=0
 while IFS= read -r goal_line; do
 	if [ "${goal_meta}" -eq 1 ]; then
 		case "${goal_line#"${goal_line%%[![:space:]]*}"}" in
-			[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
-			SESSION:*)
-				# First one only; see the sibling comment in goal-continue.sh.
-				[ "${goal_seen_header}" -eq 1 ] && goal_meta=0
-				goal_seen_header=1
-				;;
-			*) goal_meta=0 ;;
+		[Cc][Oo][Nn][Ss][Ee][Nn][Tt]:*) continue ;;
+		SESSION:*)
+			# First one only; see the sibling comment in goal-continue.sh.
+			[ "${goal_seen_header}" -eq 1 ] && goal_meta=0
+			goal_seen_header=1
+			;;
+		*) goal_meta=0 ;;
 		esac
 	fi
 	goal_body="${goal_body}${goal_line}
@@ -404,22 +404,22 @@ goal_body="${goal_body%$'\n'}"
 # own hand-written goal and is honoured as-is.
 header_line="$(printf '%s\n' "${goal_body}" | head -1)"
 case "${header_line}" in
-	SESSION:*)
-		owner="${header_line#SESSION:}"
-		owner="${owner# }"
-		[ "${owner}" = "${session_id}" ] || exit 0
-		# Drop the header from the text the agent sees, from BOTH views: the
-		# body drives the DONE re-check, the full goal still carries the
-		# CONSENT lines the restatement needs.
-		#
-		# The full view must drop THE HEADER -- the first SESSION: line -- and
-		# nothing else. A filter (`rg -v '^[[:space:]]*SESSION:'`) deleted every
-		# such line anywhere in the body, so a goal that discusses the SESSION
-		# header, which goals in this repo routinely do, was silently truncated
-		# before the agent ever saw it. Not a leak: data loss, with the agent
-		# working from a shortened objective and nothing saying so.
-		goal_body="$(printf '%s\n' "${goal_body}" | tail -n +2)"
-		goal="$(printf '%s\n' "${goal}" | python3 -c '
+SESSION:*)
+	owner="${header_line#SESSION:}"
+	owner="${owner# }"
+	[ "${owner}" = "${session_id}" ] || exit 0
+	# Drop the header from the text the agent sees, from BOTH views: the
+	# body drives the DONE re-check, the full goal still carries the
+	# CONSENT lines the restatement needs.
+	#
+	# The full view must drop THE HEADER -- the first SESSION: line -- and
+	# nothing else. A filter (`rg -v '^[[:space:]]*SESSION:'`) deleted every
+	# such line anywhere in the body, so a goal that discusses the SESSION
+	# header, which goals in this repo routinely do, was silently truncated
+	# before the agent ever saw it. Not a leak: data loss, with the agent
+	# working from a shortened objective and nothing saying so.
+	goal_body="$(printf '%s\n' "${goal_body}" | tail -n +2)"
+	goal="$(printf '%s\n' "${goal}" | python3 -c '
 import sys
 dropped = False
 for line in sys.stdin.read().splitlines():
@@ -428,13 +428,13 @@ for line in sys.stdin.read().splitlines():
         continue
     print(line)
 ' 2>/dev/null)"
-		;;
+	;;
 esac
 [ -n "${goal_body}" ] || exit 0
 
 # DONE beneath the header, which the raw first-line check above cannot see.
 case "$(printf '%s\n' "${goal_body}" | head -1)" in
-	DONE*|done*) exit 0 ;;
+DONE* | done*) exit 0 ;;
 esac
 [ -n "${goal}" ] || exit 0
 

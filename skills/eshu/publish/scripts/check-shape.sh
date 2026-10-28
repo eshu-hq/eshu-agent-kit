@@ -29,20 +29,20 @@ set -euo pipefail
 mode="pr"
 file=""
 for arg in "$@"; do
-  case "${arg}" in
-    --pr) mode="pr" ;;
-    --issue) mode="issue" ;;
-    --issue-checklist) mode="issue-checklist" ;;
-    -h | --help)
-      sed -n '5,21p' "$0" | sed 's/^# \{0,1\}//'
-      exit 0
-      ;;
-    *) file="${arg}" ;;
-  esac
+	case "${arg}" in
+	--pr) mode="pr" ;;
+	--issue) mode="issue" ;;
+	--issue-checklist) mode="issue-checklist" ;;
+	-h | --help)
+		sed -n '5,21p' "$0" | sed 's/^# \{0,1\}//'
+		exit 0
+		;;
+	*) file="${arg}" ;;
+	esac
 done
 if [ -z "${file}" ] || [ ! -f "${file}" ]; then
-  echo "usage: check-shape.sh [--pr|--issue|--issue-checklist] <file>" >&2
-  exit 2
+	echo "usage: check-shape.sh [--pr|--issue|--issue-checklist] <file>" >&2
+	exit 2
 fi
 
 # The private-identifier pattern lives beside this script under lib/ (kit
@@ -55,25 +55,25 @@ extra_fails=0
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 pattern_lib="${script_dir}/lib/private-identifier-pattern.sh"
 if [ ! -f "${pattern_lib}" ]; then
-  pattern_lib="$(cd "${script_dir}/../../../.." && pwd)/scripts/lib/private-identifier-pattern.sh"
+	pattern_lib="$(cd "${script_dir}/../../../.." && pwd)/scripts/lib/private-identifier-pattern.sh"
 fi
 if [ -f "${pattern_lib}" ]; then
-  # shellcheck source=lib/private-identifier-pattern.sh
-  source "${pattern_lib}"
-  id_rc=0
-  id_hits="$(rg -n -e "${PRIVATE_IDENTIFIER_PATTERN}" "${file}" | cut -d: -f1)" || id_rc=$?
-  if [ "${id_rc}" -gt 1 ]; then
-    echo "FAIL private-identifier: the scan failed (exit ${id_rc}); the text was not verified"
-    extra_fails=1
-  elif [ -n "${id_hits}" ]; then
-    while IFS= read -r id_line; do
-      echo "FAIL private-identifier: line ${id_line} carries an environment or organization identifier; rephrase it (QA environment, production environment, repo-X)"
-      extra_fails=$((extra_fails + 1))
-    done <<<"${id_hits}"
-  fi
+	# shellcheck source=lib/private-identifier-pattern.sh
+	source "${pattern_lib}"
+	id_rc=0
+	id_hits="$(rg -n -e "${PRIVATE_IDENTIFIER_PATTERN}" "${file}" | cut -d: -f1)" || id_rc=$?
+	if [ "${id_rc}" -gt 1 ]; then
+		echo "FAIL private-identifier: the scan failed (exit ${id_rc}); the text was not verified"
+		extra_fails=1
+	elif [ -n "${id_hits}" ]; then
+		while IFS= read -r id_line; do
+			echo "FAIL private-identifier: line ${id_line} carries an environment or organization identifier; rephrase it (QA environment, production environment, repo-X)"
+			extra_fails=$((extra_fails + 1))
+		done <<<"${id_hits}"
+	fi
 else
-  echo "FAIL private-identifier: pattern lib not found at ${pattern_lib}; the text was not verified"
-  extra_fails=1
+	echo "FAIL private-identifier: pattern lib not found at ${pattern_lib}; the text was not verified"
+	extra_fails=1
 fi
 
 LC_ALL=C awk -v mode="${mode}" -v extra_fails="${extra_fails}" '

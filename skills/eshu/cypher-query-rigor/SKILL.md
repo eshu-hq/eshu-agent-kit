@@ -26,16 +26,16 @@ answer both of these explicitly:
 
 1. **Research first.** Read the relevant backend behavior in source before
    writing the query — see
-   [Cypher Performance: Research The Pinned Backend](../../../docs/public/reference/cypher-performance.md#1-research-the-pinned-backend)
+   [Cypher Performance: Research The Pinned Backend](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#1-research-the-pinned-backend)
    for Neo4j and NornicDB source locations, and always check
-   [NornicDB Pitfalls](../../../docs/public/reference/nornicdb-pitfalls.md) for
+   [NornicDB Pitfalls](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md) for
    known traps. If your query uses a pattern you haven't validated against the
    pinned binary, that's research debt — close it with a focused test or
    `curl`-against-Bolt-HTTP probe in an isolated, uniquely-named Compose stack.
 
 2. **Benchmark first.** Capture a baseline before and an after measurement
    against the pinned backend binary on the same inputs, per
-   [Cypher Performance: Measure The Same Shape](../../../docs/public/reference/cypher-performance.md#2-measure-the-same-shape-before-and-after).
+   [Cypher Performance: Measure The Same Shape](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#2-measure-the-same-shape-before-and-after).
    Unmeasured Cypher in a hot path is a regression-shaped surprise. Pure
    correctness fixes can trade a full bench for a "no measurable regression"
    check on the same input shape, but must state that decision explicitly in
@@ -72,7 +72,7 @@ ESHU_PERFORMANCE_EVIDENCE_BASE=origin/main scripts/verify-performance-evidence.s
 
 Full detail on the gate, the query-plan-regression fixture contract, and
 worked good/bad evidence text is in
-[Cypher Performance: CI Evidence Gate](../../../docs/public/reference/cypher-performance.md#ci-evidence-gate).
+[Cypher Performance: CI Evidence Gate](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#ci-evidence-gate).
 
 ## Workflow
 

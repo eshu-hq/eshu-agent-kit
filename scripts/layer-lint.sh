@@ -10,38 +10,41 @@ KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KNOWN="${KIT_DIR}/scripts/layer-lint-known.txt"
 fails=0
 
-say_fail() { echo "FAIL layer-lint: $1"; fails=1; }
+say_fail() {
+	echo "FAIL layer-lint: $1"
+	fails=1
+}
 
 # T1: denylist over skills/core/ (markdown only; .gitkeep ignored).
 if [ -d "${KIT_DIR}/skills/core" ]; then
-  while IFS= read -r hit; do
-    say_fail "T1 coupling in core: ${hit}"
-  done < <(rg -n --no-heading -e 'make pre-(push|pr)' -e 'ci-gates|review-attest' \
-    -e 'scripts/(dev|lib)/' -e 'specs/ci-gates' -e 'docs/(public|internal)/' \
-    -e 'eshu-hq' -e '~/.eshu' -e '[a-z]+-eshu' \
-    -e 'Cypher|Neo4j|NornicDB|reducer|collector|graph truth' \
-    -g '*.md' "${KIT_DIR}/skills/core" 2>/dev/null || true)
+	while IFS= read -r hit; do
+		say_fail "T1 coupling in core: ${hit}"
+	done < <(rg -n --no-heading -e 'make pre-(push|pr)' -e 'ci-gates|review-attest' \
+		-e 'scripts/(dev|lib)/' -e 'specs/ci-gates' -e 'docs/(public|internal)/' \
+		-e 'eshu-hq' -e '~/.eshu' -e '[a-z]+-eshu' \
+		-e 'Cypher|Neo4j|NornicDB|reducer|collector|graph truth' \
+		-g '*.md' "${KIT_DIR}/skills/core" 2>/dev/null || true)
 fi
 
 # Basename uniqueness: install.sh links by basename into one dir.
 dups=$(ls "${KIT_DIR}/skills/core" "${KIT_DIR}/skills/eshu" 2>/dev/null | sort | uniq -d || true)
 if [ -n "${dups}" ]; then
-  say_fail "duplicate skill dir names across layers:${dups}"
+	say_fail "duplicate skill dir names across layers:${dups}"
 fi
 
 # No core -> eshu/docs links (dependency direction: adapter may reference core).
 if [ -d "${KIT_DIR}/skills/core" ]; then
-  while IFS= read -r hit; do
-    say_fail "core links out of layer: ${hit}"
-  done < <(rg -n --no-heading '\]\([^)]*(skills/eshu|docs/eshu)[^)]*\)' \
-    -g '*.md' "${KIT_DIR}/skills/core" 2>/dev/null || true)
+	while IFS= read -r hit; do
+		say_fail "core links out of layer: ${hit}"
+	done < <(rg -n --no-heading '\]\([^)]*(skills/eshu|docs/eshu)[^)]*\)' \
+		-g '*.md' "${KIT_DIR}/skills/core" 2>/dev/null || true)
 fi
 
 # Link resolution: every relative .md link under skills/ and docs/ must
 # resolve, except the reviewed known-dangling baseline in KNOWN.
 actual="$(mktemp)"
 trap 'rm -f "${actual}"' EXIT
-python3 - "${KIT_DIR}" > "${actual}" <<'EOF'
+python3 - "${KIT_DIR}" >"${actual}" <<'EOF'
 import re, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 for base in ('skills', 'docs'):
@@ -57,17 +60,17 @@ for base in ('skills', 'docs'):
 EOF
 sort -o "${actual}" "${actual}"
 if [ "${1:-}" = "--regen-known" ]; then
-  sort -o "${KNOWN}" "${actual}"
-  echo "regenerated ${KNOWN}"
+	sort -o "${KNOWN}" "${actual}"
+	echo "regenerated ${KNOWN}"
 fi
 if [ ! -f "${KNOWN}" ]; then
-  say_fail "known-baseline file missing: ${KNOWN} (run with --regen-known to create, then review it)"
+	say_fail "known-baseline file missing: ${KNOWN} (run with --regen-known to create, then review it)"
 elif ! diff -q "${KNOWN}" "${actual}" >/dev/null 2>&1; then
-  say_fail "link baseline drift (diff ${KNOWN} vs current):"
-  diff "${KNOWN}" "${actual}" || true
+	say_fail "link baseline drift (diff ${KNOWN} vs current):"
+	diff "${KNOWN}" "${actual}" || true
 fi
 
 if [ "${fails}" -eq 0 ]; then
-  echo "OK layer-lint passed"
+	echo "OK layer-lint passed"
 fi
 exit "${fails}"

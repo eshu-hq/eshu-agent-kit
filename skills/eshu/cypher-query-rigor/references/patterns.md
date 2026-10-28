@@ -2,7 +2,7 @@
 
 Worked shapes for the [Query Checklist and Write Checklist](../SKILL.md#query-checklist).
 For the full anti-pattern list and backend planner detail, see
-[Cypher Performance: Anti-Patterns](../../../../docs/public/reference/cypher-performance.md#anti-patterns).
+[Cypher Performance: Anti-Patterns](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#anti-patterns).
 
 ## Reads
 

@@ -6,7 +6,7 @@ description: "Use when proving or improving an Eshu latency, throughput, resourc
 # Performance Rigor
 
 This skill owns measured performance impact. Use
-[eshu-diagnostic-rigor](../eshu-diagnostic-rigor/SKILL.md) first when the cause or
+[eshu-diagnostic-rigor](../diagnostic-rigor/SKILL.md) first when the cause or
 bottleneck is unknown; routine test execution alone does not need diagnosis.
 
 For a covered query family, follow [Query Engineering](../../../docs/eshu/query-engineering.md).

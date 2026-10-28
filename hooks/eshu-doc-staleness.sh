@@ -15,8 +15,8 @@ set -o pipefail
 cat >/dev/null
 
 repo_root="${CLAUDE_PROJECT_DIR:-}"
-[ -z "$repo_root" ] && repo_root="$(git rev-parse --show-toplevel 2>/dev/null \
-  || (cd "$(dirname "$0")/../.." && pwd))"
+[ -z "$repo_root" ] && repo_root="$(git rev-parse --show-toplevel 2>/dev/null ||
+	(cd "$(dirname "$0")/../.." && pwd))"
 
 # --all rebuilds the full drift snapshot. Same call shape as the Codex hook so
 # both tools converge on the same .eshu-doc-state/stale.jsonl content.
@@ -25,6 +25,6 @@ repo_root="${CLAUDE_PROJECT_DIR:-}"
 # never fail an edit for a missing optional script.
 [ -x "$repo_root/scripts/check-docs-stale.sh" ] || exit 0
 ESHU_DOC_KEEPER_TOOL=claude-code \
-  "$repo_root/scripts/check-docs-stale.sh" --all
+	"$repo_root/scripts/check-docs-stale.sh" --all
 
 exit 0

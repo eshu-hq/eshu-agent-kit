@@ -8,7 +8,7 @@ description: "Use when the cause of an Eshu failure is unknown: a queue stall, b
 Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
 
 This skill owns causal diagnosis and observability. Use
-[eshu-performance-rigor](../eshu-performance-rigor/SKILL.md) for optimization,
+[eshu-performance-rigor](../performance-rigor/SKILL.md) for optimization,
 benchmark design, or any latency, throughput, resource, or wall-time claim.
 Ordinary passing test runs do not require this diagnostic workflow.
 
@@ -25,7 +25,7 @@ Form a narrow hypothesis and add telemetry if existing signals cannot test it.
 Use focused local proof; rebuild production binaries before runtime validation.
 Preserve correctness, bounded runtime cost, and intended concurrent behavior.
 A performance-sensitive change needs the impact declaration and applicable proof
-from [eshu-performance-rigor](../eshu-performance-rigor/SKILL.md) before
+from [eshu-performance-rigor](../performance-rigor/SKILL.md) before
 implementation; this skill does not define a second proof ladder.
 
 Bind proof to exact source, binary/image digest, retained-data and harness/browser
@@ -47,8 +47,8 @@ secrets into logs or tracked evidence.
   [gate-contention.md](references/gate-contention.md). Check resource contention
   first and serialize heavy gates across the shared host without killing peers.
 - For remote/scaled diagnostics, read the performance skill's
-  [scaled-run procedure](../eshu-performance-rigor/references/scaled-runs.md)
-  and [run manifest](../eshu-performance-rigor/references/run-manifest.md).
+  [scaled-run procedure](../performance-rigor/references/scaled-runs.md)
+  and [run manifest](../performance-rigor/references/run-manifest.md).
   Enable pprof and capture the effective container environment before
   interpreting slowness; machine-specific connection details stay operator-local.
 
@@ -64,7 +64,7 @@ end-to-end improvements; a diagnostic result need not claim a speedup. Record
 rejected hypotheses to avoid repeating them.
 
 For runtime evidence updates and hot-path PRs, read
-[performance evidence](../eshu-performance-rigor/references/evidence.md) for
+[performance evidence](../performance-rigor/references/evidence.md) for
 tracked markers, commands, and ADR fields. Root-cause notes carry
 `Root-Cause Evidence:` naming the establishing observation. A gate verifies that
 evidence exists, not that the causal reasoning is sound. Follow the root review
