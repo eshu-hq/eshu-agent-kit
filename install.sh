@@ -47,10 +47,11 @@ install_agents_repo() {
 
 install_hooks_repo() {
   local target="$1"
-  mkdir -p "$target/.claude/hooks/lib"
+  mkdir -p "$target/.claude/hooks/lib" "$target/scripts"
   link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
   link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
   link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
+  link_files "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts"
   echo "installed kit hook scripts into $target/.claude/hooks (+ Codex adapter)"
   echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
 }

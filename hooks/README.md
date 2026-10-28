@@ -22,8 +22,13 @@ Also moved (goal workflow): `goal-continue.sh` (Stop gate), `goal-refresh.sh`
 Goal files resolve through the kit pin; the `goal-role-router.py` expansion
 stays guarded-off until that script moves.
 
-Not yet moved (eshu-coupled): `guard-live-gate.sh` (eshu ports),
-`eshu-doc-staleness.sh` (eshu docs).
+Also moved (eshu-coupled guards): `guard-live-gate.sh` (PreToolUse on Bash;
+refuses a second live gate while Eshu ports are bound; speaks only inside
+checkouts carrying `.agents/skills/code-review` or the legacy
+`.agents/skills/eshu-code-review`), `eshu-doc-staleness.sh` (PostToolUse
+signal delegating to `<repo>/scripts/check-docs-stale.sh`, which
+`install.sh --hooks` links in; degrades to a no-op when absent),
+`codex/eshu-doc-staleness.sh` (Codex `apply_patch` adapter).
 
 ## Wiring
 
@@ -47,10 +52,23 @@ consuming repo. Claude Code (`settings.json`):
       {"matcher": "compact|resume", "hooks": [
         {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/on-compact.sh"}
       ]}
+    ],
+    "PreToolUse": [
+      {"matcher": "Bash", "hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-live-gate.sh"}
+      ]}
+    ],
+    "PostToolUse": [
+      {"matcher": "Edit|MultiEdit|Write", "hooks": [
+        {"type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/eshu-doc-staleness.sh"}
+      ]}
     ]
   }
 }
 ```
+
+Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on
+`apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
 
 `install.sh --hooks --repo PATH` links `hooks/` + `hooks/lib/` into
 `PATH/.claude/hooks/` and prints this block. Plugin-manifest `hooks`

@@ -12,6 +12,7 @@ Each product repo stays thin: it holds a version pin plus a small overlay, and i
 - `agents/` — `roles.json` + `agent-roles.py` generator and rendered per-harness mirrors (`arbiter`, `develop`, `review`, `debug`, `perf`, `scan`).
 - `rules/` — harness rules, ported from per-repo `.claude/rules/`.
 - `hooks/` — hook scripts plus per-harness wiring notes.
+- `scripts/` — repo-side tooling the hooks delegate to (`check-docs-stale.sh`); `install.sh --hooks` links it into the consuming repo's `scripts/`.
 - `templates/repo-overlay/` — the thin files a product repo keeps.
 - `install.sh` — links this checkout into `~/.claude/skills`, `~/.codex/skills`, or a target repo.
 
