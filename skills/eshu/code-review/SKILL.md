@@ -5,7 +5,7 @@ description: Produces the push/PR/merge review verdict on an Eshu diff — proof
 
 # Code Review
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths, `eshu-*` skill names, and the `../eshu-session-lifecycle/` path resolve in the consuming repo checkout until those skills move (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths and not-yet-moved `eshu-*` names resolve in the consuming repo checkout (see `skills/registry.md`). Skill-to-skill links resolve in-kit.
 
 Review the final work product against its requirements and evidence. Author
 confidence, local memory, and file type do not establish safety. Process wording
@@ -57,7 +57,7 @@ A separate reviewer works read-only until the verdict is delivered. Use a
 separate context when delegation is available and authorized. If it is unavailable
 or the user explicitly requests self-review, name that mode and limitation. An
 external-review replacement has additional independence requirements in
-`eshu-issue-driver`; author-side review does not satisfy that second review.
+`issue-driver`; author-side review does not satisfy that second review.
 
 This skill runs at **Workhorse tier** through `review-eshu`, and at **Deep
 tier** through `review-eshu-deep` for the final review of a difficult diff
@@ -99,7 +99,7 @@ nothing merges past a red gate without a disposition, and reproduce only the
 failing gate locally rather than re-running everything. After a rebase, a gate can be
 red on the new base itself. Reproduce it on the bare base before you attribute
 it to the diff; the procedure is in
-[rebase-verify.md](../eshu-session-lifecycle/references/rebase-verify.md).
+[rebase-verify.md](../session-lifecycle/references/rebase-verify.md).
 
 ## Rebase Waiver
 

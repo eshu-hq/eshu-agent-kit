@@ -74,7 +74,7 @@ upstream of it. Read the two criteria as a gate on the paragraph below them,
 not as background for it.
 
 Deferral is not the reviewing agent's call alone. It requires **the owner's
-agreement, quoted in the PR**, exactly as `SKILL.md`, `eshu-issue-driver` Step 6
+agreement, quoted in the PR**, exactly as `SKILL.md`, `issue-driver` Step 6
 and the root canon already demand — an exception the invoking agent can
 self-certify is not a gate, and this bar must not become one. "Tracked" means a
 linked follow-up issue, not a sentence in a PR body: without an issue, nothing

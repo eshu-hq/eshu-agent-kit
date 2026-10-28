@@ -10,8 +10,8 @@ Keep outward-facing comments and review requests within user authorization.
   about every 60 seconds; do not wait for the gates to finish before looking.
   If `mergeable` becomes `CONFLICTING` or `UNKNOWN` for more than one poll,
   fetch, rebase on `origin/main`, and take the row the Rebase Waiver table in
-  `eshu-code-review` gives. A mechanical conflict (row 4a, including every
-  [conflict recipe](../../eshu-code-review/references/conflict-recipes.md)
+  `code-review` gives. A mechanical conflict (row 4a, including every
+  [conflict recipe](../../code-review/references/conflict-recipes.md)
   file) needs only its file-type checks and a PR comment before the
   `--force-with-lease` push; other rows repeat the promotion sequence. Restart
   the poll after the push. Active agents merge constantly; a green check
@@ -92,7 +92,7 @@ Keep outward-facing comments and review requests within user authorization.
   The trigger is the set of reviewers that actually produced a review being
   empty after retries — whatever the reason, quota or silence. When it is, the
   coverage MUST be replaced, not waived: dispatch a subagent in a separate
-  context to run the full `eshu-code-review` against the final diff. Ask it to
+  context to run the full `code-review` against the final diff. Ask it to
   evaluate requirements against evidence, covering proof tier, all required passes
   including hostile read, cross-pass contradiction check,
   severity/confidence/disposition per finding, and the generated-artifact,

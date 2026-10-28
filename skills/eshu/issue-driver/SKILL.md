@@ -5,7 +5,7 @@ description: Drives an assigned eshu-hq issue or epic through implementation, re
 
 # Issue driver
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths and `eshu-*` skill names resolve in the consuming repo checkout.
+Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths resolve in the consuming repo checkout. Skill-to-skill links resolve in-kit.
 
 Use for assigned issues in `eshu-hq` repos. A request to edit skills or open a PR
 alone does not authorize driving issues through merge and closure. Follow the
@@ -66,7 +66,7 @@ liveness misjudgement.
    in the evidence. Fetch `origin`, rebase on fresh `origin/main`, rerun proof
    affected by the rebase, and inspect the diff for unrelated reversions.
    For Go changes, run `cd go && go vet ./...` to catch test compilation drift.
-3. Run the complete preliminary `eshu-code-review` on the rebased diff, except
+3. Run the complete preliminary `code-review` on the rebased diff, except
    when the rebase table in that skill ("Rebase Waiver") sends this rebase to a
    waiver note or a scoped re-review instead. See step 5. Use
    separate-context review when available and authorized; otherwise explicitly
@@ -78,7 +78,7 @@ liveness misjudgement.
    For a waiver note or a scoped rebase verdict, run `make pre-push` first and
    capture after it exits 0.
    Run `make pre-push` before every push (except row 4a, tier S, or an owner push order; see Rebase
-   Waiver in `eshu-code-review`) — the required floor (changed-package
+   Waiver in `code-review`) — the required floor (changed-package
    test/lint/build/vet, file cap, registry-selected static gates,
    docs-contradiction). For queue/lease/claim code, schema DDL, hot-path
    Cypher or graph writes, reducer projection/materialization, or a package
@@ -95,7 +95,7 @@ liveness misjudgement.
    Matching inputs reuse the preliminary semantic review. A changed base,
    commit, tree, worktree, submodule, PR claim, review packet, or verdict
    requires affected proof and a new full review/receipt before promotion.
-   The one exception is a rebase. The decision table in `eshu-code-review`
+   The one exception is a rebase. The decision table in `code-review`
    ("Rebase Waiver") sends it to row 4a or tier S (no review, no
    `make pre-push`, no receipt: run the file-type checks, comment, push; tier S
    excludes agent-rule files and test-assertion edits), a
@@ -113,10 +113,10 @@ liveness misjudgement.
    No edits may occur between verified attestation and push. Make the PR title,
    description, and affected docs match the final change and its proof.
    An explicit owner order to push overrides the floor, the review, and the
-   receipt for that push: push now and record it (`eshu-code-review`, "Owner
+   receipt for that push: push now and record it (`code-review`, "Owner
    push order"). Never refuse or ask again after the order.
 7. Arm the CI watcher in the same turn as the `gh pr create` (see
-   `eshu-session-lifecycle` babysit-prs step 1: one watcher, rebuilt set,
+   `session-lifecycle` babysit-prs step 1: one watcher, rebuilt set,
    GHA failures + merge conflicts + any-author reviews/comments/threads;
    Monitor tool on Muse). Collect current GitHub checks, mergeability,
    review bodies, issue comments,
@@ -176,7 +176,7 @@ Tell every subagent/workflow on the goal to follow this for issues it creates.
 ## Defects Found During The Drive
 
 Fix related defects inline when they fit the authorized change and its proof.
-Use `eshu-code-review`'s merge bar to classify blocking and deferred findings.
+Use `code-review`'s merge bar to classify blocking and deferred findings.
 A defect needing a design decision, unrelated projected-truth changes, or
 unavailable infrastructure may need separate work. Take the design decision to
 an arbiter model, not the owner. Create the follow-up issue inside the goal and

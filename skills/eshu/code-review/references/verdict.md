@@ -83,7 +83,7 @@ scope, especially in the same function, file, or evidence path. Defer only when
 the fix needs a design decision the owner must make, would change unrelated
 projected truth and needs its own proof, or blocks on credentials/infrastructure —
 and confirm with the owner before opening a new issue. Filing an issue per finding
-produces backlog sprawl rather than progress (see `eshu-issue-driver` defect handling).
+produces backlog sprawl rather than progress (see `issue-driver` defect handling).
 
 ## Hard Blocks
 
