@@ -1,0 +1,52 @@
+docs/eshu/README.md
+  h_78a442cba0b3e6 15
+docs/eshu/agent-hooks.md
+  h_78a442cba0b3e6 1-499
+hooks/README.md
+  h_78a442cba0b3e6 18-26
+hooks/codex/goal-continue.sh
+  h_78a442cba0b3e6 1-124
+hooks/goal-continue.sh
+  h_78a442cba0b3e6 1-449
+hooks/goal-refresh.sh
+  h_78a442cba0b3e6 1-478
+hooks/issue-capture.sh
+  h_78a442cba0b3e6 1-92
+hooks/lib/goal-issues-extract.py
+  h_78a442cba0b3e6 1-142
+hooks/lib/goal-issues.py
+  h_78a442cba0b3e6 1-498
+hooks/lib/goal-issues.sh
+  h_78a442cba0b3e6 1-271
+hooks/lib/goal-progress.sh
+  h_78a442cba0b3e6 1-84
+hooks/lib/goal-refresh-note.py
+  h_78a442cba0b3e6 1-110
+hooks/tests/test-goal-continue-hook-budget-cases.sh
+  h_78a442cba0b3e6 1-473
+hooks/tests/test-goal-continue-hook-cases.sh
+  h_78a442cba0b3e6 1-184
+hooks/tests/test-goal-continue-hook.sh
+  h_78a442cba0b3e6 1-309
+hooks/tests/testdata/claude-posttool-bash-lead.json
+  h_78a442cba0b3e6 1-25
+hooks/tests/testdata/claude-posttool-bash-subagent.json
+  h_78a442cba0b3e6 1-27
+hooks/tests/testdata/muse-posttool-bash.json
+  h_78a442cba0b3e6 1-18
+install.sh
+  h_78a442cba0b3e6 53-54
+scripts/layer-lint-known.txt
+  h_78a442cba0b3e6 7-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1299dbe571c543d0aaaada652cf42a43b7ccbc17",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
