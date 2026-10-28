@@ -17,6 +17,8 @@ cutover; this tree is a byte-identical mirror plus one marked extract.
 | telemetry-discipline-precedent.md | `docs/internal/telemetry-discipline-precedent.md` | 261 | byte-identical |
 | contract-system-contributor-summary.md | `docs/internal/contract-system-contributor-summary.md` | 113 | byte-identical, links its `design/` companion |
 | design/contract-system-v1.md | `docs/internal/design/contract-system-v1.md` | 339 | byte-identical; second-order links recorded below |
+| naming.md | `docs/internal/naming.md` | 82 | byte-identical |
+| design/reducer-target-tree.md | `docs/internal/design/reducer-target-tree.md` | 443 | byte-identical; second-order links recorded below |
 
 Sync rule: if the eshu source changes, copy it over byte-identical (plus the
 two renames in the extract) in a follow-up PR. Do not edit these files for any

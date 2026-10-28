@@ -21,10 +21,10 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-publish | publish | eshu | moved |
 | eshu-release | release | core | queued |
 | eshu-session-lifecycle | session-lifecycle | eshu | moved |
-| resolve-review-threads | resolve-review-threads | core | queued |
+| resolve-review-threads | resolve-review-threads | eshu | moved |
 | eshu-executor-preflight | executor-preflight | eshu | moved |
-| generator-script-discipline | generator-script-discipline | core | queued |
-| golang-engineering | golang-engineering | core | queued |
+| generator-script-discipline | generator-script-discipline | eshu | moved |
+| golang-engineering | golang-engineering | eshu | moved |
 | concurrency-deadlock-rigor | concurrency-deadlock-rigor | eshu | moved |
 | eshu-diagnostic-rigor | diagnostic-rigor | eshu | moved |
 | eshu-contract-rigor | contract-rigor | eshu | moved |
@@ -35,7 +35,7 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-golden-corpus-rigor | golden-corpus-rigor | eshu | queued |
 | eshu-mcp-call-rigor | mcp-call-rigor | eshu | queued |
 | eshu-security-scan-gates | security-scan-gates | eshu | queued |
-| eshu-folder-doc-keeper | folder-doc-keeper | core | queued |
+| eshu-folder-doc-keeper | folder-doc-keeper | eshu | moved |
 | telemetry-coverage-discipline | telemetry-coverage-discipline | eshu | moved |
 
 Rename rule: name reflects intended consumer vocabulary (drop the `eshu-` prefix when the skill is meant to be called generically). Directory reflects the layer rule above — a portably-named skill still lives in `skills/eshu/` until it passes T1–T3.
