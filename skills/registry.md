@@ -10,7 +10,7 @@ Layers: `core` means portable, `eshu` means coupled to Eshu contracts. Status `n
 | eshu-code-review | code-review | eshu | moved |
 | eshu-publish | publish | core | next |
 | eshu-release | release | core | queued |
-| eshu-session-lifecycle | session-lifecycle | core | next |
+| eshu-session-lifecycle | session-lifecycle | eshu | moved |
 | resolve-review-threads | resolve-review-threads | core | queued |
 | eshu-executor-preflight | executor-preflight | core | queued |
 | generator-script-discipline | generator-script-discipline | core | queued |
