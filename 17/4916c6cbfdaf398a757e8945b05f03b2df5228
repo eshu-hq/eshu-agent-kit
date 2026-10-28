@@ -1,0 +1,14 @@
+scripts/layer-lint-known.txt
+  h_78a442cba0b3e6 18-19,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "174916c6cbfdaf398a757e8945b05f03b2df5228",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
