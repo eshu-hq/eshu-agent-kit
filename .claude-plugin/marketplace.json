@@ -9,7 +9,7 @@
     {
       "name": "eshu-agent-kit",
       "source": "./",
-      "description": "Eshu agent kit: review, publishing, session-lifecycle, and issue-driving skills plus shared process docs."
+      "description": "Eshu agent kit: 21 review, rigor, and workflow skills, 10 subagent roles, hook enforcement, and path-scoped rules for eshu-hq repos."
     }
   ]
 }

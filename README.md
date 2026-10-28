@@ -42,11 +42,18 @@ Codex (no marketplace — open-standard skills, symlinked):
 ./install.sh --repo /path/to/repo
 ```
 
-Subagents ship through `install.sh` on every harness until plugin hosts support them; skills and (once migrated) hooks ride the plugin on Claude Code.
+Subagents ship through `install.sh` on every harness until plugin hosts support them; skills and hooks ride the plugin on Claude Code (`hooks/hooks.json` registers skill enforcement, goal continuation, the live-gate guard, and the doc-staleness signal — every hook fails open outside its scope).
 
 ```sh
 ./install.sh --agents --global
 ./install.sh --agents --repo /path/to/repo
+```
+
+Hooks and rules install per repo (scripts only; wiring stays explicit except through the marketplace plugin, which registers `hooks/hooks.json` automatically):
+
+```sh
+./install.sh --hooks --repo /path/to/repo
+./install.sh --rules --repo /path/to/repo
 ```
 
 Agent source of truth is `agents/roles.json`; `agents/agent-roles.py generate` renders the per-harness mirrors (`agents/`, `.claude/agents/`, `.codex/agents/`, `.opencode/agent/`, `.cursor/agents/`) and `check` fails on drift. Role names keep their `*-eshu` suffix until consumer cutover.

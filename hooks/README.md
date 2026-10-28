@@ -71,5 +71,9 @@ Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on
 `apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
 
 `install.sh --hooks --repo PATH` links `hooks/` + `hooks/lib/` into
-`PATH/.claude/hooks/` and prints this block. Plugin-manifest `hooks`
-wiring lands with the goal-hook move.
+`PATH/.claude/hooks/` and prints the settings block above. The Claude Code
+marketplace plugin registers the same scripts automatically through
+`hooks/hooks.json` (plugin root, `${CLAUDE_PLUGIN_ROOT}` paths): installing
+the plugin opts into skill enforcement, goal continuation, the live-gate
+guard, and the doc-staleness signal. Every hook fails open outside its scope
+(see each script's header). Codex has no plugin host; `install.sh` covers it.
