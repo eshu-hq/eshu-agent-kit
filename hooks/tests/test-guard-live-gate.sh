@@ -35,18 +35,23 @@ run() { printf '{"tool_input":{"command":"%s"},"cwd":"%s"}' "$2" "$1" | bash "${
 
 printf '{"tool_input":{"command":"make pre-pr"},"cwd":"%s"}' "${eshu}" | bash "${HOOK}" >/dev/null 2>&1
 code=$?
-[ "${code}" = "0" ] && ok "guarded command on a quiet machine allows (exit 0)" || no "guarded command on a quiet machine allows (got ${code})"
+if [ "${code}" = "0" ]; then ok "guarded command on a quiet machine allows (exit 0)"; else no "guarded command on a quiet machine allows (got ${code})"; fi
 
 run "${plain}" "make pre-pr"
-[ "$?" = "0" ] && ok "outside an Eshu checkout a guarded command allows" || no "outside an Eshu checkout a guarded command allows"
+code=$?
+if [ "${code}" = "0" ]; then ok "outside an Eshu checkout a guarded command allows"; else no "outside an Eshu checkout a guarded command allows (got ${code})"; fi
 run "${eshu}" "make build"
-[ "$?" = "0" ] && ok "an unguarded command allows inside Eshu" || no "an unguarded command allows inside Eshu"
+code=$?
+if [ "${code}" = "0" ]; then ok "an unguarded command allows inside Eshu"; else no "an unguarded command allows inside Eshu (got ${code})"; fi
 printf '' | bash "${HOOK}" >/dev/null 2>&1
-[ "$?" = "0" ] && ok "empty stdin allows" || no "empty stdin allows"
+code=$?
+if [ "${code}" = "0" ]; then ok "empty stdin allows"; else no "empty stdin allows (got ${code})"; fi
 printf 'not json' | bash "${HOOK}" >/dev/null 2>&1
-[ "$?" = "0" ] && ok "unparseable input allows" || no "unparseable input allows"
+code=$?
+if [ "${code}" = "0" ]; then ok "unparseable input allows"; else no "unparseable input allows (got ${code})"; fi
 run "${eshu}" "CLAUDE_HOOK_ALLOW=1 make pre-pr"
-[ "$?" = "0" ] && ok "CLAUDE_HOOK_ALLOW=1 override allows" || no "CLAUDE_HOOK_ALLOW=1 override allows"
+code=$?
+if [ "${code}" = "0" ]; then ok "CLAUDE_HOOK_ALLOW=1 override allows"; else no "CLAUDE_HOOK_ALLOW=1 override allows (got ${code})"; fi
 
 # BLOCKED path: bind 18080 (GATE_API_PORT default) then run a guarded command.
 if command -v python3 >/dev/null 2>&1 && command -v lsof >/dev/null 2>&1; then
@@ -56,7 +61,7 @@ if command -v python3 >/dev/null 2>&1 && command -v lsof >/dev/null 2>&1; then
 	if lsof -nP -iTCP:18080 -sTCP:LISTEN >/dev/null 2>&1; then
 		out=$(printf '{"tool_input":{"command":"make pre-pr"},"cwd":"%s"}' "${eshu}" | bash "${HOOK}" 2>&1)
 		code=$?
-		[ "${code}" = "2" ] && ok "guarded command with a bound probed port blocks (exit 2)" || no "guarded command with a bound probed port blocks (got ${code})"
+		if [ "${code}" = "2" ]; then ok "guarded command with a bound probed port blocks (exit 2)"; else no "guarded command with a bound probed port blocks (got ${code})"; fi
 		case "${out}" in
 		*BLOCKED:*) ok "block message names the contention" ;;
 		*) no "block message names the contention" ;;
@@ -64,10 +69,10 @@ if command -v python3 >/dev/null 2>&1 && command -v lsof >/dev/null 2>&1; then
 		out2=$(printf '{"tool_input":{"command":"GATE_API_PORT=18081 make pre-pr"},"cwd":"%s"}' "${eshu}" | bash "${HOOK}" 2>&1)
 		code2=$?
 		# 18081 is free, so the waived probe plus free siblings still allow.
-		[ "${code2}" = "0" ] && ok "per-port override waives only its own probe" || no "per-port override waives only its own probe (got ${code2})"
+		if [ "${code2}" = "0" ]; then ok "per-port override waives only its own probe"; else no "per-port override waives only its own probe (got ${code2}: ${out2})"; fi
 		out3=$(printf '{"tool_input":{"command":"CLAUDE_HOOK_ALLOW=1 make pre-pr"},"cwd":"%s"}' "${eshu}" | bash "${HOOK}" 2>&1)
 		code3=$?
-		[ "${code3}" = "0" ] && ok "override allows while a port is bound" || no "override allows while a port is bound (got ${code3})"
+		if [ "${code3}" = "0" ]; then ok "override allows while a port is bound"; else no "override allows while a port is bound (got ${code3}: ${out3})"; fi
 	else
 		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
 		ok "SKIP blocked-path cases: port 18080 already in use on this machine"

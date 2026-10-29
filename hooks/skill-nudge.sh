@@ -33,6 +33,7 @@ INPUT=$(cat)
 # resolved root path rather than just this boolean gate -- see
 # lib/skill-nudge-lib.sh for why keeping one implementation matters here.
 # shellcheck source=hooks/lib/skill-nudge-lib.sh
+# shellcheck disable=SC1091 # repo runs shellcheck without -x, so sources are never followed; path above is verified present for -x/editor runs
 . "$(dirname "${BASH_SOURCE[0]}")/lib/skill-nudge-lib.sh"
 
 command -v python3 >/dev/null 2>&1 || exit 0
@@ -103,6 +104,7 @@ nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
 	*.go) IDS="golang-engineering" ;;
 	esac
 }
+# shellcheck source=/dev/null # owner-local optional table; absent from the repo by design
 [ -f "$ROOT/.agents/nudge-table.sh" ] && . "$ROOT/.agents/nudge-table.sh"
 REL="${FP#"$ROOT"/}"
 nudge_ids_for "/$REL"

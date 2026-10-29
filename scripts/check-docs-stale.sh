@@ -79,10 +79,8 @@ check_dir() {
 	# the kind of change docs need to reflect. We cannot mtime-compare against
 	# a missing file, so flag the directory unconditionally.
 	if [ ! -e "$changed" ]; then
-		[ -f "$readme" ] && emit "$dir" "stale-readme-source-missing" "$changed" ||
-			emit "$dir" "missing-readme" "$changed"
-		[ -f "$docgo" ] && emit "$dir" "stale-docgo-source-missing" "$changed" ||
-			emit "$dir" "missing-docgo" "$changed"
+		if [ -f "$readme" ]; then emit "$dir" "stale-readme-source-missing" "$changed"; else emit "$dir" "missing-readme" "$changed"; fi
+		if [ -f "$docgo" ]; then emit "$dir" "stale-docgo-source-missing" "$changed"; else emit "$dir" "missing-docgo" "$changed"; fi
 		return
 	fi
 

@@ -30,8 +30,8 @@ plain="${work}/plain"
 mkdir -p "${plain}"
 printf '' | CLAUDE_PROJECT_DIR="${plain}" bash "${HOOK}" >/dev/null 2>&1
 code=$?
-[ "${code}" = "0" ] && ok "missing checker exits 0" || no "missing checker exits 0 (got ${code})"
-[ ! -e "${plain}/.eshu-doc-state" ] && ok "missing checker writes no state" || no "missing checker writes no state"
+if [ "${code}" = "0" ]; then ok "missing checker exits 0"; else no "missing checker exits 0 (got ${code})"; fi
+if [ ! -e "${plain}/.eshu-doc-state" ]; then ok "missing checker writes no state"; else no "missing checker writes no state"; fi
 
 # 2. Present checker flags a stale README and still exits 0.
 repo="${work}/repo"
@@ -43,8 +43,8 @@ printf 'package pkg\n' >"${repo}/go/pkg/doc.go"
 touch -d '2020-01-01' "${repo}/go/pkg/README.md" "${repo}/go/pkg/doc.go"
 out=$(printf '' | CLAUDE_PROJECT_DIR="${repo}" bash "${HOOK}" 2>&1)
 code=$?
-[ "${code}" = "0" ] && ok "checker run exits 0" || no "checker run exits 0 (got ${code})"
-[ -f "${repo}/.eshu-doc-state/stale.jsonl" ] && ok "checker writes the drift snapshot" || no "checker writes the drift snapshot"
+if [ "${code}" = "0" ]; then ok "checker run exits 0"; else no "checker run exits 0 (got ${code})"; fi
+if [ -f "${repo}/.eshu-doc-state/stale.jsonl" ]; then ok "checker writes the drift snapshot"; else no "checker writes the drift snapshot"; fi
 case "${out}" in
 *stale-readme*) ok "snapshot names the stale README" ;;
 *) no "snapshot names the stale README (got: ${out:0:120})" ;;

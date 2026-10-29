@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Sourced by hooks/tests/test-goal-continue-hook.sh -- not run on its own.
+# shellcheck disable=SC2154,SC2034 # work/sid/goal/repo_root arrive from the sourcing parent, which also reads the *_loaded sentinel
 #
 # The Stop mirror's BUDGET half: the progress-aware continuation budget, the
 # transcript-scanning progress detector, and everything the review rounds
