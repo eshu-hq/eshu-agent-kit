@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Layer lint for eshu-agent-kit: enforces the T1 layer rule from
 # skills/registry.md plus link resolution and skill-name uniqueness.
-# Usage: bash scripts/layer-lint.sh [--regen-known]
-# Exit 0 when every gate passes, 1 with reasons otherwise.
+# Usage: bash scripts/layer-lint.sh
+# Exit 0 when every gate passes, 1 with reasons otherwise. Zero tolerance:
+# any dangling link fails directly; there is no baseline file (#24).
 set -euo pipefail
 export LC_ALL=C
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KNOWN="${KIT_DIR}/scripts/layer-lint-known.txt"
 fails=0
 
 say_fail() {
@@ -46,7 +46,7 @@ if [ -d "${KIT_DIR}/skills/core" ]; then
 fi
 
 # Link resolution: every relative .md link under skills/ and docs/ must
-# resolve, except the reviewed known-dangling baseline in KNOWN.
+# resolve. Zero tolerance: any dangling link fails directly (#24).
 actual="$(mktemp)"
 trap 'rm -f "${actual}"' EXIT
 python3 - "${KIT_DIR}" >"${actual}" <<'EOF'
@@ -64,15 +64,9 @@ for base in ('skills', 'docs'):
                 print(f'{md.relative_to(root)}:{t}')
 EOF
 sort -o "${actual}" "${actual}"
-if [ "${1:-}" = "--regen-known" ]; then
-	sort -o "${KNOWN}" "${actual}"
-	echo "regenerated ${KNOWN}"
-fi
-if [ ! -f "${KNOWN}" ]; then
-	say_fail "known-baseline file missing: ${KNOWN} (run with --regen-known to create, then review it)"
-elif ! diff -q "${KNOWN}" "${actual}" >/dev/null 2>&1; then
-	say_fail "link baseline drift (diff ${KNOWN} vs current):"
-	diff "${KNOWN}" "${actual}" || true
+if [ -s "${actual}" ]; then
+	say_fail "dangling links (no baseline; fix the link):"
+	cat "${actual}"
 fi
 
 if [ "${fails}" -eq 0 ]; then
