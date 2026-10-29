@@ -60,6 +60,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
 {
 	read -r session_id
 	read -r prompt_id
+	# shellcheck disable=SC2034 # stop_active is read to position the stream; the hook intentionally ignores the flag
 	read -r stop_active
 	IFS= read -r cwd
 	IFS= read -r transcript

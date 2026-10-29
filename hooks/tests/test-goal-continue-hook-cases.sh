@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Sourced by hooks/tests/test-goal-continue-hook.sh -- not run on its own.
+# shellcheck disable=SC2154,SC2034 # work/sid/goal/repo_root arrive from the sourcing parent, which also reads the *_loaded sentinel
 #
 # The mirror outgrew one file at the repo's 500-line cap, so the later suites
 # live here: pre-granted consent, concurrent sessions in one checkout, and the

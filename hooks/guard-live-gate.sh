@@ -35,8 +35,10 @@ case "$CMD" in *CLAUDE_HOOK_ALLOW=1*) exit 0 ;; esac
 
 # Is this even a command this hook guards? Matched with bash globbing rather
 # than rg, so the hook carries no dependency beyond python3.
+# `*"make pre-pr"*` already matches `make pre-pr-full` (substring), so no
+# separate alternative: one pattern covers both preflight spellings.
 case "$CMD" in
-*"make pre-pr"* | *"make pre-pr-full"* | *verify-golden-corpus-gate*) ;;
+*"make pre-pr"* | *verify-golden-corpus-gate*) ;;
 *) exit 0 ;;
 esac
 
