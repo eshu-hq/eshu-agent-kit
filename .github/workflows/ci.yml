@@ -34,6 +34,11 @@ env:
   ACTIONLINT_VERSION: 1.7.12
   ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
   SHFMT_VERSION: v3.12.0
+  # Self-measured sha256 of the upstream release binary (no published
+  # checksum file); verified out of band: the binary self-reports v3.12.0
+  # and agrees with the Go-toolchain copy on the full tree. Pins the exact
+  # bits so a silent upstream re-roll fails.
+  SHFMT_SHA256: d9fbb2a9c33d13f47e7618cf362a914d029d02a6df124064fff04fd688a745ea
   RIPGREP_VERSION: 15.2.0
   # Self-measured sha256 of the upstream musl tarball (no published
   # checksum file); pins the exact bits so a silent upstream re-roll fails.
@@ -96,8 +101,11 @@ jobs:
           printf '%s\n' "${HOME}/.local/bin" >> "${GITHUB_PATH}"
           mkdir -p "${HOME}/.local/bin"
           mv "/tmp/shellcheck-v${SHELLCHECK_VERSION#v}/shellcheck" "${HOME}/.local/bin/shellcheck"
-          go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
-          printf '%s\n' "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+          curl -sL -o /tmp/shfmt \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+          printf '%s  /tmp/shfmt\n' "${SHFMT_SHA256}" | sha256sum -c -
+          chmod +x /tmp/shfmt
+          mv /tmp/shfmt "${HOME}/.local/bin/shfmt"
       - name: shellcheck (errors fail, warnings stay visible)
         run: |
           shopt -s globstar nullglob
