@@ -1,0 +1,30 @@
+hooks/goal-continue.sh
+  h_78a442cba0b3e6 63
+hooks/guard-live-gate.sh
+  h_78a442cba0b3e6 38-39,41
+hooks/skill-nudge.sh
+  h_78a442cba0b3e6 36,107
+hooks/tests/test-doc-staleness-hook.sh
+  h_78a442cba0b3e6 33-34,46-47
+hooks/tests/test-goal-continue-hook-budget-cases.sh
+  h_78a442cba0b3e6 3
+hooks/tests/test-goal-continue-hook-cases.sh
+  h_78a442cba0b3e6 3
+hooks/tests/test-guard-live-gate.sh
+  h_78a442cba0b3e6 38,41-42,44-45,47-48,50-51,53-54,64,72,75
+scripts/check-docs-stale.sh
+  h_78a442cba0b3e6 82-83
+scripts/layer-lint.sh
+  h_78a442cba0b3e6 19-22,28,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88abe81d1f92871fbede4d0fd09f1a6cc22228f9",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
