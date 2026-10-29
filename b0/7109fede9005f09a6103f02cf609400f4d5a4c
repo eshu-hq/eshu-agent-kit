@@ -1,0 +1,14 @@
+scripts/layer-lint.sh
+  h_78a442cba0b3e6 4-6,49,67-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b07109fede9005f09a6103f02cf609400f4d5a4c",
+  "prompts": {},
+  "humans": {
+    "h_78a442cba0b3e6": {
+      "author": "Allen Sanabria <asanabria6910@gmail.com>"
+    }
+  }
+}
