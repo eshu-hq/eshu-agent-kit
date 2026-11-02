@@ -52,8 +52,9 @@ skill directory and writes that harness's agent mirrors with a model per agent.
 The installer asks one model ID per agent (and the OpenCode main model); Enter keeps
 the kit default from `agents/roles.json`, and non-interactive runs keep every default.
 For OpenCode the choices land in `~/.config/opencode/opencode.jsonc` (`model` plus the
-`agents` section), so they win over frontmatter; comments in that file are dropped on
-merge. Other harnesses keep the model in each agent file's frontmatter. Example: pick
+`agents`/`agent` section), so they win over frontmatter; the merge tolerates JSONC
+comments and trailing commas, drops the comments on write-back, and leaves an
+unparseable file untouched while exiting nonzero. Other harnesses keep the model in each agent file's frontmatter. Example: pick
 `clankerbox/qwen3.8-flash-next` at every prompt to run the whole kit on Qwen 3.8 Flash Next.
 It preserves existing non-symlink skill paths and reports each collision; resolve those
 paths manually if you want the kit version. The plugin registers skills and hooks

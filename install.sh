@@ -43,22 +43,25 @@ link_files() {
 resolve_harnesses() {
 	local h
 	selected=()
-	if [ "$#" -eq 0 ]; then
-		selected=("${HARNESSES[@]}")
-		return 0
-	fi
 	for h in "$@"; do
 		case "$h" in
-		all)
-			selected=("${HARNESSES[@]}")
-			return 0
-			;;
-		claude | codex | opencode | muse | cursor) selected+=("$h") ;;
+		all | claude | codex | opencode | muse | cursor) : ;;
 		*)
 			printf 'unknown harness: %s (choose: claude, codex, opencode, muse, cursor, all)\n' "$h" >&2
 			return 1
 			;;
 		esac
+	done
+	if [ "$#" -eq 0 ]; then
+		selected=("${HARNESSES[@]}")
+		return 0
+	fi
+	for h in "$@"; do
+		if [ "$h" = all ]; then
+			selected=("${HARNESSES[@]}")
+			return 0
+		fi
+		selected+=("$h")
 	done
 }
 
@@ -109,6 +112,7 @@ agent_model_default() {
 # One prompt line; EOF or empty input keeps the default, so it is scriptable.
 ask_model() {
 	local label="$1" def="$2" ans=""
+	printf '%s [%s]: ' "$label" "$def" >&2
 	read -r ans || true
 	printf '%s\n' "${ans:-$def}"
 }
@@ -129,7 +133,7 @@ write_agent_file() {
 merge_opencode_config() {
 	local config="$HOME/.config/opencode/opencode.jsonc"
 	python3 - "$config" "$@" <<'PY'
-import json, sys
+import json, re, sys
 
 def strip_comments(text):
 	out, i, n, in_str = [], 0, len(text), False
@@ -152,13 +156,28 @@ def strip_comments(text):
 			out.append(c); i += 1
 	return "".join(out)
 
+def load_jsonc(text):
+	# JSONC tolerance: comments, then trailing commas before } or ].
+	try:
+		return json.loads(text)
+	except Exception:
+		pass
+	stripped = re.sub(r",\s*([}\]])", r"\1", strip_comments(text))
+	return json.loads(stripped)
+
 path, main, *pairs = sys.argv[1:]
-data = {}
+raw = ""
 try:
 	raw = open(path).read()
-	data = json.loads(strip_comments(raw)) if raw.strip() else {}
-except Exception:
-	data = {}
+except FileNotFoundError:
+	pass
+try:
+	data = load_jsonc(raw) if raw.strip() else {}
+	if not isinstance(data, dict):
+		raise ValueError("top-level JSON value is not an object")
+except Exception as exc:
+	print("opencode config not mergeable: %s" % exc, file=sys.stderr)
+	sys.exit(1)
 if main:
 	data["model"] = main
 keys = [k for k in ("agents", "agent") if isinstance(data.get(k), dict)]

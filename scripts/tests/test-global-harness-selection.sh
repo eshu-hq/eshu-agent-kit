@@ -41,6 +41,11 @@ case "$out" in
 	exit 1
 	;;
 esac
+# Every name is validated, including after all.
+if HOME="$work/home3" "$kit/install.sh" --global all nope >/dev/null 2>&1; then
+	printf 'not ok - unknown name after all fails\n' >&2
+	exit 1
+fi
 
 # 4. A piped answer overrides the OpenCode agent model and the config entry.
 home4="$work/home4"
@@ -55,5 +60,37 @@ grep -q "\"model\": \"$model\"" "$home4/.config/opencode/opencode.jsonc"
 # 5. No answers piped: kit defaults survive a rerun.
 HOME="$home4" "$kit/install.sh" --agents --global opencode </dev/null >/dev/null
 grep -q "^model: deepseek/deepseek-flash#low$" "$home4/.config/opencode/agents/scan-eshu.md"
+
+# 6. A JSONC config (comments, trailing commas, unrelated keys) merges without loss.
+home5="$work/home5"
+mkdir -p "$home5/.config/opencode"
+cat >"$home5/.config/opencode/opencode.jsonc" <<'JSONC'
+{
+  // main model
+  "model": "keep-me",
+  "compaction": { "auto": true, },
+  "custom": 1,
+}
+JSONC
+answers="$model\n"
+for _ in 1 2 3 4 5 6 7 8 9 10; do answers="$answers$model\n"; done
+# shellcheck disable=SC2059  # \n separators are the point here.
+printf "$answers" | HOME="$home5" "$kit/install.sh" --agents --global opencode >/dev/null
+seeded="$home5/.config/opencode/opencode.jsonc"
+grep -q '"custom": 1' "$seeded"
+grep -q '"compaction"' "$seeded"
+grep -q "\"model\": \"$model\"" "$seeded"
+grep -q '"agents"' "$seeded"
+
+# 7. A broken config exits nonzero and leaves the file untouched.
+home6="$work/home6"
+mkdir -p "$home6/.config/opencode"
+printf '{"model": "x",,,\n' >"$home6/.config/opencode/opencode.jsonc"
+before="$(cat "$home6/.config/opencode/opencode.jsonc")"
+if HOME="$home6" "$kit/install.sh" --agents --global opencode </dev/null >/dev/null 2>&1; then
+	printf 'not ok - broken config must fail the merge\n' >&2
+	exit 1
+fi
+[ "$(cat "$home6/.config/opencode/opencode.jsonc")" = "$before" ]
 
 echo 'global harness selection passed'
