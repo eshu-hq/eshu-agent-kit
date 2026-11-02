@@ -41,19 +41,32 @@ Or inside Claude Code:
 Codex (no marketplace — open-standard skills, symlinked):
 
 ```sh
-./install.sh --global          # this machine
-./install.sh --agents --global # global subagent roles
-./install.sh --repo /path/to/repo   # one repo
+./install.sh --global                  # this machine: skills + agents, all harnesses
+./install.sh --global claude codex     # or pick harnesses: claude, codex, opencode, muse, cursor, all
+./install.sh --agents --global opencode # agents only, for the picked harnesses
+./install.sh --repo /path/to/repo      # one repo
 ```
 
-The global installer links core and Eshu skills into Claude and Codex. It preserves existing non-symlink skill paths and reports each collision; resolve those paths manually if you want the kit version. The plugin registers skills and hooks automatically. The installer links hook scripts separately; registration is explicit as described in [Hooks](hooks/README.md).
+The global installer links core and Eshu skills into each picked harness's global
+skill directory and writes that harness's agent mirrors with a model per agent.
+The installer asks one model ID per agent (and the OpenCode main model); Enter keeps
+the kit default from `agents/roles.json`, and non-interactive runs keep every default.
+For OpenCode the choices land in `~/.config/opencode/opencode.jsonc` (`model` plus the
+`agents`/`agent` section), so they win over frontmatter; the merge tolerates JSONC
+comments and trailing commas, drops the comments on write-back, and leaves an
+unparseable file untouched while exiting nonzero. Other harnesses keep the model in each agent file's frontmatter. Example: pick
+`clankerbox/qwen3.8-flash-next` at every prompt to run the whole kit on Qwen 3.8 Flash Next.
+It preserves existing non-symlink skill paths and reports each collision; resolve those
+paths manually if you want the kit version. The plugin registers skills and hooks
+automatically. The installer links hook scripts separately; registration is explicit
+as described in [Hooks](hooks/README.md).
 
 ## What you get
 
 | | Count | Lives in | Loads on |
 |---|---|---|---|
 | Skills | 21 | `skills/` | Claude Code plugin, Codex via `install.sh` |
-| Subagent roles | 10 | `agents/` | `install.sh --agents` (Claude, Codex, Cursor, OpenCode) |
+| Subagent roles | 10 | `agents/` | `install.sh --agents` (Claude, Codex, Cursor, OpenCode, Muse) |
 | Hooks | 8 | `hooks/` | plugin via `hooks/hooks.json`, or `install.sh --hooks` |
 | Path-scoped rules | 12 | `rules/` | `install.sh --rules` (Claude Code) |
 | Process docs | 16 | `docs/eshu/` | linked from the skills that cite them |
