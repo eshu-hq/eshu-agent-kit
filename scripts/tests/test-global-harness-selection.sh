@@ -76,6 +76,7 @@ cat >"$home5/.config/opencode/opencode.jsonc" <<'JSONC'
   "compaction": { "auto": true, },
   "custom": 1,
   "baseUrl": "http://example.com/v1",
+  "note": "a,}b",
 }
 JSONC
 answers="$model\n"
@@ -89,6 +90,8 @@ grep -q "\"model\": \"$model\"" "$seeded"
 grep -q '"agents"' "$seeded"
 # The comment-stripper must not cut inside string values (// in the URL).
 grep -q '"baseUrl": "http://example.com/v1"' "$seeded"
+# The trailing-comma pass must not touch commas inside string values.
+grep -q '"note": "a,}b"' "$seeded"
 
 # 7. A broken config exits nonzero and leaves the file untouched.
 home6="$work/home6"

@@ -136,7 +136,7 @@ write_agent_file() {
 # Modes: model -> print the top-level model; get <role> -> print that agent's
 # configured model; merge <main> <role> <model>... -> write the merged file.
 OC_PY='
-import json, re, sys
+import json, sys
 
 def strip_comments(text):
 	out, i, n, in_str = [], 0, len(text), False
@@ -161,13 +161,39 @@ def strip_comments(text):
 			out.append(c); i += 1
 	return "".join(out)
 
+def drop_trailing_commas(text):
+	# Single string-aware pass: a comma whose next non-space char is } or ]
+	# is dropped; commas inside string values are copied verbatim.
+	out, i, n, in_str = [], 0, len(text), False
+	while i < n:
+		c = text[i]
+		if in_str:
+			out.append(c)
+			if c == "\\" and i + 1 < n:
+				out.append(text[i + 1]); i += 2; continue
+			if c == "\"":
+				in_str = False
+			i += 1
+		elif c == "\"":
+			in_str = True; out.append(c); i += 1
+		elif c == ",":
+			j = i + 1
+			while j < n and text[j] in " \t\r\n":
+				j += 1
+			if j < n and text[j] in "}]":
+				i += 1
+			else:
+				out.append(c); i += 1
+		else:
+			out.append(c); i += 1
+	return "".join(out)
+
 def load_jsonc(text):
 	try:
 		return json.loads(text)
 	except Exception:
 		pass
-	stripped = re.sub(r",\s*([}\]])", r"\1", strip_comments(text))
-	return json.loads(stripped)
+	return json.loads(drop_trailing_commas(strip_comments(text)))
 
 def read_config(path):
 	raw = ""
