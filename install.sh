@@ -61,7 +61,10 @@ resolve_harnesses() {
 			selected=("${HARNESSES[@]}")
 			return 0
 		fi
-		selected+=("$h")
+		case " ${selected[*]-} " in
+		*" $h "*) : ;;
+		*) selected+=("$h") ;;
+		esac
 	done
 }
 
@@ -128,11 +131,11 @@ write_agent_file() {
 	' "$src" >"$dest/$(basename "$src")"
 }
 
-# Merge per-agent model choices (and the optional main model) into the global
-# OpenCode config so they win over any stale frontmatter overrides.
-merge_opencode_config() {
-	local config="$HOME/.config/opencode/opencode.jsonc"
-	python3 - "$config" "$@" <<'PY'
+# Shared JSONC reader for the OpenCode config: JSON first, then a tolerant
+# pass that strips // and /* comments (string-aware) and trailing commas.
+# Modes: model -> print the top-level model; get <role> -> print that agent's
+# configured model; merge <main> <role> <model>... -> write the merged file.
+OC_PY='
 import json, re, sys
 
 def strip_comments(text):
@@ -143,9 +146,11 @@ def strip_comments(text):
 			out.append(c)
 			if c == "\\" and i + 1 < n:
 				out.append(text[i + 1]); i += 2; continue
-			if c == '"':
+			if c == "\"":
 				in_str = False
 			i += 1
+		elif c == "\"":
+			in_str = True; out.append(c); i += 1
 		elif text.startswith("//", i):
 			while i < n and text[i] != "\n":
 				i += 1
@@ -157,7 +162,6 @@ def strip_comments(text):
 	return "".join(out)
 
 def load_jsonc(text):
-	# JSONC tolerance: comments, then trailing commas before } or ].
 	try:
 		return json.loads(text)
 	except Exception:
@@ -165,41 +169,76 @@ def load_jsonc(text):
 	stripped = re.sub(r",\s*([}\]])", r"\1", strip_comments(text))
 	return json.loads(stripped)
 
-path, main, *pairs = sys.argv[1:]
-raw = ""
-try:
-	raw = open(path).read()
-except FileNotFoundError:
-	pass
-try:
-	data = load_jsonc(raw) if raw.strip() else {}
+def read_config(path):
+	raw = ""
+	try:
+		raw = open(path).read()
+	except FileNotFoundError:
+		pass
+	if not raw.strip():
+		return {}
+	data = load_jsonc(raw)
 	if not isinstance(data, dict):
 		raise ValueError("top-level JSON value is not an object")
+	return data
+
+path, mode, *rest = sys.argv[1:]
+try:
+	data = read_config(path)
 except Exception as exc:
 	print("opencode config not mergeable: %s" % exc, file=sys.stderr)
 	sys.exit(1)
-if main:
-	data["model"] = main
-keys = [k for k in ("agents", "agent") if isinstance(data.get(k), dict)]
-if not keys:
-	keys = ["agents"]
-for k in keys:
-	if not isinstance(data.get(k), dict):
-		data[k] = {}
-for i in range(0, len(pairs), 2):
-	role, model = pairs[i], pairs[i + 1]
+if mode == "model":
+	m = data.get("model", "")
+	print(m if isinstance(m, str) else "")
+elif mode == "get":
+	for k in ("agents", "agent"):
+		sec = data.get(k)
+		if isinstance(sec, dict):
+			entry = sec.get(rest[0])
+			if isinstance(entry, dict) and isinstance(entry.get("model"), str):
+				print(entry["model"])
+				break
+else:
+	main = rest[0] if rest else ""
+	pairs = rest[1:] if rest else []
+	if main:
+		data["model"] = main
+	keys = [k for k in ("agents", "agent") if isinstance(data.get(k), dict)]
+	if not keys:
+		keys = ["agents"]
 	for k in keys:
-		entry = data[k].get(role)
-		data[k][role] = dict(entry, model=model) if isinstance(entry, dict) else {"model": model}
-open(path, "w").write(json.dumps(data, indent=2) + "\n")
-PY
+		if not isinstance(data.get(k), dict):
+			data[k] = {}
+	for i in range(0, len(pairs), 2):
+		role, model = pairs[i], pairs[i + 1]
+		for k in keys:
+			entry = data[k].get(role)
+			data[k][role] = dict(entry, model=model) if isinstance(entry, dict) else {"model": model}
+	open(path, "w").write(json.dumps(data, indent=2) + "\n")
+'
+
+# Merge per-agent model choices (and the optional main model) into the global
+# OpenCode config so they win over any stale frontmatter overrides.
+merge_opencode_config() {
+	local config="$HOME/.config/opencode/opencode.jsonc"
+	python3 - "$config" merge "$@" <<<"$OC_PY"
+}
+
+# Current value for one prompt default, through the same tolerant parser.
+opencode_config_value() { # $1 config path, $2 mode, [$3 role]
+	if [ "$2" = get ]; then
+		python3 - "$1" get "$3" <<<"$OC_PY" 2>/dev/null || true
+	else
+		python3 - "$1" model <<<"$OC_PY" 2>/dev/null || true
+	fi
 }
 
 # Global opencode agents: ask a model per role, then sync the config section.
 install_opencode_agents() {
 	local config="$HOME/.config/opencode/opencode.jsonc"
-	local current_main="" main f role model
-	current_main="$(python3 -c "import json;print(json.load(open('$config')).get('model',''))" 2>/dev/null || true)"
+	local current_main="" main f role model cfg
+	current_main="$(opencode_config_value "$config" model)"
 	main="$(ask_model "the main model" "${current_main:-}")"
 	local -a pairs=()
 	local file
@@ -207,6 +246,8 @@ install_opencode_agents() {
 		[ -f "$file" ] || continue
 		f="$(basename "$file" .md)"
 		model="$(agent_model_default opencode "$f")"
+		cfg="$(opencode_config_value "$config" get "$f")"
+		[ -n "$cfg" ] && model="$cfg"
 		model="$(ask_model "$f" "$model")"
 		write_agent_file "$file" "$HOME/.config/opencode/agents" "$model"
 		pairs+=("$f" "$model")
@@ -218,6 +259,7 @@ install_opencode_agents() {
 install_agents_for() {
 	local harness="$1" f role model
 	for f in $(agents_src_for "$harness"); do
+		[ -f "$f" ] || continue
 		role="$(basename "$f")"
 		role="${role%.*}"
 		model="$(agent_model_default "$harness" "$role")"

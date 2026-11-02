@@ -57,9 +57,14 @@ printf "$answers" | HOME="$home4" "$kit/install.sh" --agents --global opencode >
 grep -q "^model: $model$" "$home4/.config/opencode/agents/scan-eshu.md"
 grep -q "\"model\": \"$model\"" "$home4/.config/opencode/opencode.jsonc"
 
-# 5. No answers piped: kit defaults survive a rerun.
+# 5. Rerun with no answers keeps the previous recorded choices; a fresh HOME
+# starts from the kit defaults.
 HOME="$home4" "$kit/install.sh" --agents --global opencode </dev/null >/dev/null
-grep -q "^model: deepseek/deepseek-flash#low$" "$home4/.config/opencode/agents/scan-eshu.md"
+grep -q "^model: $model$" "$home4/.config/opencode/agents/scan-eshu.md"
+home4b="$work/home4b"
+HOME="$home4b" "$kit/install.sh" --agents --global opencode </dev/null >/dev/null
+grep -q "^model: deepseek/deepseek-flash#low$" "$home4b/.config/opencode/agents/scan-eshu.md"
+grep -q '"deepseek/deepseek-flash#low"' "$home4b/.config/opencode/opencode.jsonc"
 
 # 6. A JSONC config (comments, trailing commas, unrelated keys) merges without loss.
 home5="$work/home5"
@@ -70,6 +75,7 @@ cat >"$home5/.config/opencode/opencode.jsonc" <<'JSONC'
   "model": "keep-me",
   "compaction": { "auto": true, },
   "custom": 1,
+  "baseUrl": "http://example.com/v1",
 }
 JSONC
 answers="$model\n"
@@ -81,6 +87,8 @@ grep -q '"custom": 1' "$seeded"
 grep -q '"compaction"' "$seeded"
 grep -q "\"model\": \"$model\"" "$seeded"
 grep -q '"agents"' "$seeded"
+# The comment-stripper must not cut inside string values (// in the URL).
+grep -q '"baseUrl": "http://example.com/v1"' "$seeded"
 
 # 7. A broken config exits nonzero and leaves the file untouched.
 home6="$work/home6"
@@ -92,5 +100,15 @@ if HOME="$home6" "$kit/install.sh" --agents --global opencode </dev/null >/dev/n
 	exit 1
 fi
 [ "$(cat "$home6/.config/opencode/opencode.jsonc")" = "$before" ]
+
+# 8. A duplicated harness name installs once.
+home7="$work/home7"
+out7="$(HOME="$home7" "$kit/install.sh" --agents --global claude claude </dev/null 2>/dev/null)"
+if [ "$(printf '%s\n' "$out7" | grep -c 'installed kit agents for claude')" = 1 ]; then
+	:
+else
+	printf 'not ok - duplicated harness installs once\n' >&2
+	exit 1
+fi
 
 echo 'global harness selection passed'
