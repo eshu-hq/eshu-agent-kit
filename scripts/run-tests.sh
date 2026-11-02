@@ -20,6 +20,7 @@ KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 suites=(
 	scripts/tests/test-claude-rules-lint.sh
 	scripts/tests/test-global-install.sh
+	scripts/tests/test-global-harness-selection.sh
 	scripts/tests/test-repo-install.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-continue-hook.sh
