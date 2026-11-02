@@ -36,7 +36,10 @@ if out="$(HOME="$work/home3" "$kit/install.sh" --global nope 2>&1)"; then
 fi
 case "$out" in
 *claude*codex*opencode*muse*cursor*) : ;;
-*) printf 'not ok - pick list missing: %s\n' "$out" >&2; exit 1 ;;
+*)
+	printf 'not ok - pick list missing: %s\n' "$out" >&2
+	exit 1
+	;;
 esac
 
 # 4. A piped answer overrides the OpenCode agent model and the config entry.
