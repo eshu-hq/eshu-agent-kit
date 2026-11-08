@@ -328,9 +328,16 @@ install_hooks_repo() {
 }
 
 install_rules_repo() {
-	local target="$1"
+	local target="$1" f
 	mkdir -p "$target/.claude/rules" "$target/scripts"
-	link_files "$KIT_DIR/rules/*.md" "$target/.claude/rules"
+	# rules/README.md is the index, not a rule: it has no `paths:`
+	# frontmatter, so installing it would load index prose at launch and
+	# trip claude-rules-lint in every consumer. Link the rules only.
+	for f in "$KIT_DIR"/rules/*.md; do
+		[ -f "$f" ] || continue
+		[ "$(basename "$f")" = README.md ] && continue
+		ln -sfn "$f" "$target/.claude/rules/$(basename "$f")"
+	done
 	link_files "$KIT_DIR/scripts/claude-rules-lint.sh" "$target/scripts"
 	echo "installed kit rules into $target/.claude/rules (+ scripts/claude-rules-lint.sh)"
 	echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"

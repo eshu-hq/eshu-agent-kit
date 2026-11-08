@@ -1,6 +1,6 @@
 ---
 paths:
-  - "go/**/*.go"
+  - "**/*.go"
 ---
 
 # Go package work
@@ -8,13 +8,16 @@ paths:
 **Load `golang-engineering`.**
 
 **Follow the `AGENTS.md` in the directory you are editing.** Every Go package
-directory under `go/` carries one. Claude Code loads it when it reads a file in
+directory carries one. Claude Code loads it when it reads a file in
 that directory, so read the file before editing it; an edit made from a search
-hit alone never loads `go/internal/reducer/AGENTS.md` for `foo.go`.
+hit alone never loads the `AGENTS.md` in that file's directory.
 
 Its siblings serve different audiences and are worth the read for different
 reasons: `doc.go` is the godoc contract, `README.md` is the human architecture
 and operational context.
+
+Eshu tree paths and the Eshu package example live in the [Eshu adapter](../templates/repo-overlay/eshu-adapter.md):
+add them as a repo-local rule, not here.
 
 Surfaces that need a second skill on top of `golang-engineering`:
 
@@ -26,4 +29,4 @@ Surfaces that need a second skill on top of `golang-engineering`:
 | correlation, materialization, deployment tracing | `correlation-truth` |
 | MCP or API tool calls, bounded graph-backed queries | `mcp-call-rigor` |
 | benchmarks, query/index optimization, throughput | `performance-rigor` |
-| fact kinds, payload shapes, `sdk/go/factschema` | `contract-rigor` |
+| fact kinds, payload shapes, schema definitions | `contract-rigor` |

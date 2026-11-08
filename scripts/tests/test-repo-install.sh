@@ -65,5 +65,26 @@ fi
 [ -e "${repo}/scripts/claude-rules-lint.sh" ] &&
 	ok "--rules --repo links the rules lint" || no "--rules --repo links the rules lint"
 
+# 4. --rules --repo installs only frontmatter-scoped rules. rules/README.md is
+# the index, not a rule: it has no `paths:`, so installing it would load index
+# prose at launch and trip claude-rules-lint in every consumer.
+if [ -e "${repo}/.claude/rules/README.md" ]; then
+	no "--rules --repo excludes the rules index README"
+else
+	ok "--rules --repo excludes the rules index README"
+fi
+unscoped=""
+for rule in "${repo}"/.claude/rules/*.md; do
+	[ -f "${rule}" ] || continue
+	if [ "$(head -n 1 "${rule}")" != "---" ] || ! rg -q '^paths:' "${rule}"; then
+		unscoped="${unscoped} $(basename "${rule}")"
+	fi
+done
+if [ -z "${unscoped}" ]; then
+	ok "--rules --repo installs only frontmatter-scoped rules"
+else
+	no "--rules --repo installs only frontmatter-scoped rules (unscoped:${unscoped})"
+fi
+
 printf '\nrepo-install mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

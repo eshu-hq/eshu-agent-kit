@@ -116,7 +116,7 @@ liveness misjudgement.
    receipt for that push: push now and record it (`code-review`, "Owner
    push order"). Never refuse or ask again after the order.
 7. Arm the CI watcher in the same turn as the `gh pr create` (see
-   `session-lifecycle` babysit-prs step 1: one watcher, rebuilt set,
+   [babysit-prs step 1](../session-lifecycle/references/babysit-prs.md): one watcher, rebuilt set,
    GHA failures + merge conflicts + any-author reviews/comments/threads;
    Monitor tool on Muse). Collect current GitHub checks, mergeability,
    review bodies, issue comments,
