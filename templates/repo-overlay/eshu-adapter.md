@@ -110,13 +110,15 @@ paths:
 
 The generic `[fill-in: …]` pointers in `skills/eshu/` resolve through this
 table. Read order for a pointer: (1) the consuming repo's own override when
-it defines one; (2) otherwise the kit mirror in the Read from column;
-(3) the Eshu value column names the upstream source of truth the mirror
-syncs from (see `docs/eshu/README.md`). A non-Eshu consumer replaces a row
-with its own equivalent only where its process differs; the skill text
-never names Eshu paths directly.
+it defines one; (2) otherwise the kit mirror in the Read from column, which
+is a file in this repo an agent can open directly. The Eshu source column
+names the upstream file in the `eshu-hq/eshu` repo the mirror syncs from
+(see `docs/eshu/README.md`): those `docs/internal/…` paths do not exist in
+the kit, so never open them as kit-local paths. A non-Eshu consumer
+replaces a row with its own equivalent only where its process differs; the
+skill text never names Eshu paths directly.
 
-| Placeholder key | Eshu value | Read from (kit mirror) |
+| Placeholder key | Eshu source (eshu-hq/eshu repo, not kit paths) | Read from (kit mirror) |
 |---|---|---|
 | `fill-in: merge rule` | `docs/internal/agent-git-hygiene.md` § When a PR may merge | `docs/eshu/agent-git-hygiene.md` |
 | `fill-in: model bindings` | `docs/internal/agent-orchestration.md` § default model bindings by tier | `docs/eshu/agent-orchestration.md` |
