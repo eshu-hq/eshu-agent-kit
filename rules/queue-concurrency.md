@@ -1,7 +1,7 @@
 ---
 paths:
-  - "go/internal/reducer/**/*.go"
-  - "go/internal/projector/**/*.go"
+  - "**/reducer/**"
+  - "**/projector/**"
 ---
 
 # Reducer, projector, and queue behavior
@@ -9,6 +9,9 @@ paths:
 **Load `concurrency-deadlock-rigor`.** Add `correlation-truth` when the
 change decides projected graph truth, and `postgres-rigor` when it touches
 queue SQL.
+
+Eshu tree paths live in the [Eshu adapter](../templates/repo-overlay/eshu-adapter.md):
+add them as a repo-local rule, not here.
 
 Serialization is not a fix. Lowering worker count, forcing batch size 1, or
 single-threading a drain to make a race disappear hides the defect rather than

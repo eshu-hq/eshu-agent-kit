@@ -6,3 +6,6 @@ Copy into the product repo root and fill the brackets. Keep it short; shared rul
 - Agent toolkit: pinned at [tag] in `.agent-kit-version`. Install with `[kit-checkout]/install.sh --repo .`.
 - Skills: load from the kit via root skill routing. Repo-specific notes: [one or two lines].
 - Verification: [the repo's test gate, e.g. `make pre-push` equivalent or `go test ./...`].
+- Writing: write for capable colleagues; the kit communication standard (`docs/eshu/writing-for-agents.md` in `[kit-checkout]` at [tag]) applies, so keep this file pointers-only.
+- API surface: OpenAPI source at [openapi-source] with the HTTP reference at [http-api-doc]; the two move in lockstep with handler tests.
+- Rules: installed kit rules cover [shared paths]. Repo-only paths live in repo-local `.claude/rules/[service]-*.md` loading the same kit skills; Eshu repos copy the additions from `templates/repo-overlay/eshu-adapter.md` in `[kit-checkout]`.

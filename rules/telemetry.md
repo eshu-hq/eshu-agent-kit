@@ -1,13 +1,14 @@
 ---
 paths:
-  - "go/internal/telemetry/**/*.go"
-  - "docs/public/observability/telemetry-coverage.md"
-  - "scripts/verify-telemetry-coverage.sh"
+  - "**/telemetry/**"
 ---
 
 # Telemetry contract
 
 **Load `telemetry-coverage-discipline`.**
+
+Eshu coverage files live in the [Eshu adapter](../templates/repo-overlay/eshu-adapter.md):
+add them as a repo-local rule, not here.
 
 The four artifacts move together: the X1 contract doc, the X2 verifier, the X3 CI
 gate, and the X4 dashboard. Registering an instrument without a doc row fails the
