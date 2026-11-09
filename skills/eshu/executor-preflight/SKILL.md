@@ -42,7 +42,7 @@ those. You are a leaf agent: do not dispatch other agents.
    Leave a timing or baseline-bound claim as it is. Do not re-run it at this
    HEAD, because that destroys its provenance. Check that it names its run id
    or baseline SHA, and see
-   [timing-proof-rules.md](../../../docs/eshu/timing-proof-rules.md).
+   `[fill-in: timing proof rules — this repo's wall-time proof rules]`.
 
 4. **Clear the registry traps.** Check each row that your diff touches:
 

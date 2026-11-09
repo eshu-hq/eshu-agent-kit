@@ -9,8 +9,7 @@ Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-move
 
 Contract System v1 makes the fact payload, not just the envelope, a versioned
 contract between collectors and the reducer. See
-[Contract System v1](../../../docs/eshu/design/contract-system-v1.md) and
-the [Contributor Summary](../../../docs/eshu/contract-system-contributor-summary.md)
+`[fill-in: contract system — this repo's collector/reducer contract design and contributor summary]`
 for the full design; this skill is the operating checklist for changes that
 touch it.
 

@@ -5,7 +5,9 @@ description: Use when writing or reviewing Eshu Cypher reads, graph writes, inde
 
 # Cypher Query Rigor
 
-For a covered query family, follow [Query Engineering](../../../docs/eshu/query-engineering.md).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
+For a covered query family, follow `[fill-in: query engineering — this repo's covered query-family contract]`.
 Update its executable contract and run the linked production evidence runner.
 
 ## Operating Rule

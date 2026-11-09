@@ -5,6 +5,8 @@ description: "Use when cutting an Eshu release: bumping deploy/helm/eshu/Chart.y
 
 # Eshu Release And Deployment Pipeline
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 Use this skill for release work that belongs in the open-source Eshu repository
 and its public artifacts. Do not put non-public registry URLs, repository
 names, company-specific org names, hostnames, IPs, or machine-local paths into
@@ -118,7 +120,7 @@ Docker image, Helm chart, and CLI binaries. `sdk/go/collector` and
 `sdk/go/factschema` are separate public Go subdirectory modules, each tagged
 independently with the `<module-dir>/vX.Y.Z` format
 (`sdk/go/collector/v0.1.0`, `sdk/go/factschema/v0.1.0`, ...), never a bare
-`vX.Y.Z`. See [`RELEASING.md`](../../../docs/eshu/RELEASING.md) for the full
+`vX.Y.Z`. See `[fill-in: release process — this repo's RELEASING doc]` for the full
 preconditions, exact tag commands, the proxy-fetch verification, and the
 initial-version reasoning; the summary:
 

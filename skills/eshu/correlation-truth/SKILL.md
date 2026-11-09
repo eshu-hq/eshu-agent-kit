@@ -5,6 +5,8 @@ description: Use when reducer, projector, or query changes turn evidence into gr
 
 # Correlation Truth
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 ## Overview
 
 Use this skill for reducer and query work where evidence becomes canonical graph

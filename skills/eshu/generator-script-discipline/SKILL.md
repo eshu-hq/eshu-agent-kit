@@ -34,7 +34,7 @@ Provide a test mirror that runs without Postgres, NornicDB, or a Go build.
   unavoidable, never carry a resolved row forward across a rebase: take
   `origin/main`'s copy, re-derive the row for the current tree, regenerate the
   mirror, and never hand-edit the generated file. See
-  [reducer-target-tree.md, "Restack rule (the dirgate ledger trap)"](../../../docs/eshu/design/reducer-target-tree.md)
+  `[fill-in: restack rule — this repo's restack and ledger-trap rule]`
   for the incident.
 - For a release-blocking drift check, add the test and gate commands to
   `.github/workflows/static-contract-gates.yml` by default. Use a standalone

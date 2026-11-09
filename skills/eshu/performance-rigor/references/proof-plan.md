@@ -40,7 +40,7 @@ hypothesis is a valid result.
 
 A wall-time or ratio gate follows three rules from #7127 PR-3d. The reasoning
 and evidence are in
-[Timing Proof Rules](../../../../docs/eshu/timing-proof-rules.md).
+`[fill-in: timing proof rules — this repo's wall-time proof rules]`.
 
 - **Own the host.** Pause every other gate, build, and live suite while it runs.
   Declare a quiet host, and require load1 below half the CPU count at the start,

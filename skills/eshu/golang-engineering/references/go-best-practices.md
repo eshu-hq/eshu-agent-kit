@@ -92,7 +92,7 @@ func (cacheStore *CacheStore) GetCacheEntry(cacheKey string) (Entry, bool) { /* 
 ## Package And File Names
 
 The no-stutter rule extends to the filesystem. These apply to every Go
-package and file in the repo, per [Naming](../../../../docs/eshu/naming.md):
+package and file in the repo, per `[fill-in: naming standard — this repo's naming doc]`:
 
 - Never repeat the directory name in the file name: `correlation/writer.go`,
   not `correlation/correlation_writer.go`. The path already carries that

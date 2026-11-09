@@ -38,7 +38,7 @@ Use this file when planning or executing a Go change. TDD is the default, not th
   before Cleanup runs, so the call fails at once. Use a background context with
   its own timeout and report the error with `t.Errorf`. Teardown that needs a
   connection must own it, because a `defer db.Close()` in the test body runs
-  first. See [Timing Proof Rules](../../../../docs/eshu/timing-proof-rules.md).
+  first. See `[fill-in: timing proof rules — this repo's wall-time proof rules]`.
 
 ## When the Repo Is Silent
 
