@@ -1,0 +1,32 @@
+# Eshu skill aliases for repo installs.
+#
+# alias: the harness-visible skill directory name (Eshu's eshu-* canon).
+# source: the kit skill directory under skills/eshu/ (or skills/core/).
+# Blank lines and lines starting with '#' are ignored.
+#
+# The installer materializes each alias as a wrapper dir in the repo's
+# .claude/skills and .codex/skills trees: SKILL.md carries the alias in
+# its frontmatter `name:` and cross-skill links rewritten to aliases,
+# every other file is symlinked from the source. Rows where alias and
+# source are identical install unchanged (plain wrapper, no renames).
+eshu-code-review	code-review
+eshu-contract-rigor	contract-rigor
+eshu-correlation-truth	correlation-truth
+eshu-diagnostic-rigor	diagnostic-rigor
+eshu-executor-preflight	executor-preflight
+eshu-folder-doc-keeper	folder-doc-keeper
+eshu-golden-corpus-rigor	golden-corpus-rigor
+eshu-issue-driver	issue-driver
+eshu-mcp-call-rigor	mcp-call-rigor
+eshu-performance-rigor	performance-rigor
+eshu-postgres-rigor	postgres-rigor
+eshu-publish	publish
+eshu-release	release
+eshu-security-scan-gates	security-scan-gates
+eshu-session-lifecycle	session-lifecycle
+concurrency-deadlock-rigor	concurrency-deadlock-rigor
+cypher-query-rigor	cypher-query-rigor
+generator-script-discipline	generator-script-discipline
+golang-engineering	golang-engineering
+resolve-review-threads	resolve-review-threads
+telemetry-coverage-discipline	telemetry-coverage-discipline

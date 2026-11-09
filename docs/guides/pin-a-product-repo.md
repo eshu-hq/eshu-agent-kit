@@ -18,7 +18,12 @@ copy kit files into it.
 
    This symlinks the skills in and writes the pin. Add `--hooks` or
    `--rules` runs if the repo wants those too (see
-   [Install and configure](install-and-configure.md)).
+   [Install and configure](install-and-configure.md)). If the repo's
+   harness-visible skill names differ from the kit directories (Eshu's
+   `eshu-*` canon does), pass its alias manifest as well —
+   `./install.sh --repo /path/to/repo --aliases
+   templates/repo-overlay/eshu-aliases.tsv` — so the harness trees get
+   alias wrappers instead of dangling names.
 4. **Upgrade later the same way.** Move the pin, re-run the installer.
    Fixes land once in this repo; repos pick them up by re-running.
 
