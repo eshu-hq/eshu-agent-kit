@@ -23,13 +23,15 @@ is the worked example.
 
 With `--aliases`, the installer materializes one wrapper directory per
 alias in the repo's `.claude/skills` and `.codex/skills` trees. Each
-wrapper carries the alias in its frontmatter `name:`, cross-skill links
-rewritten to alias names, and every other entry symlinked from the
-source, with a `.kit-alias` marker recording what generated it. Sources
-listed in the manifest are skipped for plain `.agents/skills` links, so
-no generic twin is ever discoverable next to an alias. Re-running
+wrapper carries the alias in its frontmatter `name:`; `.md` files are
+copied with alias cross-links, and every other entry is symlinked from
+the source. A `.kit-alias` marker records what generated each wrapper.
+Renamed manifest sources are skipped for plain `.agents/skills` links,
+so no generic twin is ever discoverable next to an alias, while
+identical alias==source rows still link there as usual. Re-running
 regenerates wrappers whose marker matches; a real file or directory in
-the way fails loudly instead of being overwritten.
+the way fails loudly, and a mid-run failure removes this run's fresh
+wrappers and restores replaced symlinks.
 
 ## How the installer behaves
 

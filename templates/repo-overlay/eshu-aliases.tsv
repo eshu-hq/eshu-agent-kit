@@ -6,9 +6,9 @@
 #
 # The installer materializes each alias as a wrapper dir in the repo's
 # .claude/skills and .codex/skills trees: SKILL.md carries the alias in
-# its frontmatter `name:` and cross-skill links rewritten to aliases,
-# every other file is symlinked from the source. Rows where alias and
-# source are identical install unchanged (plain wrapper, no renames).
+# its frontmatter `name:` with alias cross-links; every other file is
+# symlinked from the source. Rows where alias and source are identical
+# install unchanged (plain wrapper, no renames).
 eshu-code-review	code-review
 eshu-contract-rigor	contract-rigor
 eshu-correlation-truth	correlation-truth

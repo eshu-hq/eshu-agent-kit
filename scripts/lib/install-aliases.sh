@@ -95,39 +95,98 @@ build_alias_link_sed() {
 # symlink, and .kit-alias records what generated it. Refuses to touch a
 # real path it did not generate.
 materialize_alias() { # $1 dest $2 srcdir $3 alias $4 srcbase $5 link-sed
+	# Builds into a temp dir, verifies, then swaps into place, so a failure
+	# never leaves a half-written wrapper at the destination. Records what
+	# this run created or replaced in ALIAS_CREATED / ALIAS_REPLACED for
+	# rollback_aliases.
 	local dest="$1" srcdir="$2" alias="$3" srcbase="$4" link_sed="$5"
+	local tmp="$dest.build.$$" replaced="" valid=0
 	if [ -L "$dest" ]; then
-		rm -f "$dest"
+		replaced="$(readlink "$dest")"
+		rm -f "$dest" || return 1
 	elif [ -e "$dest" ]; then
 		if [ -f "$dest/.kit-alias" ] && [ "$(cat "$dest/.kit-alias")" = "alias=$alias source=$srcbase" ]; then
-			rm -rf "$dest"
+			valid=1
 		else
 			echo "refusing to overwrite real path: $dest" >&2
 			return 1
 		fi
 	fi
-	mkdir -p "$dest" || return 1
+	rm -rf "$tmp"
+	mkdir -p "$tmp" || return 1
 	local rel
 	while IFS= read -r rel || [ -n "$rel" ]; do
 		rel="${rel#./}"
 		[ -n "$rel" ] || continue
 		if [ -d "$srcdir/$rel" ]; then
-			mkdir -p "$dest/$rel" || return 1
+			mkdir -p "$tmp/$rel" || {
+				rm -rf "$tmp"
+				return 1
+			}
 		elif [ "${rel##*.}" = md ]; then
 			if [ "$(basename "$rel")" = SKILL.md ]; then
-				sed -e "s/^name: $srcbase\$/name: $alias/" -f "$link_sed" "$srcdir/$rel" >"$dest/$rel" || return 1
+				sed -e "s/^name: $srcbase\$/name: $alias/" -f "$link_sed" "$srcdir/$rel" >"$tmp/$rel" || {
+					rm -rf "$tmp"
+					return 1
+				}
 			else
-				sed -f "$link_sed" "$srcdir/$rel" >"$dest/$rel" || return 1
+				sed -f "$link_sed" "$srcdir/$rel" >"$tmp/$rel" || {
+					rm -rf "$tmp"
+					return 1
+				}
 			fi
 		else
-			ln -sfn "$srcdir/$rel" "$dest/$rel" || return 1
+			ln -sfn "$srcdir/$rel" "$tmp/$rel" || {
+				rm -rf "$tmp"
+				return 1
+			}
 		fi
-	done < <(cd "$srcdir" && find . -mindepth 1 -print | LC_ALL=C sort) || return 1
-	grep -q "^name: $alias\$" "$dest/SKILL.md" || {
-		echo "alias frontmatter missing for: $alias" >&2
+	done < <(cd "$srcdir" && find . -mindepth 1 -print | LC_ALL=C sort) || {
+		rm -rf "$tmp"
 		return 1
 	}
-	printf 'alias=%s source=%s\n' "$alias" "$srcbase" >"$dest/.kit-alias" || return 1
+	grep -q "^name: $alias\$" "$tmp/SKILL.md" || {
+		echo "alias frontmatter missing for: $alias" >&2
+		rm -rf "$tmp"
+		return 1
+	}
+	printf 'alias=%s source=%s\n' "$alias" "$srcbase" >"$tmp/.kit-alias" || {
+		rm -rf "$tmp"
+		return 1
+	}
+	if [ "$valid" = 1 ]; then
+		rm -rf "$dest" || {
+			rm -rf "$tmp"
+			return 1
+		}
+	fi
+	mv "$tmp" "$dest" || {
+		rm -rf "$tmp"
+		return 1
+	}
+	if [ "$valid" = 0 ]; then
+		ALIAS_CREATED="${ALIAS_CREATED} ${dest}"
+		if [ -n "$replaced" ]; then
+			ALIAS_REPLACED="${ALIAS_REPLACED} ${dest}|${replaced}"
+		fi
+	fi
+}
+
+# Undo every wrapper mutation this run recorded: remove fresh wrappers,
+# restore replaced symlinks, leave regenerated-valid wrappers (their
+# content is exactly what a successful run produces).
+rollback_aliases() {
+	local entry dest target
+	for dest in ${ALIAS_CREATED:-}; do
+		rm -rf "$dest"
+	done
+	for entry in ${ALIAS_REPLACED:-}; do
+		dest="${entry%%|*}"
+		target="${entry#*|}"
+		if [ ! -e "$dest" ]; then
+			ln -sfn "$target" "$dest"
+		fi
+	done
 }
 
 # Install alias wrappers from a manifest into the repo harness skill trees.
@@ -135,6 +194,8 @@ install_aliases_repo() {
 	local target="$1" manifest="$2"
 	local rows row alias src srcdir tree link_sed tmpdir pairs
 	tmpdir="$(mktemp -d)" || return 1
+	ALIAS_CREATED=""
+	ALIAS_REPLACED=""
 	rows="$(parse_alias_manifest "$manifest")"
 	if [ -z "$rows" ]; then
 		rm -rf "$tmpdir"
@@ -155,6 +216,7 @@ install_aliases_repo() {
 	}
 	for tree in "$target/.claude/skills" "$target/.codex/skills"; do
 		mkdir -p "$tree" || {
+			rollback_aliases
 			rm -rf "$tmpdir"
 			return 1
 		}
@@ -166,6 +228,7 @@ install_aliases_repo() {
 				return 1
 			}
 			materialize_alias "$tree/$alias" "$srcdir" "$alias" "$src" "$link_sed" || {
+				rollback_aliases
 				rm -rf "$tmpdir"
 				return 1
 			}
@@ -178,13 +241,21 @@ install_aliases_repo() {
 # Link every kit skill except manifest-listed sources (those arrive as
 # aliases instead, so no generic twin is ever discoverable).
 link_skills_except() { # $1 dest $2 manifest-rows("alias<TAB>source")
-	local dest="$1" rows="$2" skill name skip
+	# Links every kit skill except renamed manifest sources (those arrive as
+	# aliases instead, so no generic twin is ever discoverable). Identical
+	# alias==source rows link as usual.
+	local dest="$1" rows="$2" skill name skip row alias src
 	for skill in "$KIT_DIR"/skills/eshu/*/ "$KIT_DIR"/skills/core/*/; do
 		[ -d "$skill" ] || continue
 		name="$(basename "$skill")"
 		skip=0
 		while IFS= read -r row || [ -n "$row" ]; do
-			[ "${row#*$'\t'}" = "$name" ] && skip=1 && break
+			alias="${row%%$'\t'*}"
+			src="${row#*$'\t'}"
+			if [ "$src" = "$name" ] && [ "$alias" != "$src" ]; then
+				skip=1
+				break
+			fi
 		done < <(printf '%s\n' "$rows")
 		[ "$skip" = 1 ] && continue
 		if [ -e "$dest/$name" ] && [ ! -L "$dest/$name" ]; then
