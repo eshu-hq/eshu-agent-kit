@@ -92,6 +92,16 @@ if [ "${covered}" -eq 1 ]; then
 	ok "all skill placeholder keys covered by frozen list or watcher set"
 fi
 
+# 2c. Every kit-mirror source the adapter names exists on disk, so the
+# Read from column always resolves to a file an agent can open.
+while IFS= read -r mirror; do
+	if [ -f "${repo_root}/${mirror}" ]; then
+		ok "adapter source exists: ${mirror}"
+	else
+		no "adapter source exists: ${mirror}"
+	fi
+done < <(rg -o --no-filename 'docs/eshu/[^` )]*' "${ADAPTER}" 2>/dev/null | sort -u)
+
 # 3. Fixed-awaiting-push transfer disposition is ported.
 REVIEW="${SKILLS}/code-review/SKILL.md"
 MERGEBAR="${SKILLS}/code-review/references/merge-bar.md"
