@@ -83,8 +83,7 @@ for probe in \
 	"${REVIEW}|inherited-breakage" \
 	"${MERGEBAR}|the fixed-awaiting-push" \
 	"${VERDICT}|A row 2 rebase takes the fixed-awaiting-push transfer note only" \
-	"${REBASE}|the fixed-awaiting-push transfer note (row 2," \
-	; do
+	"${REBASE}|the fixed-awaiting-push transfer note (row 2,"; do
 	path="${probe%%|*}"
 	need="${probe#*|}"
 	if rg -q --fixed-strings "${need}" "${path}" 2>/dev/null; then
