@@ -112,29 +112,28 @@ The generic `[fill-in: …]` pointers in `skills/eshu/` resolve through this
 table. Read order for a pointer: (1) the consuming repo's own override when
 it defines one; (2) otherwise the kit mirror in the Read from column, which
 is a file in this repo an agent can open directly. The Eshu source column
-names the upstream file in the `eshu-hq/eshu` repo the mirror syncs from
-(see `docs/eshu/README.md`): those `docs/internal/…` paths do not exist in
-the kit, so never open them as kit-local paths. A non-Eshu consumer
-replaces a row with its own equivalent only where its process differs; the
-skill text never names Eshu paths directly.
+holds full upstream URLs in the `eshu-hq/eshu` repo that each mirror syncs
+from (see `docs/eshu/README.md`). Only the Read from column holds kit-local
+paths. A non-Eshu consumer replaces a row with its own equivalent only
+where its process differs; the skill text never names Eshu paths directly.
 
-| Placeholder key | Eshu source (eshu-hq/eshu repo, not kit paths) | Read from (kit mirror) |
+| Placeholder key | Eshu source (upstream URL, not a kit path) | Read from (kit mirror) |
 |---|---|---|
-| `fill-in: merge rule` | `docs/internal/agent-git-hygiene.md` § When a PR may merge | `docs/eshu/agent-git-hygiene.md` |
-| `fill-in: model bindings` | `docs/internal/agent-orchestration.md` § default model bindings by tier | `docs/eshu/agent-orchestration.md` |
-| `fill-in: orchestration model` | `docs/internal/agent-orchestration.md` (Agent Orchestration Model) | `docs/eshu/agent-orchestration.md` |
-| `fill-in: orchestration, PR, and CI discipline` | `AGENTS.md` § Orchestration, PR, And CI Discipline | `docs/eshu/orchestration-pr-ci-discipline.md` |
-| `fill-in: undecided-design escalation` | `docs/internal/agent-guide.md` § Delegate An Undecided Design | `docs/eshu/agent-guide.md` |
-| `fill-in: verification details` | `docs/internal/agent-verification-details.md` § the custom lint plugins | `docs/eshu/agent-verification-details.md` |
-| `fill-in: timing proof rules` | `docs/internal/timing-proof-rules.md` | `docs/eshu/timing-proof-rules.md` |
-| `fill-in: naming standard` | `docs/internal/naming.md` | `docs/eshu/naming.md` |
-| `fill-in: restack rule` | `docs/internal/design/reducer-target-tree.md` (Restack rule, the dirgate ledger trap) | `docs/eshu/design/reducer-target-tree.md` |
-| `fill-in: contract system` | `docs/internal/design/contract-system-v1.md` and `docs/internal/contract-system-contributor-summary.md` | `docs/eshu/design/contract-system-v1.md`, `docs/eshu/contract-system-contributor-summary.md` |
-| `fill-in: telemetry precedent` | `docs/internal/telemetry-discipline-precedent.md` | `docs/eshu/telemetry-discipline-precedent.md` |
-| `fill-in: query engineering` | `docs/internal/query-engineering.md` | `docs/eshu/query-engineering.md` |
-| `fill-in: release process` | `RELEASING.md` (repo root) | `docs/eshu/RELEASING.md` |
-| `fill-in: communication standard` | `docs/internal/writing-for-agents.md` | `docs/eshu/writing-for-agents.md` |
-| `fill-in: issue capture hooks` | `docs/internal/agent-hooks-issues.md` | `docs/eshu/agent-hooks-issues.md` |
+| `fill-in: merge rule` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-git-hygiene.md § When a PR may merge | `docs/eshu/agent-git-hygiene.md` |
+| `fill-in: model bindings` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-orchestration.md § default model bindings by tier | `docs/eshu/agent-orchestration.md` |
+| `fill-in: orchestration model` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-orchestration.md (Agent Orchestration Model) | `docs/eshu/agent-orchestration.md` |
+| `fill-in: orchestration, PR, and CI discipline` | https://github.com/eshu-hq/eshu/blob/main/AGENTS.md § Orchestration, PR, And CI Discipline | `docs/eshu/orchestration-pr-ci-discipline.md` |
+| `fill-in: undecided-design escalation` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-guide.md § Delegate An Undecided Design | `docs/eshu/agent-guide.md` |
+| `fill-in: verification details` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-verification-details.md § the custom lint plugins | `docs/eshu/agent-verification-details.md` |
+| `fill-in: timing proof rules` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/timing-proof-rules.md | `docs/eshu/timing-proof-rules.md` |
+| `fill-in: naming standard` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/naming.md | `docs/eshu/naming.md` |
+| `fill-in: restack rule` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/design/reducer-target-tree.md (Restack rule, the dirgate ledger trap) | `docs/eshu/design/reducer-target-tree.md` |
+| `fill-in: contract system` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/design/contract-system-v1.md and https://github.com/eshu-hq/eshu/blob/main/docs/internal/contract-system-contributor-summary.md | `docs/eshu/design/contract-system-v1.md`, `docs/eshu/contract-system-contributor-summary.md` |
+| `fill-in: telemetry precedent` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/telemetry-discipline-precedent.md | `docs/eshu/telemetry-discipline-precedent.md` |
+| `fill-in: query engineering` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/query-engineering.md | `docs/eshu/query-engineering.md` |
+| `fill-in: release process` | https://github.com/eshu-hq/eshu/blob/main/RELEASING.md (repo root) | `docs/eshu/RELEASING.md` |
+| `fill-in: communication standard` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/writing-for-agents.md | `docs/eshu/writing-for-agents.md` |
+| `fill-in: issue capture hooks` | https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-hooks-issues.md | `docs/eshu/agent-hooks-issues.md` |
 
 ## `babysit-prs` — Eshu watcher values
 
