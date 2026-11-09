@@ -178,6 +178,38 @@ else
 		no "rollback restores replaced symlinks"
 	fi
 fi
+spaced="${work}/my repo"
+mkdir -p "${spaced}/.claude/skills/eshu-publish" "${spaced}/.codex/skills/eshu-publish"
+mkdir -p "${work}/decoy"
+if (cd "${work}/decoy" && mkdir -p repo/.claude/skills/eshu-code-review && touch repo/.claude/skills/eshu-code-review/KEEP && "${kit}/install.sh" --repo "${spaced}" --aliases "${manifest}" >/dev/null 2>&1); then
+	no "space-path collision fails"
+else
+	if [ ! -e "${spaced}/.claude/skills/eshu-code-review" ] && [ ! -e "${spaced}/.codex/skills/eshu-diagnostic-rigor" ] && [ -f "${work}/decoy/repo/.claude/skills/eshu-code-review/KEEP" ]; then
+		ok "space-path collision rolls back exactly"
+	else
+		no "space-path collision rolls back exactly"
+	fi
+fi
+spacedclean="${work}/my clean repo"
+if "${kit}/install.sh" --repo "${spacedclean}" --aliases "${manifest}" >/dev/null 2>&1; then
+	gotname="$(sed -n 's/^name: //p' "${spacedclean}/.claude/skills/eshu-code-review/SKILL.md")"
+	if [ "$(ls "${spacedclean}/.claude/skills" | wc -l | tr -d ' ')" = 21 ] && [ "${gotname}" = eshu-code-review ]; then
+		ok "space-path clean install works"
+	else
+		no "space-path clean install works"
+	fi
+else
+	no "space-path clean install works"
+fi
+stale="${work}/staler"
+"${kit}/install.sh" --repo "${stale}" --aliases "${manifest}" >/dev/null 2>&1
+printf 'eshu-code-review\tcode-review\n' >"${work}/subset.tsv"
+out="$("${kit}/install.sh" --repo "${stale}" --aliases "${work}/subset.tsv" 2>&1)"
+if [ "$?" = 0 ] && printf '%s' "${out}" | grep -q "stale kit alias wrapper"; then
+	ok "dropped alias warns instead of lingering silently"
+else
+	no "dropped alias warns instead of lingering silently"
+fi
 
 # 8. RED at installer level: a source whose frontmatter name does not match
 # the alias fails install.sh itself. The lib is sourced with a scratch kit

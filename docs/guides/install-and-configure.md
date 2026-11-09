@@ -31,7 +31,8 @@ so no generic twin is ever discoverable next to an alias, while
 identical alias==source rows still link there as usual. Re-running
 regenerates wrappers whose marker matches; a real file or directory in
 the way fails loudly, and a mid-run failure removes this run's fresh
-wrappers and restores replaced symlinks.
+wrappers and restores replaced symlinks. Wrappers whose alias left the
+manifest are reported as stale, never deleted automatically.
 
 ## How the installer behaves
 

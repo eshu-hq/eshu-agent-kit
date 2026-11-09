@@ -165,9 +165,9 @@ materialize_alias() { # $1 dest $2 srcdir $3 alias $4 srcbase $5 link-sed
 		return 1
 	}
 	if [ "$valid" = 0 ]; then
-		ALIAS_CREATED="${ALIAS_CREATED} ${dest}"
+		ALIAS_CREATED+=("$dest")
 		if [ -n "$replaced" ]; then
-			ALIAS_REPLACED="${ALIAS_REPLACED} ${dest}|${replaced}"
+			ALIAS_REPLACED+=("$dest|$replaced")
 		fi
 	fi
 }
@@ -177,10 +177,10 @@ materialize_alias() { # $1 dest $2 srcdir $3 alias $4 srcbase $5 link-sed
 # content is exactly what a successful run produces).
 rollback_aliases() {
 	local entry dest target
-	for dest in ${ALIAS_CREATED:-}; do
+	for dest in ${ALIAS_CREATED[@]+"${ALIAS_CREATED[@]}"}; do
 		rm -rf "$dest"
 	done
-	for entry in ${ALIAS_REPLACED:-}; do
+	for entry in ${ALIAS_REPLACED[@]+"${ALIAS_REPLACED[@]}"}; do
 		dest="${entry%%|*}"
 		target="${entry#*|}"
 		if [ ! -e "$dest" ]; then
@@ -190,12 +190,36 @@ rollback_aliases() {
 }
 
 # Install alias wrappers from a manifest into the repo harness skill trees.
+# Warn about installer-owned wrappers whose alias left the manifest.
+# Reported only; never deleted automatically.
+warn_stale_aliases() { # $1 target $2 manifest-rows
+	local target="$1" rows="$2" tree dir alias listed row
+	for tree in "$target/.claude/skills" "$target/.codex/skills"; do
+		[ -d "$tree" ] || continue
+		for dir in "$tree"/*/; do
+			[ -d "$dir" ] || continue
+			[ -f "$dir/.kit-alias" ] || continue
+			alias="$(basename "$dir")"
+			listed=0
+			while IFS= read -r row || [ -n "$row" ]; do
+				if [ "${row%%$'\t'*}" = "$alias" ]; then
+					listed=1
+					break
+				fi
+			done < <(printf '%s\n' "$rows")
+			if [ "$listed" = 0 ]; then
+				echo "stale kit alias wrapper (not in manifest): $dir" >&2
+			fi
+		done
+	done
+}
+
 install_aliases_repo() {
 	local target="$1" manifest="$2"
 	local rows row alias src srcdir tree link_sed tmpdir pairs
 	tmpdir="$(mktemp -d)" || return 1
-	ALIAS_CREATED=""
-	ALIAS_REPLACED=""
+	ALIAS_CREATED=()
+	ALIAS_REPLACED=()
 	rows="$(parse_alias_manifest "$manifest")"
 	if [ -z "$rows" ]; then
 		rm -rf "$tmpdir"
@@ -234,6 +258,7 @@ install_aliases_repo() {
 			}
 		done < <(printf '%s\n' "$rows")
 	done
+	warn_stale_aliases "$target" "$rows"
 	rm -rf "$tmpdir"
 	echo "installed kit skill aliases into $target/.claude/skills and $target/.codex/skills"
 }
