@@ -44,13 +44,15 @@ esac
 
 # Only guard inside an Eshu checkout. At user level this hook sees every Bash
 # call on the machine, and another project's `make pre-pr` is none of its
-# business. Port 15432 and the ci-gates binary are Eshu's.
+# business. Port 15432 and the ci-gates binary are Eshu's. Alias-installed
+# repos carry the same IDs under the harness skill trees, so those count
+# the same as the canon trees.
 CWD=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("cwd",""))' 2>/dev/null)
 [ -n "${CWD:-}" ] || CWD="$PWD"
 d="$CWD"
 in_eshu=1
 while [ -n "$d" ] && [ "$d" != "/" ] && [ "$d" != "." ]; do
-	if [ -e "$d/.agents/skills/eshu-code-review" ] || [ -e "$d/.agents/skills/code-review" ]; then
+	if [ -e "$d/.agents/skills/eshu-code-review" ] || [ -e "$d/.agents/skills/code-review" ] || [ -e "$d/.claude/skills/eshu-code-review" ] || [ -e "$d/.claude/skills/code-review" ] || [ -e "$d/.codex/skills/eshu-code-review" ] || [ -e "$d/.codex/skills/code-review" ]; then
 		in_eshu=0
 		break
 	fi

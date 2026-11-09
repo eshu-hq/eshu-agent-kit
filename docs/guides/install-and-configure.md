@@ -7,9 +7,32 @@
 ./install.sh --global claude codex       # or pick: claude, codex, opencode, muse, cursor, all
 ./install.sh --agents --global opencode  # agents only, for the picked harnesses
 ./install.sh --repo /path/to/repo        # skills into one repo + writes its version pin
+./install.sh --repo /path/to/repo --aliases manifest.tsv  # harness skill names differ from kit dirs
 ./install.sh --hooks --repo /path/to/repo  # hook scripts only; wiring stays explicit
 ./install.sh --rules --repo /path/to/repo  # Claude Code path-scoped rules + rules lint
 ```
+
+## Skill name aliases
+
+Some repos call their skills by different names than the kit directories
+(`eshu-code-review` for the kit's `code-review`). A manifest maps each
+harness-visible name to its kit source, one `alias<TAB>source` row per
+line; the Eshu manifest at
+[templates/repo-overlay/eshu-aliases.tsv](../../templates/repo-overlay/eshu-aliases.tsv)
+is the worked example.
+
+With `--aliases`, the installer materializes one wrapper directory per
+alias in the repo's `.claude/skills` and `.codex/skills` trees. Each
+wrapper carries the alias in its frontmatter `name:`; `.md` files are
+copied with alias cross-links, and every other entry is symlinked from
+the source. A `.kit-alias` marker records what generated each wrapper.
+Renamed manifest sources are skipped for plain `.agents/skills` links,
+so no generic twin is ever discoverable next to an alias, while
+identical alias==source rows still link there as usual. Re-running
+regenerates wrappers whose marker matches; a real file or directory in
+the way fails loudly, and a mid-run failure removes this run's fresh
+wrappers and restores replaced symlinks. Wrappers whose alias left the
+manifest are reported as stale, never deleted automatically.
 
 ## How the installer behaves
 

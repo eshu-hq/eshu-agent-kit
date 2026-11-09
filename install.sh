@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install eshu-agent-kit skills, agents, hooks, and rules into a harness or a repo checkout.
 # Usage:
-#   ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo
+#   ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv]
 #   ./install.sh --agents --global [harness...] | ./install.sh --agents --repo /path/to/repo
 #   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
 #   ./install.sh --rules --repo /path/to/repo   (Claude Code path-scoped rules + rules lint script)
@@ -343,6 +343,11 @@ install_rules_repo() {
 	echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"
 }
 
+# Skill alias wrappers live in scripts/lib/install-aliases.sh to keep
+# this entrypoint under the 500-line cap.
+# shellcheck source=scripts/lib/install-aliases.sh
+source "$KIT_DIR/scripts/lib/install-aliases.sh"
+
 install_global() {
 	local harness dir
 	for harness in "${selected[@]}"; do
@@ -361,13 +366,31 @@ case "$MODE" in
 	;;
 --repo)
 	TARGET="${2:-}"
+	MANIFEST=""
+	if [ "${3:-}" = "--aliases" ]; then
+		MANIFEST="${4:-}"
+		[ -n "$MANIFEST" ] || {
+			echo "usage: ./install.sh --repo /path/to/repo [--aliases manifest.tsv]" >&2
+			exit 1
+		}
+	fi
 	[ -n "$TARGET" ] || {
-		echo "usage: ./install.sh --repo /path/to/repo" >&2
+		echo "usage: ./install.sh --repo /path/to/repo [--aliases manifest.tsv]" >&2
 		exit 1
 	}
 	mkdir -p "$TARGET/.agents/skills"
-	link_dir "$KIT_DIR/skills/core" "$TARGET/.agents/skills"
-	link_dir "$KIT_DIR/skills/eshu" "$TARGET/.agents/skills"
+	if [ -n "$MANIFEST" ]; then
+		ROWS="$(parse_alias_manifest "$MANIFEST")" || exit 1
+		[ -n "$ROWS" ] || {
+			echo "alias manifest is empty: $MANIFEST" >&2
+			exit 1
+		}
+		link_skills_except "$TARGET/.agents/skills" "$ROWS"
+		install_aliases_repo "$TARGET" "$MANIFEST" || exit 1
+	else
+		link_dir "$KIT_DIR/skills/core" "$TARGET/.agents/skills"
+		link_dir "$KIT_DIR/skills/eshu" "$TARGET/.agents/skills"
+	fi
 	cat "$KIT_DIR/VERSION" >"$TARGET/.agent-kit-version"
 	echo "installed kit skills into $TARGET/.agents/skills"
 	;;
@@ -427,7 +450,7 @@ case "$MODE" in
 	esac
 	;;
 *)
-	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
+	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
 	exit 1
 	;;
 esac

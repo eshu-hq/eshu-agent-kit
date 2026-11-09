@@ -73,7 +73,15 @@ if command -v python3 >/dev/null 2>&1 && command -v lsof >/dev/null 2>&1; then
 		out3=$(printf '{"tool_input":{"command":"CLAUDE_HOOK_ALLOW=1 make pre-pr"},"cwd":"%s"}' "${eshu}" | bash "${HOOK}" 2>&1)
 		code3=$?
 		if [ "${code3}" = "0" ]; then ok "override allows while a port is bound"; else no "override allows while a port is bound (got ${code3}: ${out3})"; fi
+		# Alias-installed checkout: no .agents/skills tree, only harness wrappers.
+		aliased="${work}/aliased"
+		mkdir -p "${aliased}/.claude/skills/eshu-code-review"
+		out4=$(printf '{"tool_input":{"command":"make pre-pr"},"cwd":"%s"}' "${aliased}" | bash "${HOOK}" 2>&1)
+		code4=$?
+		if [ "${code4}" = "2" ]; then ok "wrapper-tree checkout blocks with a bound port"; else no "wrapper-tree checkout blocks with a bound port (got ${code4}: ${out4})"; fi
 	else
+		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
+		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
 		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
 		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
 		ok "SKIP blocked-path cases: port 18080 already in use on this machine"
@@ -81,6 +89,8 @@ if command -v python3 >/dev/null 2>&1 && command -v lsof >/dev/null 2>&1; then
 	kill "${srv}" 2>/dev/null
 	wait "${srv}" 2>/dev/null || true
 else
+	ok "SKIP blocked-path cases: python3 or lsof missing"
+	ok "SKIP blocked-path cases: python3 or lsof missing"
 	ok "SKIP blocked-path cases: python3 or lsof missing"
 	ok "SKIP blocked-path cases: python3 or lsof missing"
 	ok "SKIP blocked-path cases: python3 or lsof missing"
