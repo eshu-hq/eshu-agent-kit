@@ -34,6 +34,8 @@ else
 fi
 
 # 2. Every process-doc placeholder key resolves in the adapter.
+# New placeholder key families must extend the frozen keys list below or the
+# watcher-exception set in 2b; the 2b probe fails on any other new key.
 keys=(
 	"fill-in: merge rule"
 	"fill-in: model bindings"
@@ -64,6 +66,32 @@ for key in "${keys[@]}"; do
 	fi
 done
 
+# 2b. Every fill-in key family used in skills is known: either in the frozen
+# list above (prefix match) or in this watcher-exception set (covered by the
+# babysit-prs watcher-values section of eshu-adapter.md, not by key rows).
+watcher_keys=(
+	"fill-in: account login"
+	"fill-in: owner/repo"
+	"fill-in: ruleset-required"
+	"fill-in: watcher command"
+	"fill-in: conflict-recipe list path"
+)
+covered=1
+while IFS= read -r used; do
+	stem="${used%% — *}"
+	known=0
+	for key in "${keys[@]}" "${watcher_keys[@]}"; do
+		case "${stem}" in "${key}"*) known=1 && break ;; esac
+	done
+	if [ "${known}" -eq 0 ]; then
+		no "placeholder key covered: ${stem}"
+		covered=0
+	fi
+done < <(rg -o --no-filename 'fill-in: [^]]*' -g '*.md' "${SKILLS}" 2>/dev/null | sort -u)
+if [ "${covered}" -eq 1 ]; then
+	ok "all skill placeholder keys covered by frozen list or watcher set"
+fi
+
 # 3. Fixed-awaiting-push transfer disposition is ported.
 REVIEW="${SKILLS}/code-review/SKILL.md"
 MERGEBAR="${SKILLS}/code-review/references/merge-bar.md"
@@ -77,6 +105,9 @@ fi
 for probe in \
 	"${REVIEW}|unless the [fixed-awaiting-push transfer](#fixed-awaiting-push-transfer-across-a-content-identical-rebase) holds" \
 	"${REVIEW}|git diff <base>..HEAD | git patch-id --stable" \
+	"${REVIEW}|the same commit count on both sides" \
+	"${REVIEW}|comm -12 <(git diff --name-only <new-base>..HEAD" \
+	"${REVIEW}|fixed-awaiting-push transfer above, never as a zero count" \
 	"${REVIEW}|never as a zero count" \
 	"${REVIEW}|The waiver note, the fixed-awaiting-push transfer note, and the scoped rebase" \
 	"${REVIEW}|A waiver or transfer receipt proves only that the note and the inputs did" \
