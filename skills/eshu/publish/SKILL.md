@@ -18,6 +18,7 @@ read its reference. Keep editing passes internal unless the user requests them.
 | Issue (new, or a rewrite) | [issue](references/issue.md) |
 | PR title and body | [pull request](references/pull-request.md), then the skeleton for your kind of PR in [templates](references/pr-templates.md) |
 | Review reply, issue close, status comment, resume note | [replies](references/replies.md) |
+| Approval request (merge, deploy, data change) | [approval](references/approval.md) |
 | Commit message that grows a Go directory past 40 non-test files | [`Dirgate-Growth` trailer](references/commit-trailers.md) |
 | Design or decision record | [decision record](references/decision-record.md) |
 | Report back to the owner | [owner report](references/owner-report.md) |

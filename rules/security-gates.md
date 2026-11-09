@@ -1,7 +1,7 @@
 ---
 paths:
   - ".github/workflows/security-scan.yml"
-  - "go/go.mod"
+  - "**/go.mod"
 ---
 
 # Security scan gates and the Go toolchain

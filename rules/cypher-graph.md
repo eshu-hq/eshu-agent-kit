@@ -1,7 +1,7 @@
 ---
 paths:
-  - "go/internal/storage/cypher/**/*.go"
-  - "go/internal/relationships/**/*.go"
+  - "**/cypher/**"
+  - "**/*.cypher"
 ---
 
 # Cypher and graph writes
@@ -10,8 +10,5 @@ paths:
 hot path, and `correlation-truth` when the change decides what a correlation
 means.
 
-Read [Cypher Performance](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md)
-before changing hot-path Cypher, graph writes, or schema DDL. For NornicDB
-behavior, [NornicDB Pitfalls](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md)
-documents where the backend diverges from what the query text implies — including
-cases that return wrong counts rather than failing.
+Eshu tree paths and backend notes live in the [Eshu adapter](../templates/repo-overlay/eshu-adapter.md):
+add them as a repo-local rule, not here.
