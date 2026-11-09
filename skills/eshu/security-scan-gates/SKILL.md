@@ -5,6 +5,8 @@ description: "Use when a security-scan.yml job (Trivy, govulncheck, gosec, nancy
 
 # Security Scan Gates
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 The `.github/workflows/security-scan.yml` jobs (Trivy fs, Trivy image,
 govulncheck, gosec, nancy) fail in ways that do **not** reproduce with a naive
 local run. This skill records the traps so the next Go bump or gate edit does

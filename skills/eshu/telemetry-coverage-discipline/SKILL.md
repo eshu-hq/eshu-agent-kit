@@ -41,7 +41,7 @@ It misses stages added inside existing files, old gaps, label cardinality
 explosions, and metrics outside the telemetry package. Inspect the changed
 emission path when those limitations matter. For missing signals or uncertain
 coverage, consult the “Limitations Of The X2 Gate” section in
-[the precedent guide](../../../docs/eshu/telemetry-discipline-precedent.md).
+`[fill-in: telemetry precedent — this repo's telemetry incident precedent]`.
 The guide owns historical incident links; do not duplicate stale inventories.
 
 ## Verification by affected surface

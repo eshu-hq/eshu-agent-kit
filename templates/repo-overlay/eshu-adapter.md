@@ -106,6 +106,30 @@ paths:
 ---
 ```
 
+## Process-doc pointers — Eshu values
+
+The generic `[fill-in: …]` pointers in `skills/eshu/` resolve to these Eshu
+docs. A non-Eshu consumer replaces each with its own equivalent; the skill
+text never names Eshu paths directly.
+
+| Placeholder key | Eshu value |
+|---|---|
+| `fill-in: merge rule` | `docs/internal/agent-git-hygiene.md` § When a PR may merge |
+| `fill-in: model bindings` | `docs/internal/agent-orchestration.md` § default model bindings by tier |
+| `fill-in: orchestration model` | `docs/internal/agent-orchestration.md` (Agent Orchestration Model) |
+| `fill-in: orchestration, PR, and CI discipline` | `AGENTS.md` § Orchestration, PR, And CI Discipline |
+| `fill-in: undecided-design escalation` | `docs/internal/agent-guide.md` § Delegate An Undecided Design |
+| `fill-in: verification details` | `docs/internal/agent-verification-details.md` § the custom lint plugins |
+| `fill-in: timing proof rules` | `docs/internal/timing-proof-rules.md` |
+| `fill-in: naming standard` | `docs/internal/naming.md` |
+| `fill-in: restack rule` | `docs/internal/design/reducer-target-tree.md` (Restack rule, the dirgate ledger trap) |
+| `fill-in: contract system` | `docs/internal/design/contract-system-v1.md` and `docs/internal/contract-system-contributor-summary.md` |
+| `fill-in: telemetry precedent` | `docs/internal/telemetry-discipline-precedent.md` |
+| `fill-in: query engineering` | `docs/internal/query-engineering.md` |
+| `fill-in: release process` | `RELEASING.md` (repo root) |
+| `fill-in: communication standard` | `docs/internal/writing-for-agents.md` |
+| `fill-in: issue capture hooks` | `docs/internal/agent-hooks-issues.md` |
+
 ## `babysit-prs` — Eshu watcher values
 
 An Eshu repo fills the generic contract's `[fill-in: …]` placeholders with

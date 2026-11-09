@@ -18,6 +18,7 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 suites=(
+	scripts/tests/test-kit-content-parity.sh
 	scripts/tests/test-claude-rules-lint.sh
 	scripts/tests/test-global-install.sh
 	scripts/tests/test-global-harness-selection.sh

@@ -5,6 +5,8 @@ description: Use when writing or reviewing Eshu Postgres SQL, schema DDL, transa
 
 # Postgres Rigor
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 Use this skill for Eshu's relational truth: facts, queues, leases, status,
 content, recovery, decisions, and schema. Postgres evidence must explain the
 exact slow layer before any SQL, index, or transaction change.
@@ -12,7 +14,7 @@ exact slow layer before any SQL, index, or transaction change.
 Add `performance-rigor` for any measured SQL/index optimization or
 before/after latency, throughput, bootstrap, or drain claim.
 
-For a covered query family, follow [Query Engineering](../../../docs/eshu/query-engineering.md).
+For a covered query family, follow `[fill-in: query engineering — this repo's covered query-family contract]`.
 Update its executable contract and run the linked production evidence runner.
 
 ## Required Classification

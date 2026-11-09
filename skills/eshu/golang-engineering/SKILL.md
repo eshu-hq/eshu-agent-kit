@@ -34,7 +34,7 @@ the first commit that holds the file.
 
 ## Restructuring and naming
 
-Apply [naming.md](../../../docs/eshu/naming.md) to every package,
+Apply `[fill-in: naming standard — this repo's naming doc]` to every package,
 directory, and file a change touches, not only the ones being moved: plain
 English at each path level, never repeat the directory name in the file name,
 nest compound names into directories instead of gluing them, no package-name
@@ -53,7 +53,7 @@ swapping, and renaming inside a directory need no action. Growth needs a
 [`Dirgate-Growth` trailer](../publish/references/commit-trailers.md) for
 the syntax. Never edit the baselines; there is no ledger row to re-derive and no
 mirror to regenerate. See
-[reducer-target-tree.md, "Restack rule (the dirgate ledger trap)"](../../../docs/eshu/design/reducer-target-tree.md)
+`[fill-in: restack rule — this repo's restack and ledger-trap rule]`
 for why the old ledger was retired. `//nolint:dirgate // <reason>` is the
 naming escape only; it no longer waives the cap.
 
@@ -106,8 +106,7 @@ gates (slow ones deferred to CI with a printed reason), and
 docs-contradiction. `make pre-pr` and `make pre-pr-full` are recommended, not
 required, for higher-risk changes — queue, lease, or claim code; schema DDL;
 hot-path Cypher or graph writes; reducer projection or materialization; and
-package moves (use `pre-pr-full` for moves). CI decides the merge ([When a PR
-may merge](../../../docs/eshu/agent-git-hygiene.md#when-a-pr-may-merge)): a
+package moves (use `pre-pr-full` for moves). CI decides the merge (`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`): a
 red Ifá/Odù, contract, performance, or end-to-end gate is a finding; when CI
 fails, reproduce only that failing gate locally.
 

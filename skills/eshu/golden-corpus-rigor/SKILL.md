@@ -5,6 +5,8 @@ description: Use when collector fact emission, reducer/projector graph writes, o
 
 # Golden Corpus Rigor
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 The B-7 golden-corpus gate is Eshu's golden standard: it replays fixed inputs
 through the real pipeline (`sync -> discover -> parse -> collect -> reduce ->
 project -> query`) and asserts the resulting graph and query truth against a

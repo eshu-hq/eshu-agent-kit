@@ -5,6 +5,8 @@ description: "Use before calling or changing an Eshu MCP/API tool: scope, limit,
 
 # MCP Call Rigor
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 Use this skill before any Eshu MCP/API call that might query the graph, read the
 content store, or return a list of results. The goal is a correct answer through
 a call shape that is bounded, scoped, and diagnosable.

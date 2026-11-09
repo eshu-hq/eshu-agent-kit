@@ -5,11 +5,13 @@ description: "Use when proving or improving an Eshu latency, throughput, resourc
 
 # Performance Rigor
 
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+
 This skill owns measured performance impact. Use
 [eshu-diagnostic-rigor](../diagnostic-rigor/SKILL.md) first when the cause or
 bottleneck is unknown; routine test execution alone does not need diagnosis.
 
-For a covered query family, follow [Query Engineering](../../../docs/eshu/query-engineering.md).
+For a covered query family, follow `[fill-in: query engineering — this repo's covered query-family contract]`.
 Update its executable contract and run the linked production evidence runner.
 
 ## Essential Contract

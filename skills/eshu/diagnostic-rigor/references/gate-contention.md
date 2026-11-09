@@ -18,7 +18,7 @@ under controlled conditions. Repeating without changing those conditions adds
 no useful evidence. Passing correctness checks under load can remain useful;
 timing claims require a comparable, quiet environment: a timing proof owns the
 host, with a load bound and a control canary (see
-[Timing Proof Rules](../../../../docs/eshu/timing-proof-rules.md)).
+`[fill-in: timing proof rules — this repo's wall-time proof rules]`).
 
 A drain timeout or dead-lettered item can result from contention. Compare the
 failing and passing runs' code, topology, inputs, and machine load before
