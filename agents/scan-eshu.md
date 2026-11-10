@@ -1,7 +1,7 @@
 ---
 name: scan-eshu
 description: "Use for a goal phase that needs a bounded read-only evidence scan before diagnosis or implementation; return cited facts, not a verdict or fix."
-model: muse-spark-1.3
+model: muse-ember-1.0
 effort: low
 ---
 
