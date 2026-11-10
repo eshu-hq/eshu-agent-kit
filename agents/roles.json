@@ -14,7 +14,7 @@
       "arbiter": {"model": "fable", "effort": "high"}
     },
     "muse": {
-      "fast": {"model": "muse-spark-1.3", "effort": "low"},
+      "fast": {"model": "muse-ember-1.0", "effort": "high"},
       "workhorse": {"model": "muse-spark-1.3", "effort": "high"},
       "deep": {"model": "muse-wonder-full-1.0", "effort": "xhigh"},
       "arbiter": {"model": "muse-wonder-full-1.0", "effort": "xhigh"}
