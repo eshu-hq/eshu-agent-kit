@@ -25,6 +25,7 @@ suites=(
 	scripts/tests/test-repo-install.sh
 	scripts/tests/test-repo-alias-install.sh
 	hooks/tests/test-doc-staleness-hook.sh
+	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh
 	hooks/tests/test-guard-live-gate.sh
 )
