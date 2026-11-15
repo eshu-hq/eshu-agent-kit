@@ -279,7 +279,7 @@ The reviewer uses the same skill in all five:
 [`.opencode/agent/review-eshu.md`](../../.opencode/agent/review-eshu.md),
 [`.cursor/agents/review-eshu.md`](../../.cursor/agents/review-eshu.md),
 [`.codex/agents/review-eshu.toml`](../../.codex/agents/review-eshu.toml), and
-[`.agents/agents/review-eshu.md`](https://github.com/eshu-hq/eshu-agent-kit/blob/main/.opencode/agent/review-eshu.md) — tracked bindings running the same `eshu-code-review` skill;
+[`.agents/agents/review-eshu.md`](../../agents/review-eshu.md) — tracked bindings running the same `eshu-code-review` skill;
 Muse loads that skill through workspace discovery when the launcher passes `--trust-workspace`.
 
 Codex discovers a role file from each config layer's `<config_folder>/agents/`
