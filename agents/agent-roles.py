@@ -20,6 +20,22 @@ ROOT = Path(os.environ.get("ESHU_AGENT_ROLES_REPO_ROOT", Path(__file__).resolve(
 SOURCE = ROOT / "agents" / "roles.json"
 
 
+def workspace_root():
+    """The repo a launched role should run in.
+
+    The launcher is installed into a consuming repo's scripts/, so the role
+    must run in THAT repo, not in this kit. The consuming repo is the nearest
+    ancestor of the current directory that carries the kit version pin
+    (.agent-kit-version); this kit repo is the fallback so the launcher still
+    works when invoked from inside the kit itself.
+    """
+    cwd = Path.cwd().resolve()
+    for candidate in (cwd, *cwd.parents):
+        if (candidate / ".agent-kit-version").exists():
+            return candidate
+    return ROOT
+
+
 def skill_index():
     """Map skill frontmatter name -> relative SKILL.md path.
 
@@ -263,10 +279,11 @@ def muse_exec(role, task, dry_run):
     models, roles = load_roles()
     spec = roles[role]
     model = models["muse"][spec["tier"]]
+    workspace = workspace_root()
     argv = [
         "muse", "exec", "--model", model["model"],
         "--reasoning-effort", model["effort"],
-        "--workspace", str(ROOT), "--trust-workspace",
+        "--workspace", str(workspace), "--trust-workspace",
     ]
     if spec["access"] == "read":
         argv += ["--permission-profile", ":read-only"]
@@ -275,25 +292,26 @@ def muse_exec(role, task, dry_run):
     if dry_run:
         print(json.dumps({"argv": argv[:-1], "prompt": prompt}, indent=2))
         return 0
-    return subprocess.run(argv, cwd=ROOT, check=False).returncode
+    return subprocess.run(argv, cwd=workspace, check=False).returncode
 
 
 def codex_exec(role, task, dry_run):
     models, roles = load_roles()
     spec = roles[role]
     model = models["codex"][spec["tier"]]
+    workspace = workspace_root()
     argv = [
         "codex", "exec", "--model", model["model"],
         "--config", "model_reasoning_effort=" + json.dumps(model["effort"]),
         "--sandbox", "read-only" if spec["access"] == "read" else "workspace-write",
-        "--cd", str(ROOT),
+        "--cd", str(workspace),
     ]
     prompt = "Act as the " + role + " role.\n" + instructions(spec) + "\n\nTask:\n" + task
     argv.append(prompt)
     if dry_run:
         print(json.dumps({"argv": argv[:-1], "prompt": prompt}, indent=2))
         return 0
-    return subprocess.run(argv, cwd=ROOT, check=False).returncode
+    return subprocess.run(argv, cwd=workspace, check=False).returncode
 
 
 def main():

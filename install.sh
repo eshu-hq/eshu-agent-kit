@@ -313,6 +313,13 @@ install_agents_repo() {
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"
 	link_files "$KIT_DIR/.opencode/agent/*.md" "$target/.opencode/agent"
 	link_files "$KIT_DIR/.cursor/agents/*.md" "$target/.cursor/agents"
+	# The launcher belongs in the consuming repo: scripts/goal-role-router.py
+	# tells the coordinator to run `scripts/agent-roles.py muse-exec ROLE
+	# TASK` and `codex-exec ROLE TASK`, so a repo that does not have it
+	# loses the documented fallback for harnesses whose spawn tool cannot
+	# select a custom role.
+	mkdir -p "$target/scripts"
+	ln -sfn "$KIT_DIR/agents/agent-roles.py" "$target/scripts/agent-roles.py"
 	echo "installed kit agents into $target"
 }
 
