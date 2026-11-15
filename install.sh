@@ -306,6 +306,19 @@ install_agents_global() {
 	done
 }
 
+# stamp_version_pin <target> — record the kit version this repo installs.
+#
+# The pin is not only a version marker: the role launcher resolves the
+# workspace it runs in by walking up to the nearest ancestor carrying
+# .agent-kit-version. A partial-mode install (--agents, --hooks, --rules)
+# that did not stamp it left the launcher resolving to this kit instead of
+# the consuming repo -- the exact bug the launcher fix addressed.
+stamp_version_pin() {
+	local target="$1"
+	mkdir -p "$target"
+	cat "$KIT_DIR/VERSION" >"$target/.agent-kit-version"
+}
+
 install_agents_repo() {
 	local target="$1"
 	# The manifest is the role binding of record: a consuming repo's router
@@ -414,7 +427,7 @@ case "$MODE" in
 		link_dir "$KIT_DIR/skills/core" "$TARGET/.agents/skills"
 		link_dir "$KIT_DIR/skills/eshu" "$TARGET/.agents/skills"
 	fi
-	cat "$KIT_DIR/VERSION" >"$TARGET/.agent-kit-version"
+	stamp_version_pin "$TARGET"
 	echo "installed kit skills into $TARGET/.agents/skills"
 	;;
 --agents)
@@ -431,6 +444,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_agents_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --agents --global [harness...] | ./install.sh --agents --repo /path/to/repo" >&2
@@ -448,6 +462,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_hooks_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
@@ -465,6 +480,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_rules_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --rules --repo /path/to/repo" >&2
