@@ -53,12 +53,18 @@ ROOT="$(kit_root_path "$FP")" || exit 0
 # Skills with no characteristic file path. They are triggered by an event or an
 # intent, so a PreToolUse Edit|Write arm could never fire for them. Listed so
 # scripts/verify-agent-canon.sh can tell "deliberately exempt" from "forgotten".
-#   code-review             runs against a final diff, not a path
-#   publish                 runs over prose headed for a human reader
-#   issue-driver            invoked with an issue or epic number
+#
+# These are the HARNESS-VISIBLE names, the ones a consuming repo sees in its
+# skill tree. The alias manifest renames some kit skills for the harness (the
+# kit's skills/eshu/code-review installs as eshu-code-review), so a kit
+# directory name here would not match what the consumer's census sees, and
+# the consuming repo's drift check would report the skill as unrouted.
+#   eshu-code-review        runs against a final diff, not a path
+#   eshu-publish            runs over prose headed for a human reader
+#   eshu-issue-driver       invoked with an issue or epic number
 #   eshu-release            invoked by release intent
 #   resolve-review-threads  invoked with a PR number
-#   session-lifecycle       session events; nudged by on-compact.sh
+#   eshu-session-lifecycle  session events; nudged by on-compact.sh
 #   eshu-executor-preflight run by an executor at handoff, not on a path
 # NUDGE_EXEMPT_END
 

@@ -308,6 +308,12 @@ install_agents_global() {
 
 install_agents_repo() {
 	local target="$1"
+	# The manifest is the role binding of record: a consuming repo's router
+	# reads .agents/roles.json to pick a role's tier and model, and its
+	# drift check compares that file against the kit. Install it alongside
+	# the shims that were generated from it.
+	mkdir -p "$target/.agents"
+	ln -sfn "$KIT_DIR/agents/roles.json" "$target/.agents/roles.json"
 	link_files "$KIT_DIR/agents/*.md" "$target/.agents/agents"
 	link_files "$KIT_DIR/.claude/agents/*.md" "$target/.claude/agents"
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"

@@ -460,9 +460,18 @@ if [ "${have_cwd}" = "1" ]; then
 fi
 nudge_skills=""
 if [ -n "${skills_root}" ]; then
-	nudge_skills="$(for d in "${skills_root}/skills/eshu" "${skills_root}/skills/core"; do
+	# The skills a consuming repo sees are its harness trees: the installer
+	# puts every skill under its harness-visible name in .claude/skills and
+	# .codex/skills, while .agents/skills carries only the ones the alias
+	# manifest does not rename. The harness tree is the census, so scan it.
+	# The kit's own skills/eshu and skills/core are the SOURCE of those
+	# names, not what a consuming repo's goal can name.
+	for d in "${skills_root}/.claude/skills" "${skills_root}/.agents/skills"; do
+		[ -d "$d" ] || continue
 		goal_refresh_missing_skill_nudges "${goal}" "$d" "$(printf '%s' "${session_id}" | cut -c1-12)"
-	done | tr '\n' ' ')"
+	done | tr '\n' ' ' >"${TMPDIR:-/tmp}/.goal-nudge.$$"
+	nudge_skills="$(cat "${TMPDIR:-/tmp}/.goal-nudge.$$" 2>/dev/null || true)"
+	rm -f "${TMPDIR:-/tmp}/.goal-nudge.$$"
 fi
 
 # The restatement, consent bookkeeping, and skill-nudge text assembly live in
