@@ -315,7 +315,7 @@ strip loop in `goal-continue.sh` and its mirror in `goal-refresh.sh` both stop
 treating lines as metadata at the first ordinary line. A `CONSENT:` line
 placed after the objective is body text, never a grant: neither hook reads
 it, so the stop reason is never lifted. See
-[sustained-drives.md](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-issue-driver/references/sustained-drives.md)
+[sustained-drives.md](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/issue-driver/references/sustained-drives.md)
 for the per-harness template that avoids this.
 
 Two forms grant it correctly instead, and they cover different moments.

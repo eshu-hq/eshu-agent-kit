@@ -306,13 +306,39 @@ install_agents_global() {
 	done
 }
 
+# stamp_version_pin <target> — record the kit version this repo installs.
+#
+# The pin is not only a version marker: the role launcher resolves the
+# workspace it runs in by walking up to the nearest ancestor carrying
+# .agent-kit-version. A partial-mode install (--agents, --hooks, --rules)
+# that did not stamp it left the launcher resolving to this kit instead of
+# the consuming repo -- the exact bug the launcher fix addressed.
+stamp_version_pin() {
+	local target="$1"
+	mkdir -p "$target"
+	cat "$KIT_DIR/VERSION" >"$target/.agent-kit-version"
+}
+
 install_agents_repo() {
 	local target="$1"
+	# The manifest is the role binding of record: a consuming repo's router
+	# reads .agents/roles.json to pick a role's tier and model, and its
+	# drift check compares that file against the kit. Install it alongside
+	# the shims that were generated from it.
+	mkdir -p "$target/.agents"
+	ln -sfn "$KIT_DIR/agents/roles.json" "$target/.agents/roles.json"
 	link_files "$KIT_DIR/agents/*.md" "$target/.agents/agents"
 	link_files "$KIT_DIR/.claude/agents/*.md" "$target/.claude/agents"
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"
 	link_files "$KIT_DIR/.opencode/agent/*.md" "$target/.opencode/agent"
 	link_files "$KIT_DIR/.cursor/agents/*.md" "$target/.cursor/agents"
+	# The launcher belongs in the consuming repo: scripts/goal-role-router.py
+	# tells the coordinator to run `scripts/agent-roles.py muse-exec ROLE
+	# TASK` and `codex-exec ROLE TASK`, so a repo that does not have it
+	# loses the documented fallback for harnesses whose spawn tool cannot
+	# select a custom role.
+	mkdir -p "$target/scripts"
+	ln -sfn "$KIT_DIR/agents/agent-roles.py" "$target/scripts/agent-roles.py"
 	echo "installed kit agents into $target"
 }
 
@@ -322,7 +348,17 @@ install_hooks_repo() {
 	link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
 	link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
 	link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
-	link_files "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts"
+	# A consuming repo may already track its own copy of the staleness
+	# checker, and that copy can be newer than this kit's: the eshu repo
+	# carries a GNU-stat fix this kit does not have. Overwriting a tracked
+	# file with a symlink into the kit would silently regress it, so an
+	# existing regular file is preserved and reported, the same way the
+	# skill installer preserves an existing skill directory.
+	if [ -e "$target/scripts/check-docs-stale.sh" ] && [ ! -L "$target/scripts/check-docs-stale.sh" ]; then
+		echo "preserving existing script: $target/scripts/check-docs-stale.sh" >&2
+	else
+		ln -sfn "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts/check-docs-stale.sh"
+	fi
 	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex adapter)"
 	echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
 }
@@ -391,7 +427,7 @@ case "$MODE" in
 		link_dir "$KIT_DIR/skills/core" "$TARGET/.agents/skills"
 		link_dir "$KIT_DIR/skills/eshu" "$TARGET/.agents/skills"
 	fi
-	cat "$KIT_DIR/VERSION" >"$TARGET/.agent-kit-version"
+	stamp_version_pin "$TARGET"
 	echo "installed kit skills into $TARGET/.agents/skills"
 	;;
 --agents)
@@ -408,6 +444,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_agents_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --agents --global [harness...] | ./install.sh --agents --repo /path/to/repo" >&2
@@ -425,6 +462,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_hooks_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
@@ -442,6 +480,7 @@ case "$MODE" in
 			exit 1
 		}
 		install_rules_repo "$TARGET"
+		stamp_version_pin "$TARGET"
 		;;
 	*)
 		echo "usage: ./install.sh --rules --repo /path/to/repo" >&2

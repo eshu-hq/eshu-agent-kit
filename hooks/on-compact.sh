@@ -37,7 +37,7 @@ fi
 
 # Only speak inside a kit-pinned checkout. At user level this fires on every
 # compaction on the machine, and telling an unrelated project to load
-# session-lifecycle is both wrong and unactionable there.
+# eshu-session-lifecycle is both wrong and unactionable there.
 CWD=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("cwd",""))' 2>/dev/null)
 [ -n "${CWD:-}" ] || CWD="$PWD"
 d="$CWD"
@@ -52,7 +52,7 @@ import json
 ctx = ("CONTEXT WAS COMPACTED OR RESUMED. Loaded skills are GONE from this "
  "context even if the summary says they were used: the skill LISTING survives, "
  "the skill CONTENT does not. Before the next tool call, invoke "
- "session-lifecycle via the Skill tool and follow its session-pickup "
+ "eshu-session-lifecycle via the Skill tool and follow its session-pickup "
  "playbook. It covers the three things that go wrong here: re-invoking the "
  "project skills that govern the surface you are on, confirming pwd is your "
  "worktree rather than the main checkout, and separating what the summary says "

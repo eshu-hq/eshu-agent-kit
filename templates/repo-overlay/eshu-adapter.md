@@ -162,11 +162,11 @@ these. The event contract is
 - Merge-rule pointer: `GREEN` needs every merge-rule context present and
   succeeded, read from `ci-gates contexts --ruleset-only` (today
   `go-core-complete` and `go-race-complete`). Mergeability itself follows the
-  [merge bar](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-code-review/references/merge-bar.md)
+  [merge bar](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/code-review/references/merge-bar.md)
   and [When a PR may merge](https://github.com/eshu-hq/eshu/blob/main/docs/internal/agent-git-hygiene.md#when-a-pr-may-merge).
 
 - Recipe-list pointer: conflict labels follow
-  [conflict-recipes.md](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-code-review/references/conflict-recipes.md)
-  ([Row 4a](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-code-review/SKILL.md#row-4a-mechanical-conflict)
+  [conflict-recipes.md](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/code-review/references/conflict-recipes.md)
+  ([Row 4a](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/code-review/SKILL.md#row-4a-mechanical-conflict)
   in `eshu-code-review`); a clean test merge means rebase via
-  [rebase-verify.md](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-session-lifecycle/references/rebase-verify.md).
+  [rebase-verify.md](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/session-lifecycle/references/rebase-verify.md).

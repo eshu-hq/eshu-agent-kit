@@ -23,7 +23,7 @@
       "fast": {"model": "deepseek/deepseek-flash#low"},
       "workhorse": {"model": "deepseek/deepseek-v4-pro#high"},
       "deep": {"model": "deepseek/deepseek-v4-pro#max"},
-      "arbiter": {"model": "minimax/minimax-m3"}
+      "arbiter": {"model": "minimax-coding-plan/MiniMax-M3.1-Flash"}
     }
   },
   "roles": {
