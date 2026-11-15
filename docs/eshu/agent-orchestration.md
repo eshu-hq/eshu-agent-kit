@@ -279,7 +279,7 @@ The reviewer uses the same skill in all five:
 [`.opencode/agent/review-eshu.md`](../../.opencode/agent/review-eshu.md),
 [`.cursor/agents/review-eshu.md`](../../.cursor/agents/review-eshu.md),
 [`.codex/agents/review-eshu.toml`](../../.codex/agents/review-eshu.toml), and
-[`.agents/agents/review-eshu.md`](https://github.com/eshu-hq/eshu/blob/main/.agents/agents/review-eshu.md) — tracked bindings running the same `eshu-code-review` skill;
+[`.agents/agents/review-eshu.md`](https://github.com/eshu-hq/eshu-agent-kit/blob/main/.opencode/agent/review-eshu.md) — tracked bindings running the same `eshu-code-review` skill;
 Muse loads that skill through workspace discovery when the launcher passes `--trust-workspace`.
 
 Codex discovers a role file from each config layer's `<config_folder>/agents/`
@@ -340,7 +340,7 @@ Every implementation handoff MUST contain:
    seconds, minimum worthwhile win, measured resource envelope, reference
    profile, and absolute-target applicability.
 7. **Head line** — the branch name and `HEAD=<sha> BASE=<sha> RE:<request-id>`, as
-   [eshu-session-lifecycle](https://github.com/eshu-hq/eshu/blob/main/.agents/skills/eshu-session-lifecycle/SKILL.md#messages-name-their-head)
+   [eshu-session-lifecycle](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/session-lifecycle/SKILL.md#messages-name-their-head)
    defines it, so a receiver can tell a stale request from a live one.
 
 The raw material already exists in the project skills and `eshu-issue-driver`.
