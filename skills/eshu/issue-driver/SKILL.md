@@ -132,9 +132,13 @@ liveness misjudgement.
    remains valid, and independent review requirements are met. Confirm local
    HEAD equals the PR head, execute the merge, and verify `MERGED` through the
    GitHub API. Existing session authorization applies without repeated consent.
-   Immediately before the arbiter review of a merge, run
-   `bash scripts/dev/pre-enqueue-check.sh <pr> <reviewed-head-sha>` and hand
-   its output to the arbiter. The script checks merge-tree against
+   An authorized merge needs no arbiter review: the preliminary review and the
+   hosted reviews already read this head, so a third review of the same
+   content adds cost, not evidence. Take a merge to an arbiter only when the
+   act is not authorized, a finding is disputed, or the change moves a shared
+   contract those reviews did not cover. Before any merge, run
+   `bash scripts/dev/pre-enqueue-check.sh <pr> <reviewed-head-sha>` (and hand
+   its output to the arbiter when one runs). The script checks merge-tree against
    `origin/main`; its merge-queue arm passes with "queue empty" because `main`
    has no merge queue (#8288). A clean merge-tree against main can still
    conflict with a sibling PR that merges first: #7298 collided with #7295 on
