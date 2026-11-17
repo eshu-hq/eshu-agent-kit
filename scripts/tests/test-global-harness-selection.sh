@@ -9,6 +9,9 @@ set -euo pipefail
 kit=$(cd "$(dirname "$0")/../.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+# Cases assert under each fake HOME; a runner-exported XDG_CONFIG_HOME would
+# redirect the Muse agents elsewhere. Case 9 sets it explicitly.
+unset XDG_CONFIG_HOME
 
 # 1. --global installs skills and agents for every harness by default.
 home1="$work/home1"
