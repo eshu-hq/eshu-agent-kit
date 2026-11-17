@@ -15,7 +15,12 @@ work="$(mktemp -d)"
 trap 'rm -rf "${work}"; rm -f /tmp/claude-skill-loaded-11111111-222-*' EXIT
 
 export HOME="${work}/home"
-mkdir -p "${HOME}"
+# Hook budget/refusal counters live under TMPDIR keyed by session+turn id;
+# the suite's fixed ids would exhaust the goal budget across reruns without
+# a private TMPDIR. (Skill markers are hardcoded to /tmp; the trap and the
+# case-5 reset clean those by name.)
+export TMPDIR="${work}/tmp"
+mkdir -p "${HOME}" "${TMPDIR}"
 unset CLAUDE_GOAL_FILE CLAUDE_GOAL_OFF CLAUDE_GOAL_CONSENT CLAUDE_GOAL_MAX_NUDGES XDG_CONFIG_HOME
 
 passed=0
