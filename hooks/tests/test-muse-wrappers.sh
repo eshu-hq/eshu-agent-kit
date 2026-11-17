@@ -113,13 +113,23 @@ else
 	no "eshu-doc-staleness no-ops without a checker"
 fi
 
-# 7. A missing .claude/hooks sibling fails open, never blocks the tool call.
-rm "${repo}/.claude/hooks/goal-refresh.sh"
-if with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" >/dev/null 2>&1; then
-	ok "missing sibling fails open"
-else
-	no "missing sibling fails open"
-fi
+# 7. A missing .claude/hooks sibling fails open in every wrapper, never
+# blocks the tool call. on-compact needs a delegating payload to reach its
+# guard at all; the rest reach it on any input.
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
+	rm "${repo}/.claude/hooks/${w}.sh"
+	if [ "${w}" = on-compact ]; then
+		in="$(printf '{"hook_event_name":"PreCompact","session_id":"%s","cwd":"%s","transcript_path":null}' "${sid}" "${repo}")"
+	else
+		in='garbage'
+	fi
+	if printf '%s' "${in}" | bash "${MH}/${w}.sh" >/dev/null 2>&1; then
+		ok "missing sibling fails open: ${w}"
+	else
+		no "missing sibling fails open: ${w}"
+	fi
+	ln -sfn "${kit}/hooks/${w}.sh" "${repo}/.claude/hooks/${w}.sh"
+done
 
 printf '\nmuse wrappers mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
