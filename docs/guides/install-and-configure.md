@@ -9,6 +9,7 @@
 ./install.sh --repo /path/to/repo        # skills into one repo + writes its version pin
 ./install.sh --repo /path/to/repo --aliases manifest.tsv  # harness skill names differ from kit dirs
 ./install.sh --hooks --repo /path/to/repo  # hook scripts only; wiring stays explicit
+./install.sh --hooks --global muse        # machine-wide Muse hooks (explicit opt-in; see hooks/README.md)
 ./install.sh --rules --repo /path/to/repo  # Claude Code path-scoped rules + rules lint
 ```
 

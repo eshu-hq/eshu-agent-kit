@@ -33,5 +33,7 @@ if not d.get("prompt_id") and d.get("turn_id"):
 print(json.dumps(d))
 ' 2>/dev/null)" || translated="${payload}"
 
+kit_muse_prepare "goal-continue.sh" "${payload}"
+[ $? -eq 3 ] && exit 0
 [ -x "${CLAUDE_HOOK}" ] || exit 0
 printf '%s' "${translated}" | exec "${CLAUDE_HOOK}"

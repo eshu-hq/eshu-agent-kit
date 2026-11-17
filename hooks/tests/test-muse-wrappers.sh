@@ -136,5 +136,106 @@ for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-
 	ln -sfn "${kit}/hooks/${w}.sh" "${repo}/.claude/hooks/${w}.sh"
 done
 
+# --- Global install (--hooks --global muse): same wrappers, machine tree ---
+# The global copies must behave identically on kit-pinned repos, never
+# execute repo code (nudge table, doc checker), and defer per
+# (event, matcher, hook) to a project hooks.json that registers the same
+# wrapper, so nothing ever fires twice.
+gx="${work}/gxdg"
+HOME="${HOME}" XDG_CONFIG_HOME="${gx}" "${kit}/install.sh" --hooks --global muse >/dev/null 2>&1
+GMH="${gx}/muse/agent-kit-hooks/.muse/hooks"
+grepo="${work}/grepo"
+mkdir -p "${grepo}/.claude" "${grepo}/.agents" "${grepo}/scripts"
+git -C "${grepo}" init -q
+cat "${kit}/VERSION" >"${grepo}/.agent-kit-version"
+gp() { printf '%s' "$1" | sed -e "s|SID|${sid}|g" -e "s|GREPO|${grepo}|g"; }
+gstop='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"t1","cwd":"GREPO","transcript_path":null}'
+
+# 8. Garbage input fails open in every global wrapper.
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
+	if printf 'garbage' | bash "${GMH}/${w}.sh" >/dev/null 2>&1; then
+		ok "global garbage payload fails open: ${w}"
+	else
+		no "global garbage payload fails open: ${w}"
+	fi
+done
+
+# 9. Global nudge enforces the builtin table and never sources the repo's
+# own nudge table (repo code must not run under machine-wide authority).
+rm -f /tmp/claude-skill-loaded-11111111-222-*
+printf 'touch "%s/nudge-sentinel"\nnudge_ids_for() { IDS=""; NOTE=""; }\n' "${work}" >"${grepo}/.agents/nudge-table.sh"
+gnudge='{"hook_event_name":"PreToolUse","tool_name":"TOOL","tool_input":{"path":"GREPO/x.go","content":"x"},"tool_use_id":"u1","session_id":"SID","turn_id":"t1","cwd":"GREPO","transcript_path":null}'
+if gp "${gnudge/TOOL/write_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	no "global skill-nudge refuses and never sources the repo table"
+else
+	[ ! -e "${work}/nudge-sentinel" ] &&
+		ok "global skill-nudge refuses and never sources the repo table" || no "global skill-nudge refuses and never sources the repo table"
+fi
+
+# 10. Global doc-staleness never executes the repo's checker script.
+printf '#!/usr/bin/env bash\ntouch "%s/stale-sentinel"\n' "${work}" >"${grepo}/scripts/check-docs-stale.sh"
+chmod +x "${grepo}/scripts/check-docs-stale.sh"
+(cd "${grepo}" && gp "${gnudge/TOOL/write_file}" | sed 's/PreToolUse/PostToolUse/' | bash "${GMH}/eshu-doc-staleness.sh" >/dev/null 2>&1)
+[ ! -e "${work}/stale-sentinel" ] &&
+	ok "global doc-staleness never runs the repo checker" || no "global doc-staleness never runs the repo checker"
+
+# 11. Deferral: with the full project hooks.json the global Stop copy stays
+# silent; partial files defer exactly the registered (event, matcher, hook).
+printf 'SESSION: %s\nShip global.\n' "${sid}" >"${grepo}/.claude/active-goal.${sid}"
+out="$(gp "${gstop}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+rg -q 'Ship global' <<<"${out}" &&
+	ok "global goal-continue blocks without project hooks" || no "global goal-continue blocks without project hooks"
+mkdir -p "${grepo}/.muse"
+cp "${kit}/hooks/muse/hooks.json" "${grepo}/.muse/hooks.json"
+out="$(gp "${gstop}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+[ -z "${out}" ] && ok "global copy defers to a full project hooks.json" || no "global copy defers to a full project hooks.json"
+printf '{"hooks":{"Stop":[{"matcher":"","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/goal-continue.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"
+out="$(gp "${gstop}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+[ -z "${out}" ] && ok "partial project file defers its Stop entry" || no "partial project file defers its Stop entry"
+rm -f /tmp/claude-skill-loaded-11111111-222-*
+if gp "${gnudge/TOOL/write_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	no "partial project file leaves other hooks to the global copy"
+else
+	ok "partial project file leaves other hooks to the global copy"
+fi
+printf '{"hooks":{"PreToolUse":[{"matcher":"write_file","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/skill-nudge.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"
+if gp "${gnudge/TOOL/write_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	ok "matcher-scoped entry defers write_file only (write side)"
+else
+	no "matcher-scoped entry defers write_file only (write side)"
+fi
+if gp "${gnudge/TOOL/edit_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	no "matcher-scoped entry defers write_file only (edit side)"
+else
+	ok "matcher-scoped entry defers write_file only (edit side)"
+fi
+rm -rf "${grepo}/.Muse"
+
+# 12. Unpinned repo: nudge stays silent, goal machinery still works globally.
+urepo="${work}/urepo"
+mkdir -p "${urepo}"
+git -C "${urepo}" init -q
+up() { printf '%s' "$1" | sed -e "s|SID|${sid}|g" -e "s|UREPO|${urepo}|g"; }
+unud='{"hook_event_name":"PreToolUse","tool_name":"write_file","tool_input":{"path":"UREPO/x.go","content":"x"},"tool_use_id":"u1","session_id":"SID","turn_id":"t1","cwd":"UREPO","transcript_path":null}'
+if up "${unud}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	ok "global nudge is silent in an unpinned repo"
+else
+	no "global nudge is silent in an unpinned repo"
+fi
+up '{"hook_event_name":"UserPromptSubmit","prompt":"/goal Ship unpinned","session_id":"SID","turn_id":"t1","cwd":"UREPO","transcript_path":null}' |
+	bash "${GMH}/goal-refresh.sh" >/dev/null 2>&1
+out="$(up '{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"t2","cwd":"UREPO","transcript_path":null}' | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+rg -q 'Ship unpinned' <<<"${out}" &&
+	ok "global goal write + Stop block work in an unpinned repo" || no "global goal write + Stop block work in an unpinned repo"
+
+# 13. Non-git workspace: no deferral machinery errors, clean exit.
+mkdir -p "${work}/plain"
+if printf '{"hook_event_name":"UserPromptSubmit","prompt":"hi","session_id":"%s","turn_id":"t1","cwd":"%s/plain","transcript_path":null}' "${sid}" "${work}" |
+	bash "${GMH}/goal-refresh.sh" >/dev/null 2>&1; then
+	ok "global wrapper is clean in a non-git workspace"
+else
+	no "global wrapper is clean in a non-git workspace"
+fi
+
 printf '\nmuse wrappers mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

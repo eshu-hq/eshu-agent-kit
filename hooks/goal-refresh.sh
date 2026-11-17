@@ -332,7 +332,7 @@ except Exception:
 	# Persist prepared /goal file contents, not just their path, so later
 	# refreshes and compaction retain the named skills and phase instructions.
 	goal_router="$(dirname "${BASH_SOURCE[0]}")/../../scripts/goal-role-router.py"
-	if [ -f "${goal_router}" ]; then
+	if [ -z "${KIT_GLOBAL_HOOK:-}" ] && [ -f "${goal_router}" ]; then
 		expanded="$(printf '%s' "${payload}" | python3 "${goal_router}" expand 2>/dev/null)" || expanded=""
 		[ -z "${expanded}" ] || goal_text="${expanded}"
 	fi

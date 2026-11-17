@@ -4,6 +4,7 @@
 #   ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv]
 #   ./install.sh --agents --global [harness...] | ./install.sh --agents --repo /path/to/repo
 #   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
+#   ./install.sh --hooks --global muse         (machine-wide Muse hooks; explicit opt-in)
 #   ./install.sh --rules --repo /path/to/repo   (Claude Code path-scoped rules + rules lint script)
 # Harness names for the global modes: claude, codex, opencode, muse, cursor, or all.
 # No harness name means all. The global modes ask a model ID per agent; the
@@ -356,23 +357,6 @@ install_agents_repo() {
 	echo "installed kit agents into $target"
 }
 
-install_rules_repo() {
-	local target="$1" f
-	mkdir -p "$target/.claude/rules" "$target/scripts"
-	# rules/README.md is the index, not a rule: it has no `paths:`
-	# frontmatter, so installing it would load index prose at launch and
-	# trip claude-rules-lint in every consumer. Link the rules only.
-	for f in "$KIT_DIR"/rules/*.md; do
-		[ -f "$f" ] || continue
-		[ "$(basename "$f")" = README.md ] && continue
-		ln -sfn "$f" "$target/.claude/rules/$(basename "$f")"
-	done
-	link_files "$KIT_DIR/scripts/claude-rules-lint.sh" "$target/scripts"
-	prune_dir "$target/.claude/rules" "$KIT_DIR/rules/*.md" '!README.md'
-	echo "installed kit rules into $target/.claude/rules (+ scripts/claude-rules-lint.sh)"
-	echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"
-}
-
 # Skill alias wrappers live in scripts/lib/install-aliases.sh to keep
 # this entrypoint under the 500-line cap.
 # shellcheck source=scripts/lib/install-aliases.sh
@@ -381,6 +365,8 @@ source "$KIT_DIR/scripts/lib/install-aliases.sh"
 source "$KIT_DIR/scripts/lib/install-hooks.sh"
 # shellcheck source=scripts/lib/install-prune.sh
 source "$KIT_DIR/scripts/lib/install-prune.sh"
+# shellcheck source=scripts/lib/install-hooks-global.sh
+source "$KIT_DIR/scripts/lib/install-hooks-global.sh"
 
 install_global() {
 	local harness dir
@@ -464,8 +450,18 @@ case "$MODE" in
 		install_hooks_repo "$TARGET"
 		stamp_version_pin "$TARGET"
 		;;
+	--global)
+		# Machine-wide hooks execute outside the Muse sandbox in every
+		# workspace, so this is an explicit muse-only opt-in, never a
+		# default or part of plain --global.
+		[ "${3:-}" = muse ] && [ -z "${4:-}" ] || {
+			echo "usage: ./install.sh --hooks --global muse" >&2
+			exit 1
+		}
+		install_hooks_global_muse
+		;;
 	*)
-		echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
+		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global muse" >&2
 		exit 1
 		;;
 	esac
@@ -489,7 +485,7 @@ case "$MODE" in
 	esac
 	;;
 *)
-	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks --repo /path/to/repo | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
+	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global muse) | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
 	exit 1
 	;;
 esac
