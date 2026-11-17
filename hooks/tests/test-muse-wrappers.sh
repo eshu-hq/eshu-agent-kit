@@ -149,7 +149,9 @@ mkdir -p "${grepo}/.claude" "${grepo}/.agents" "${grepo}/scripts"
 git -C "${grepo}" init -q
 cat "${kit}/VERSION" >"${grepo}/.agent-kit-version"
 gp() { printf '%s' "$1" | sed -e "s|SID|${sid}|g" -e "s|GREPO|${grepo}|g"; }
-gstop='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"t1","cwd":"GREPO","transcript_path":null}'
+gstop='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"g1","cwd":"GREPO","transcript_path":null}'
+gstop2='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"g2","cwd":"GREPO","transcript_path":null}'
+gstop3='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"g3","cwd":"GREPO","transcript_path":null}'
 
 # 8. Garbage input fails open in every global wrapper.
 for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
@@ -187,10 +189,10 @@ rg -q 'Ship global' <<<"${out}" &&
 	ok "global goal-continue blocks without project hooks" || no "global goal-continue blocks without project hooks"
 mkdir -p "${grepo}/.muse"
 cp "${kit}/hooks/muse/hooks.json" "${grepo}/.muse/hooks.json"
-out="$(gp "${gstop}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+out="$(gp "${gstop2}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
 [ -z "${out}" ] && ok "global copy defers to a full project hooks.json" || no "global copy defers to a full project hooks.json"
 printf '{"hooks":{"Stop":[{"matcher":"","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/goal-continue.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"
-out="$(gp "${gstop}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
+out="$(gp "${gstop3}" | bash "${GMH}/goal-continue.sh" 2>/dev/null)"
 [ -z "${out}" ] && ok "partial project file defers its Stop entry" || no "partial project file defers its Stop entry"
 rm -f /tmp/claude-skill-loaded-11111111-222-*
 if gp "${gnudge/TOOL/write_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
@@ -215,7 +217,7 @@ if gp "${gnudge/TOOL/edit_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1;
 else
 	no "pipe-list matcher defers both listed tools"
 fi
-rm -rf "${grepo}/.Muse"
+rm -f "${grepo}/.muse/hooks.json"
 
 # 12. Unpinned repo: nudge stays silent, goal machinery still works globally.
 urepo="${work}/urepo"
@@ -234,7 +236,19 @@ out="$(up '{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_me
 rg -q 'Ship unpinned' <<<"${out}" &&
 	ok "global goal write + Stop block work in an unpinned repo" || no "global goal write + Stop block work in an unpinned repo"
 
-# 13. Non-git workspace: no deferral machinery errors, clean exit.
+# 13. Project copy with payload cwd in a nested git repo keeps repo-code
+# paths: only the global tree may gate them. CLAUDE_PROJECT_DIR names the
+# outer repo the way the Muse runtime sets it.
+git -C "${repo}/sub" init -q
+rm "${repo}/scripts/check-docs-stale.sh"
+printf '#!/usr/bin/env bash\ntouch "%s/nested-sentinel"\n' "${work}" >"${repo}/scripts/check-docs-stale.sh"
+chmod +x "${repo}/scripts/check-docs-stale.sh"
+(cd "${repo}/sub" && printf '{"hook_event_name":"PostToolUse","tool_name":"write_file","tool_input":{"path":"%s/x.go"},"tool_use_id":"u1","tool_response":"ok","session_id":"%s","turn_id":"t9","cwd":"%s/sub","transcript_path":null}' "${repo}" "${sid}" "${repo}" |
+	CLAUDE_PROJECT_DIR="${repo}" bash "${MH}/eshu-doc-staleness.sh" >/dev/null 2>&1)
+[ -e "${work}/nested-sentinel" ] &&
+	ok "project copy runs the repo checker from a nested cwd" || no "project copy runs the repo checker from a nested cwd"
+
+# 14. Non-git workspace: no deferral machinery errors, clean exit.
 mkdir -p "${work}/plain"
 if printf '{"hook_event_name":"UserPromptSubmit","prompt":"hi","session_id":"%s","turn_id":"t1","cwd":"%s/plain","transcript_path":null}' "${sid}" "${work}" |
 	bash "${GMH}/goal-refresh.sh" >/dev/null 2>&1; then

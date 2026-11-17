@@ -49,6 +49,12 @@ _kit_muse_git_root() {
 kit_muse_prepare() {
 	local name="$1" payload="$2" fields event tool cwd gitroot own
 	command -v python3 >/dev/null 2>&1 || return 0
+	# Only the global pseudo-root copy defers and gates repo code. It is the
+	# only tree carrying managed-hooks.json at its root; a project copy must
+	# keep pre-global behavior for any cwd, including nested git repos.
+	own="${KIT_MUSE_TREE_ROOT:-}"
+	[ -n "${own}" ] && [ -f "${own}/managed-hooks.json" ] || return 0
+	export KIT_GLOBAL_HOOK=1
 	fields="$(printf '%s' "${payload}" | python3 -c '
 import json, sys
 try:
@@ -60,12 +66,6 @@ print(chr(31).join([str(d.get("hook_event_name") or ""), str(d.get("tool_name") 
 	IFS="$(printf '\037')" read -r event tool cwd <<<"${fields}"
 	[ -n "${cwd:-}" ] && [ -d "${cwd}" ] || return 0
 	gitroot="$(_kit_muse_git_root "${cwd}")"
-	own="${KIT_MUSE_TREE_ROOT:-}"
-	if [ -n "${gitroot}" ] && [ -n "${own}" ] &&
-		[ "$(cd "${own}" 2>/dev/null && pwd -P)" = "$(cd "${gitroot}" 2>/dev/null && pwd -P)" ]; then
-		return 0
-	fi
-	export KIT_GLOBAL_HOOK=1
 	[ -n "${gitroot}" ] || return 0
 	[ -f "${gitroot}/.muse/hooks.json" ] || return 0
 	python3 - "${gitroot}/.muse/hooks.json" "${event}" "${tool}" "${name}" <<'PYEOF' 2>/dev/null
