@@ -46,4 +46,6 @@ else:
 [ "${route}" = "delegate" ] || exit 0
 CLAUDE_HOOK="$(muse_repo_root)/.claude/hooks/on-compact.sh"
 [ -x "${CLAUDE_HOOK}" ] || exit 0
+kit_muse_prepare "on-compact.sh" "${payload}"
+[ $? -eq 3 ] && exit 0
 printf '%s' "${payload}" | exec "${CLAUDE_HOOK}"

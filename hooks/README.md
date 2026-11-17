@@ -88,3 +88,35 @@ logic stays in one copy. Matchers are Muse tool names, one entry per tool.
 Wrappers fail open on garbage payloads and on a missing sibling. Repo-specific
 guards (eshu's dispatch guard and goal-role router entries) are not part of
 the generic set; they stay in the consuming repo's own `hooks.json`.
+
+### Global install (machine-wide, opt-in)
+
+Per-repo installs are untracked artifacts: they do not follow you into other
+repos or fresh worktrees. `./install.sh --hooks --global muse` installs the
+same wrappers once per machine instead. It links a pseudo-root tree under
+`~/.config/muse/agent-kit-hooks/` (mirroring the repo layout, so wrappers
+resolve their siblings unchanged) and registers it by setting
+`managed_hooks_path` in `~/.config/muse/settings.json` to the tree's
+generated `managed-hooks.json`. Read this before opting in:
+
+- **Hooks run outside the Muse sandbox in every workspace, including
+  untrusted ones, with no trust step.** That is why this is an explicit
+  command, never part of `--global`.
+- **No double firing.** The global copy of each wrapper defers (exits 0)
+  when the payload repo's own `.muse/hooks.json` registers the same
+  wrapper for the same event and matcher; partial project files defer
+  exactly what they register and leave the rest to the global copy.
+- **Global hooks never execute repo code.** The builtin nudge table applies
+  (a repo's `.agents/nudge-table.sh` is not sourced), the doc-staleness hook
+  no-ops, and goal-router expansion stays off. Reading per-repo *data*
+  (goal files under the payload `cwd`) is the point and stays on.
+- **The tree is symlinks into your kit checkout.** Keep the checkout in
+  place; if it moves, re-run the installer. A dangling pointer or wrapper
+  does not break Muse (verified), it just stops the hooks.
+- **Settings safety.** The writer is strict JSON: it refuses (file
+  untouched) on malformed JSON, a non-object top level, a `schema_version`
+  other than 1, a symlinked `settings.json`, or a `managed_hooks_path`
+  already pointing elsewhere — that pointer is never reclaimed, only set
+  when absent. Successful writes are atomic and normalize formatting.
+- **Undo:** remove the `managed_hooks_path` key from `settings.json` and
+  delete `~/.config/muse/agent-kit-hooks/`.

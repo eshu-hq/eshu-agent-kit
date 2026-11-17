@@ -14,4 +14,7 @@ set -uo pipefail
 
 CLAUDE_HOOK="$(muse_repo_root)/.claude/hooks/goal-refresh.sh"
 [ -x "${CLAUDE_HOOK}" ] || exit 0
-exec "${CLAUDE_HOOK}"
+payload="$(cat)"
+kit_muse_prepare "goal-refresh.sh" "${payload}"
+[ $? -eq 3 ] && exit 0
+printf '%s' "${payload}" | exec "${CLAUDE_HOOK}"

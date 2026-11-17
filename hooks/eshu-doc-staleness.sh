@@ -14,6 +14,9 @@ set -o pipefail
 # Drain stdin so Claude Code doesn't block on a closed pipe.
 cat >/dev/null
 
+# Global installs never execute the repo's checker (repo code, pre-trust).
+[ -n "${KIT_GLOBAL_HOOK:-}" ] && exit 0
+
 repo_root="${CLAUDE_PROJECT_DIR:-}"
 [ -z "$repo_root" ] && repo_root="$(git rev-parse --show-toplevel 2>/dev/null ||
 	(cd "$(dirname "$0")/../.." && pwd))"

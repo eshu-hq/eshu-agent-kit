@@ -30,5 +30,7 @@ if isinstance(ti, dict) and not ti.get("skill") and ti.get("name"):
 print(json.dumps(d))
 ' 2>/dev/null)" || translated="${payload}"
 
+kit_muse_prepare "skill-loaded.sh" "${payload}"
+[ $? -eq 3 ] && exit 0
 [ -x "${CLAUDE_HOOK}" ] || exit 0
 printf '%s' "${translated}" | exec "${CLAUDE_HOOK}"

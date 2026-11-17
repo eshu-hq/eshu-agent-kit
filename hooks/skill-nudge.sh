@@ -110,8 +110,10 @@ nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
 	*.go) IDS="golang-engineering" ;;
 	esac
 }
+# Global installs (KIT_GLOBAL_HOOK=1) never source the repo table: machine-
+# wide hooks run before trust, and repo code must not execute pre-trust.
 # shellcheck source=/dev/null # owner-local optional table; absent from the repo by design
-[ -f "$ROOT/.agents/nudge-table.sh" ] && . "$ROOT/.agents/nudge-table.sh"
+[ -z "${KIT_GLOBAL_HOOK:-}" ] && [ -f "$ROOT/.agents/nudge-table.sh" ] && . "$ROOT/.agents/nudge-table.sh"
 REL="${FP#"$ROOT"/}"
 nudge_ids_for "/$REL"
 [ -z "$IDS" ] && exit 0
