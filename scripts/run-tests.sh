@@ -24,6 +24,7 @@ suites=(
 	scripts/tests/test-global-harness-selection.sh
 	scripts/tests/test-repo-install.sh
 	scripts/tests/test-repo-alias-install.sh
+	scripts/tests/test-install-prune.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh

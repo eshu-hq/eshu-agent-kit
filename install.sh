@@ -9,6 +9,8 @@
 # No harness name means all. The global modes ask a model ID per agent; the
 # default is the kit value from agents/roles.json, so plain Enter keeps it.
 # Piped or empty stdin also keeps every default. Repo modes never prompt.
+# Every mode prunes stale kit-owned artifacts it manages (printed per file);
+# pass --no-prune after the mode to keep them.
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -283,6 +285,7 @@ install_opencode_agents() {
 		pairs+=("$f" "$model")
 	done
 	merge_opencode_config "$main" "${pairs[@]}"
+	prune_dir "$HOME/.config/opencode/agents" "$KIT_DIR/.opencode/agent/*.md"
 	echo "installed kit agents for opencode (model choices recorded in $config)"
 }
 
@@ -297,6 +300,7 @@ install_agents_for() {
 		model="$(ask_model "$role" "$model")"
 		write_agent_file "$f" "$(agents_dir_for "$harness")" "$model"
 	done
+	prune_dir "$(agents_dir_for "$harness")" "$(agents_src_for "$harness")"
 	echo "installed kit agents for $harness"
 }
 
@@ -337,6 +341,11 @@ install_agents_repo() {
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"
 	link_files "$KIT_DIR/.opencode/agent/*.md" "$target/.opencode/agent"
 	link_files "$KIT_DIR/.cursor/agents/*.md" "$target/.cursor/agents"
+	prune_dir "$target/.agents/agents" "$KIT_DIR/agents/*.md"
+	prune_dir "$target/.claude/agents" "$KIT_DIR/.claude/agents/*.md"
+	prune_dir "$target/.codex/agents" "$KIT_DIR/.codex/agents/*.toml"
+	prune_dir "$target/.opencode/agent" "$KIT_DIR/.opencode/agent/*.md"
+	prune_dir "$target/.cursor/agents" "$KIT_DIR/.cursor/agents/*.md"
 	# The launcher belongs in the consuming repo: scripts/goal-role-router.py
 	# tells the coordinator to run `scripts/agent-roles.py muse-exec ROLE
 	# TASK` and `codex-exec ROLE TASK`, so a repo that does not have it
@@ -359,6 +368,7 @@ install_rules_repo() {
 		ln -sfn "$f" "$target/.claude/rules/$(basename "$f")"
 	done
 	link_files "$KIT_DIR/scripts/claude-rules-lint.sh" "$target/scripts"
+	prune_dir "$target/.claude/rules" "$KIT_DIR/rules/*.md"
 	echo "installed kit rules into $target/.claude/rules (+ scripts/claude-rules-lint.sh)"
 	echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"
 }
@@ -369,6 +379,8 @@ install_rules_repo() {
 source "$KIT_DIR/scripts/lib/install-aliases.sh"
 # shellcheck source=scripts/lib/install-hooks.sh
 source "$KIT_DIR/scripts/lib/install-hooks.sh"
+# shellcheck source=scripts/lib/install-prune.sh
+source "$KIT_DIR/scripts/lib/install-prune.sh"
 
 install_global() {
 	local harness dir
@@ -376,6 +388,7 @@ install_global() {
 		dir="$(skills_dir_for "$harness")"
 		link_dir "$KIT_DIR/skills/core" "$dir"
 		link_dir "$KIT_DIR/skills/eshu" "$dir"
+		prune_dir "$dir" "$KIT_DIR/skills/core/*" "$KIT_DIR/skills/eshu/*"
 	done
 	install_agents_global
 	echo "installed kit skills and agents globally from $KIT_DIR for: ${selected[*]}"
@@ -413,6 +426,7 @@ case "$MODE" in
 		link_dir "$KIT_DIR/skills/core" "$TARGET/.agents/skills"
 		link_dir "$KIT_DIR/skills/eshu" "$TARGET/.agents/skills"
 	fi
+	prune_dir "$TARGET/.agents/skills" "$KIT_DIR/skills/core/*" "$KIT_DIR/skills/eshu/*"
 	stamp_version_pin "$TARGET"
 	echo "installed kit skills into $TARGET/.agents/skills"
 	;;
