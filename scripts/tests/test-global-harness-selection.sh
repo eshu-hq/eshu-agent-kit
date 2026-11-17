@@ -16,7 +16,7 @@ HOME="$home1" "$kit/install.sh" --global </dev/null >/dev/null
 [ -e "$home1/.claude/skills" ]
 [ -e "$home1/.codex/agents/develop-eshu.toml" ]
 [ -e "$home1/.config/opencode/agents/develop-eshu.md" ]
-[ -e "$home1/.agents/agents/scan-eshu.md" ]
+[ -e "$home1/.config/muse/agents/scan-eshu.md" ]
 [ -e "$home1/.cursor/agents/review-eshu.md" ]
 
 # 2. One harness name writes only its directories.
@@ -26,7 +26,7 @@ HOME="$home2" "$kit/install.sh" --global claude </dev/null >/dev/null
 [ -e "$home2/.claude/agents/develop-eshu.md" ]
 [ ! -e "$home2/.codex/skills" ]
 [ ! -e "$home2/.config/opencode/agents" ]
-[ ! -e "$home2/.agents/agents" ]
+[ ! -e "$home2/.config/muse/agents" ]
 [ ! -e "$home2/.cursor/agents" ]
 
 # 3. An unknown harness fails and prints the pick list.
@@ -113,5 +113,11 @@ else
 	printf 'not ok - duplicated harness installs once\n' >&2
 	exit 1
 fi
+
+# 9. Muse user agents follow XDG_CONFIG_HOME when it is set.
+home8="$work/home8"
+XDG_CONFIG_HOME="$work/xdg8" HOME="$home8" "$kit/install.sh" --agents --global muse </dev/null >/dev/null
+[ -e "$work/xdg8/muse/agents/scan-eshu.md" ]
+[ ! -e "$home8/.config/muse/agents" ]
 
 echo 'global harness selection passed'

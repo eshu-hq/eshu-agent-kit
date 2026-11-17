@@ -32,11 +32,15 @@ link_dir() {
 }
 
 link_files() {
-	local pattern="$1" dest="$2"
+	local pattern="$1" dest="$2" mode="${3:-link}"
 	mkdir -p "$dest"
 	for f in $pattern; do
 		[ -f "$f" ] || continue
-		ln -sfn "$f" "$dest/$(basename "$f")"
+		if [ "$mode" = copy ]; then
+			rm -f "$dest/$(basename "$f")" && cp "$f" "$dest/$(basename "$f")" # rm first: cp would write through an old symlink into the kit source
+		else
+			ln -sfn "$f" "$dest/$(basename "$f")"
+		fi
 	done
 }
 
@@ -93,7 +97,7 @@ agents_dir_for() {
 	claude) printf '%s\n' "$HOME/.claude/agents" ;;
 	codex) printf '%s\n' "$HOME/.codex/agents" ;;
 	opencode) printf '%s\n' "$HOME/.config/opencode/agents" ;;
-	muse) printf '%s\n' "$HOME/.agents/agents" ;;
+	muse) printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/muse/agents" ;;
 	cursor) printf '%s\n' "$HOME/.cursor/agents" ;;
 	esac
 }
@@ -327,7 +331,7 @@ install_agents_repo() {
 	# the shims that were generated from it.
 	mkdir -p "$target/.agents"
 	ln -sfn "$KIT_DIR/agents/roles.json" "$target/.agents/roles.json"
-	link_files "$KIT_DIR/agents/*.md" "$target/.agents/agents"
+	link_files "$KIT_DIR/agents/*.md" "$target/.agents/agents" copy # Muse rejects symlinked project definitions
 	link_files "$KIT_DIR/.claude/agents/*.md" "$target/.claude/agents"
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"
 	link_files "$KIT_DIR/.opencode/agent/*.md" "$target/.opencode/agent"
