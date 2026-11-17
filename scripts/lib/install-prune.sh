@@ -49,7 +49,9 @@ prune_resolve() {
 }
 
 # prune_dir <dest> <source-glob...> -- drop stale kit-owned entries directly
-# under dest whose basename no source entry carries any more.
+# under dest whose basename no source entry carries any more. A !<basename>
+# argument removes that name from the keep-set (rules/README.md is in the
+# source glob but deliberately never installed).
 prune_dir() {
 	[ "$PRUNE" = 1 ] || return 0
 	local dest="$1"
@@ -57,6 +59,12 @@ prune_dir() {
 	[ -d "$dest" ] || return 0
 	local keep=" " pat f e base resolved content kit_real
 	for pat in "$@"; do
+		case "$pat" in
+		!*)
+			keep="${keep/ ${pat#!} / }"
+			continue
+			;;
+		esac
 		for f in $pat; do
 			[ -e "$f" ] || continue
 			keep="$keep$(basename "$f") "

@@ -368,7 +368,7 @@ install_rules_repo() {
 		ln -sfn "$f" "$target/.claude/rules/$(basename "$f")"
 	done
 	link_files "$KIT_DIR/scripts/claude-rules-lint.sh" "$target/scripts"
-	prune_dir "$target/.claude/rules" "$KIT_DIR/rules/*.md"
+	prune_dir "$target/.claude/rules" "$KIT_DIR/rules/*.md" '!README.md'
 	echo "installed kit rules into $target/.claude/rules (+ scripts/claude-rules-lint.sh)"
 	echo "run scripts/claude-rules-lint.sh in the repo after moving rules or their targets"
 }

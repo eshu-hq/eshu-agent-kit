@@ -70,6 +70,14 @@ ln -s "${kit}/.claude/agents/scan-eshu.md" "${repo}/.claude/agents/old-role.md"
 	ok "--no-prune leaves stale kit artifacts" || no "--no-prune leaves stale kit artifacts"
 rm "${repo}/.claude/agents/old-role.md"
 
+# 3b. rules/README.md is in the source glob but never installed; a kit link
+# under that name is stale, not kept.
+"${kit}/install.sh" --rules --repo "${repo}" >/dev/null 2>&1
+ln -s "${kit}/rules/README.md" "${repo}/.claude/rules/README.md"
+"${kit}/install.sh" --rules --repo "${repo}" >/dev/null 2>&1
+[ ! -L "${repo}/.claude/rules/README.md" ] &&
+	ok "never-installed rules README link pruned" || no "never-installed rules README link pruned"
+
 # 4. A real directory (alias wrappers are real dirs with copied content)
 # is never pruned, even under a managed skills dir.
 mkdir -p "${repo}/.agents/skills/my-alias"
