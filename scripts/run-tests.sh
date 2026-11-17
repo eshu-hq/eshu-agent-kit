@@ -28,6 +28,7 @@ suites=(
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh
 	hooks/tests/test-guard-live-gate.sh
+	hooks/tests/test-muse-wrappers.sh
 )
 
 failed=()

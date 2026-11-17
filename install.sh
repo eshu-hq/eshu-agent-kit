@@ -347,27 +347,6 @@ install_agents_repo() {
 	echo "installed kit agents into $target"
 }
 
-install_hooks_repo() {
-	local target="$1"
-	mkdir -p "$target/.claude/hooks/lib" "$target/scripts"
-	link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
-	link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
-	link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
-	# A consuming repo may already track its own copy of the staleness
-	# checker, and that copy can be newer than this kit's: the eshu repo
-	# carries a GNU-stat fix this kit does not have. Overwriting a tracked
-	# file with a symlink into the kit would silently regress it, so an
-	# existing regular file is preserved and reported, the same way the
-	# skill installer preserves an existing skill directory.
-	if [ -e "$target/scripts/check-docs-stale.sh" ] && [ ! -L "$target/scripts/check-docs-stale.sh" ]; then
-		echo "preserving existing script: $target/scripts/check-docs-stale.sh" >&2
-	else
-		ln -sfn "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts/check-docs-stale.sh"
-	fi
-	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex adapter)"
-	echo "wire them in settings.json (see hooks/README.md#wiring); registration stays explicit"
-}
-
 install_rules_repo() {
 	local target="$1" f
 	mkdir -p "$target/.claude/rules" "$target/scripts"
@@ -388,6 +367,8 @@ install_rules_repo() {
 # this entrypoint under the 500-line cap.
 # shellcheck source=scripts/lib/install-aliases.sh
 source "$KIT_DIR/scripts/lib/install-aliases.sh"
+# shellcheck source=scripts/lib/install-hooks.sh
+source "$KIT_DIR/scripts/lib/install-hooks.sh"
 
 install_global() {
 	local harness dir

@@ -69,6 +69,38 @@ fi
 	ok "--hooks --repo links hook scripts" || no "--hooks --repo links hook scripts"
 [ -e "${repo}/scripts/check-docs-stale.sh" ] &&
 	ok "--hooks --repo links the staleness checker" || no "--hooks --repo links the staleness checker"
+# Muse adapter: wrappers link to the kit copies, and a fresh repo gets the
+# generic hooks.json (valid JSON, shared hooks only, no eshu router entries).
+if [ "$(readlink "${repo}/.muse/hooks/goal-refresh.sh")" = "${kit}/hooks/muse/goal-refresh.sh" ] &&
+	[ "$(readlink "${repo}/.muse/hooks/lib/muse-root.sh")" = "${kit}/hooks/muse/lib/muse-root.sh" ]; then
+	ok "--hooks --repo links the Muse wrappers to the kit copies"
+else
+	no "--hooks --repo links the Muse wrappers to the kit copies"
+fi
+if [ -f "${repo}/.muse/hooks.json" ] && [ ! -L "${repo}/.muse/hooks.json" ] &&
+	python3 -m json.tool "${repo}/.muse/hooks.json" >/dev/null 2>&1 &&
+	rg -q 'goal-continue\.sh' "${repo}/.muse/hooks.json" &&
+	! rg -q 'guard-spawn|goal-role-router' "${repo}/.muse/hooks.json"; then
+	ok "--hooks --repo writes a valid generic .muse/hooks.json"
+else
+	no "--hooks --repo writes a valid generic .muse/hooks.json"
+fi
+# An existing hooks.json is consumer-owned (eshu's carries router entries the
+# generic file must never clobber): preserved byte-identical, like the checker.
+musekeep="${work}/muse-preserve"
+mkdir -p "${musekeep}/.muse"
+printf '# CONSUMER-HOOKS\n' >"${musekeep}/.muse/hooks.json"
+"${kit}/install.sh" --hooks --repo "${musekeep}" >/dev/null 2>&1
+if [ ! -L "${musekeep}/.muse/hooks.json" ] &&
+	[ "$(cat "${musekeep}/.muse/hooks.json")" = "# CONSUMER-HOOKS" ]; then
+	ok "--hooks --repo preserves an existing .muse/hooks.json"
+else
+	no "--hooks --repo preserves an existing .muse/hooks.json"
+fi
+# Reinstall over the written hooks.json is idempotent.
+"${kit}/install.sh" --hooks --repo "${repo}" >/dev/null 2>&1 &&
+	cmp -s "${repo}/.muse/hooks.json" "${kit}/hooks/muse/hooks.json" &&
+	ok "--hooks --repo reinstall keeps the generic hooks.json" || no "--hooks --repo reinstall keeps the generic hooks.json"
 "${kit}/install.sh" --rules --repo "${repo}" >/dev/null 2>&1
 [ -e "${repo}/.claude/rules" ] &&
 	ok "--rules --repo creates rules dir" || no "--rules --repo creates rules dir"
