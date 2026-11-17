@@ -6,6 +6,7 @@
 #   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
 #   ./install.sh --hooks --global (muse|claude) (machine-wide hooks; explicit opt-in)
 #   ./install.sh --rules --repo /path/to/repo   (Claude Code path-scoped rules + rules lint script)
+#   ./install.sh --uninstall --repo /path/to/repo [--force] | ./install.sh --uninstall --global [harness...] [--force]
 # Harness names for the global modes: claude, codex, opencode, muse, cursor, or all.
 # No harness name means all. The global modes ask a model ID per agent; the
 # default is the kit value from agents/roles.json, so plain Enter keeps it.
@@ -369,6 +370,8 @@ source "$KIT_DIR/scripts/lib/install-prune.sh"
 source "$KIT_DIR/scripts/lib/install-hooks-global.sh"
 # shellcheck source=scripts/lib/install-hooks-global-claude.sh
 source "$KIT_DIR/scripts/lib/install-hooks-global-claude.sh"
+# shellcheck source=scripts/lib/install-uninstall.sh
+source "$KIT_DIR/scripts/lib/install-uninstall.sh"
 
 install_global() {
 	local harness dir
@@ -489,8 +492,11 @@ case "$MODE" in
 		;;
 	esac
 	;;
+--uninstall)
+	uninstall_main "${@:2}" || exit 1
+	;;
 *)
-	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude)) | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
+	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude)) | ./install.sh --rules --repo /path/to/repo | ./install.sh --uninstall (--repo | --agents --repo | --hooks --repo | --rules --repo /path/to/repo | --global [harness...] | --agents --global [harness...] | --hooks --global (muse|claude)) [--force]  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
 	exit 1
 	;;
 esac

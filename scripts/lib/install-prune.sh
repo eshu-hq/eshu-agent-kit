@@ -48,6 +48,36 @@ prune_resolve() {
 	printf '%s/%s\n' "$(cd "$dir" 2>/dev/null && pwd -P)" "$(basename "$raw")"
 }
 
+# prune_owns_entry <path> -- true when the kit provably owns this entry:
+# a symlink resolving into this kit (or a dangling link whose raw target
+# names an eshu-agent-kit* path segment, a checkout that moved or was
+# deleted since the link was made), or a regular file carrying the
+# Generated-by marker. Pruning and uninstall share this proof: neither
+# ever removes unmarked user files, real directories, or links pointing
+# outside the kit.
+prune_owns_entry() {
+	local e="$1" resolved content kit_real
+	if [ -L "$e" ]; then
+		resolved="$(prune_resolve "$e")"
+		kit_real="$(cd "$KIT_DIR" 2>/dev/null && pwd -P)"
+		case "$resolved" in
+		"$KIT_DIR"/* | "$kit_real"/*) return 0 ;;
+		?*) return 1 ;;
+		esac
+		case "$(readlink "$e")" in
+		*/eshu-agent-kit*/* | eshu-agent-kit*/*) return 0 ;;
+		esac
+		return 1
+	elif [ -f "$e" ]; then
+		content="$(head -n 12 "$e" 2>/dev/null)" || return 1
+		case "$content" in
+		*"$PRUNE_MARKER"*) return 0 ;;
+		esac
+		return 1
+	fi
+	return 1
+}
+
 # prune_dir <dest> <source-glob...> -- drop stale kit-owned entries directly
 # under dest whose basename no source entry carries any more. A !<basename>
 # argument removes that name from the keep-set (rules/README.md is in the
@@ -57,7 +87,7 @@ prune_dir() {
 	local dest="$1"
 	shift
 	[ -d "$dest" ] || return 0
-	local keep=" " pat f e base resolved content kit_real
+	local keep=" " pat f e base
 	for pat in "$@"; do
 		case "$pat" in
 		!*)
@@ -70,34 +100,13 @@ prune_dir() {
 			keep="$keep$(basename "$f") "
 		done
 	done
-	kit_real="$(cd "$KIT_DIR" 2>/dev/null && pwd -P)"
 	for e in "$dest"/*; do
 		[ -e "$e" ] || [ -L "$e" ] || continue
 		base="$(basename "$e")"
 		case "$keep" in
 		*" $base "*) continue ;;
 		esac
-		if [ -L "$e" ]; then
-			resolved="$(prune_resolve "$e")"
-			case "$resolved" in
-			"$KIT_DIR"/* | "$kit_real"/*) ;;
-			?*) continue ;;
-			*)
-				case "$(readlink "$e")" in
-				*/eshu-agent-kit*/* | eshu-agent-kit*/*) ;;
-				*) continue ;;
-				esac
-				;;
-			esac
-		elif [ -f "$e" ]; then
-			content="$(head -n 12 "$e" 2>/dev/null)" || continue
-			case "$content" in
-			*"$PRUNE_MARKER"*) ;;
-			*) continue ;;
-			esac
-		else
-			continue
-		fi
+		prune_owns_entry "$e" || continue
 		rm -f "$e"
 		printf 'pruned stale kit artifact: %s\n' "$e"
 	done
