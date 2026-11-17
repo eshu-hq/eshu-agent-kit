@@ -123,4 +123,15 @@ XDG_CONFIG_HOME="$work/xdg8" HOME="$home8" "$kit/install.sh" --agents --global m
 [ -e "$work/xdg8/muse/agents/scan-eshu.md" ]
 [ ! -e "$home8/.config/muse/agents" ]
 
+# 10. A prior install at the superseded Muse path gets a notice naming it,
+# and the old files stay put: they are the only record of prior model choices.
+home9="$work/home9"
+mkdir -p "$home9/.agents/agents"
+printf '# OLD-CHOICE\n' >"$home9/.agents/agents/scan-eshu.md"
+err9="$work/err9"
+HOME="$home9" "$kit/install.sh" --agents --global muse </dev/null >/dev/null 2>"$err9"
+grep -q '.agents/agents' "$err9"
+[ "$(cat "$home9/.agents/agents/scan-eshu.md")" = "# OLD-CHOICE" ]
+[ -e "$home9/.config/muse/agents/scan-eshu.md" ]
+
 echo 'global harness selection passed'

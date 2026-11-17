@@ -288,6 +288,7 @@ install_opencode_agents() {
 
 install_agents_for() {
 	local harness="$1" f role model
+	[ "$harness" = muse ] && [ -d "$HOME/.agents/agents" ] && printf 'note: muse agents now install to %s; model choices under ~/.agents/agents are no longer read\n' "$(agents_dir_for muse)" >&2
 	for f in $(agents_src_for "$harness"); do
 		[ -f "$f" ] || continue
 		role="$(basename "$f")"
