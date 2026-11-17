@@ -2,7 +2,7 @@
 
 Executable enforcement for the skill system. Plain bash + python3 scripts; wiring is per harness.
 
-Install them two ways. The marketplace plugin registers everything below automatically through `hooks/hooks.json`. Everywhere else, `install.sh` symlinks the scripts and you wire them explicitly:
+Install them two ways. The marketplace plugin registers everything below automatically through `hooks/hooks.json`. Everywhere else, `install.sh` symlinks the scripts and you wire them explicitly — Muse excepted, which gets its registration file written (see Muse Code below):
 
 ```sh
 ./install.sh --hooks --repo /path/to/repo
@@ -71,3 +71,20 @@ Every hook fails open outside its scope: missing interpreter, missing checker, n
 ```
 
 Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on `apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
+
+## Muse Code
+
+No manual wiring. `./install.sh --hooks --repo /path/to/repo` also links the
+`muse/` wrappers into `.muse/hooks/` and writes `.muse/hooks.json`, the
+registration file Muse reads at session start. Project hooks run only
+after you trust the folder, so the written file is inert until then. An
+existing `.muse/hooks.json` is never overwritten; the installer preserves it
+and says so.
+
+Each wrapper translates the Muse envelope where it differs from Claude's
+(`tool_input.path` vs `file_path`, `turn_id` vs `prompt_id`, `read_skill`'s
+`name` vs `skill`) and delegates to the `.claude/hooks/` sibling, so hook
+logic stays in one copy. Matchers are Muse tool names, one entry per tool.
+Wrappers fail open on garbage payloads and on a missing sibling. Repo-specific
+guards (eshu's dispatch guard and goal-role router entries) are not part of
+the generic set; they stay in the consuming repo's own `hooks.json`.
