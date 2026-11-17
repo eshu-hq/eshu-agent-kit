@@ -209,6 +209,12 @@ if gp "${gnudge/TOOL/edit_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1;
 else
 	ok "matcher-scoped entry defers write_file only (edit side)"
 fi
+printf '{"hooks":{"PreToolUse":[{"matcher":"write_file|edit_file","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/skill-nudge.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"
+if gp "${gnudge/TOOL/edit_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1; then
+	ok "pipe-list matcher defers both listed tools"
+else
+	no "pipe-list matcher defers both listed tools"
+fi
 rm -rf "${grepo}/.Muse"
 
 # 12. Unpinned repo: nudge stays silent, goal machinery still works globally.

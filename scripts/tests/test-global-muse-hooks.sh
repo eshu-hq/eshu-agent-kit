@@ -104,11 +104,12 @@ refuse() { # name setup-file-content
 	local name="$1" content="$2" h="${work}/ref-$1" x="${work}/refx-$1"
 	mkdir -p "$x/muse"
 	printf '%s\n' "$content" >"$(settings_of "$x")"
+	cp "$(settings_of "$x")" "$x/golden.json"
 	if run_install "$h" "$x" --hooks --global muse >/dev/null 2>&1; then
 		no "refuses $name"
 		return
 	fi
-	[ "$(cat "$(settings_of "$x")")" = "$content" ] && [ ! -e "$(tree_of "$x")" ] &&
+	cmp -s "$(settings_of "$x")" "$x/golden.json" && [ ! -e "$(tree_of "$x")" ] &&
 		ok "refuses $name untouched" || no "refuses $name untouched"
 }
 refuse occupied '{"schema_version":1,"managed_hooks_path":"/elsewhere/hooks.json"}'
@@ -162,9 +163,10 @@ run_install "$h1" "$x1" --hooks --global muse >/dev/null 2>&1
 [ "$(cat "$(tree_of "$x1")/.muse/hooks/mine.sh")" = "# mine" ] &&
 	ok "unmarked file in global tree survives" || no "unmarked file in global tree survives"
 ln -s "${kit}/hooks/muse/goal-refresh.sh" "$(tree_of "$x1")/.muse/hooks/stale-old.sh"
-run_install "$h1" "$x1" --hooks --global muse --no-prune >/dev/null 2>&1
-[ -L "$(tree_of "$x1")/.muse/hooks/stale-old.sh" ] &&
-	ok "--no-prune keeps the stale global wrapper" || no "--no-prune keeps the stale global wrapper"
+run_install "$h1" "$x1" --hooks --global muse --no-prune >/dev/null 2>&1 &&
+	[ -L "$(tree_of "$x1")/.muse/hooks/stale-old.sh" ] &&
+	key_is "$(settings_of "$x1")" managed_hooks_path "$want_ptr" &&
+	ok "--no-prune runs the install and keeps the stale global wrapper" || no "--no-prune runs the install and keeps the stale global wrapper"
 
 # 9. Without XDG_CONFIG_HOME the tree lands under ~/.config/muse.
 h9="${work}/h9"

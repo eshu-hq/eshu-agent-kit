@@ -75,7 +75,10 @@ path, event, tool, name = sys.argv[1:5]
 try:
     entries = json.load(open(path)).get("hooks", {}).get(event, [])
     for entry in entries:
-        if (entry.get("matcher") or "") not in ("", tool):
+        # Empty matches all; Claude-style pipe lists and "*" count too:
+        # over-deferring to the project copy is the safe side.
+        matcher = str(entry.get("matcher") or "")
+        if matcher not in ("", "*") and tool not in matcher.split("|"):
             continue
         for hook in entry.get("hooks", []):
             if "/.muse/hooks/" + name in str(hook.get("command", "")):
