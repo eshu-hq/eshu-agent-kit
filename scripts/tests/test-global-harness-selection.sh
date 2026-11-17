@@ -9,6 +9,9 @@ set -euo pipefail
 kit=$(cd "$(dirname "$0")/../.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+# Cases assert under each fake HOME; a runner-exported XDG_CONFIG_HOME would
+# redirect the Muse agents elsewhere. Case 9 sets it explicitly.
+unset XDG_CONFIG_HOME
 
 # 1. --global installs skills and agents for every harness by default.
 home1="$work/home1"
@@ -16,7 +19,7 @@ HOME="$home1" "$kit/install.sh" --global </dev/null >/dev/null
 [ -e "$home1/.claude/skills" ]
 [ -e "$home1/.codex/agents/develop-eshu.toml" ]
 [ -e "$home1/.config/opencode/agents/develop-eshu.md" ]
-[ -e "$home1/.agents/agents/scan-eshu.md" ]
+[ -e "$home1/.config/muse/agents/scan-eshu.md" ]
 [ -e "$home1/.cursor/agents/review-eshu.md" ]
 
 # 2. One harness name writes only its directories.
@@ -26,7 +29,7 @@ HOME="$home2" "$kit/install.sh" --global claude </dev/null >/dev/null
 [ -e "$home2/.claude/agents/develop-eshu.md" ]
 [ ! -e "$home2/.codex/skills" ]
 [ ! -e "$home2/.config/opencode/agents" ]
-[ ! -e "$home2/.agents/agents" ]
+[ ! -e "$home2/.config/muse/agents" ]
 [ ! -e "$home2/.cursor/agents" ]
 
 # 3. An unknown harness fails and prints the pick list.
@@ -113,5 +116,22 @@ else
 	printf 'not ok - duplicated harness installs once\n' >&2
 	exit 1
 fi
+
+# 9. Muse user agents follow XDG_CONFIG_HOME when it is set.
+home8="$work/home8"
+XDG_CONFIG_HOME="$work/xdg8" HOME="$home8" "$kit/install.sh" --agents --global muse </dev/null >/dev/null
+[ -e "$work/xdg8/muse/agents/scan-eshu.md" ]
+[ ! -e "$home8/.config/muse/agents" ]
+
+# 10. A prior install at the superseded Muse path gets a notice naming it,
+# and the old files stay put: they are the only record of prior model choices.
+home9="$work/home9"
+mkdir -p "$home9/.agents/agents"
+printf '# OLD-CHOICE\n' >"$home9/.agents/agents/scan-eshu.md"
+err9="$work/err9"
+HOME="$home9" "$kit/install.sh" --agents --global muse </dev/null >/dev/null 2>"$err9"
+grep -q '.agents/agents' "$err9"
+[ "$(cat "$home9/.agents/agents/scan-eshu.md")" = "# OLD-CHOICE" ]
+[ -e "$home9/.config/muse/agents/scan-eshu.md" ]
 
 echo 'global harness selection passed'

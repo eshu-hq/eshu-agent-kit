@@ -3,7 +3,8 @@
 #
 # The global installer path is covered by test-global-install.sh. This suite
 # covers the repo path the epic gates on: a product repo stays thin (a version
-# pin plus symlinks), so --repo, --agents/--hooks/--rules --repo must link the
+# pin plus symlinks; Muse project agents are copies, per its symlink refusal),
+# so --repo, --agents/--hooks/--rules --repo must link the
 # kit material and stamp the kit VERSION. A hardcoded version stamp would let
 # the pin drift from VERSION silently; the suite pins them together.
 set -euo pipefail
@@ -54,6 +55,15 @@ fi
 "${kit}/install.sh" --agents --repo "${repo}" >/dev/null 2>&1
 [ -e "${repo}/.agents/agents" ] &&
 	ok "--agents --repo creates agents dir" || no "--agents --repo creates agents dir"
+# Muse refuses symlinked project definitions, so the Muse project agents
+# must be regular files whose content matches the kit sources.
+if [ -f "${repo}/.agents/agents/scan-eshu.md" ] &&
+	[ ! -L "${repo}/.agents/agents/scan-eshu.md" ] &&
+	cmp -s "${repo}/.agents/agents/scan-eshu.md" "${kit}/agents/scan-eshu.md"; then
+	ok "--agents --repo copies Muse project agents as regular files"
+else
+	no "--agents --repo copies Muse project agents as regular files"
+fi
 "${kit}/install.sh" --hooks --repo "${repo}" >/dev/null 2>&1
 [ -e "${repo}/.claude/hooks/guard-live-gate.sh" ] &&
 	ok "--hooks --repo links hook scripts" || no "--hooks --repo links hook scripts"
