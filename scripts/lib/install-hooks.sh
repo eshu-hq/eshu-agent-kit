@@ -29,6 +29,11 @@ install_hooks_repo() {
 	link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
 	link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
 	install_muse_hooks "$target"
+	prune_dir "$target/.claude/hooks" "$KIT_DIR/hooks/*.sh"
+	prune_dir "$target/.claude/hooks/lib" "$KIT_DIR/hooks/lib/*"
+	prune_dir "$target/.codex/hooks" "$KIT_DIR/hooks/codex/*.sh"
+	prune_dir "$target/.muse/hooks" "$KIT_DIR/hooks/muse/*.sh"
+	prune_dir "$target/.muse/hooks/lib" "$KIT_DIR/hooks/muse/lib/*"
 	# A consuming repo may already track its own copy of the staleness
 	# checker, and that copy can be newer than this kit's: the eshu repo
 	# carries a GNU-stat fix this kit does not have. Overwriting a tracked
