@@ -52,7 +52,8 @@ print(session_id if session_id else "-")
 print(cwd if cwd else "-")
 cat = g("failure_category") or g("category")
 print(cat if cat else "unknown")
-det = re.sub(r"\s+", " ", g("failure_details") or g("details") or g("safe_details") or g("message"))
+# Prefer explicitly safe text when the envelope carries both.
+det = re.sub(r"\s+", " ", g("safe_details") or g("failure_details") or g("details") or g("message"))
 print(det[:500])
 ' 2>/dev/null)" || exit 0
 {

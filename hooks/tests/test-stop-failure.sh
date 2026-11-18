@@ -116,5 +116,29 @@ else
 fi
 chmod u+w "${work}/repo/.claude"
 
+# 15. When the envelope carries both raw and explicitly safe text, the note
+# records the safe text only.
+dual='{"hook_event_name":"StopFailure","session_id":"SID","cwd":"CWD","failure_category":"server_error","failure_details":"RAW-PRIVATE-XYZ","safe_details":"safe summary"}'
+with_ids "${dual}" | bash "${HOOK}" >/dev/null 2>&1
+note="$(cat "${resume}" 2>/dev/null)"
+rg -q 'safe summary' <<<"${note}" && ! rg -q 'RAW-PRIVATE-XYZ' <<<"${note}" &&
+	ok "safe text wins over raw details" || no "safe text wins over raw details"
+rm -f "${resume}"
+
+# 16. Round trip through the real refresher: a note written by the sibling
+# surfaces once with the goal restated, and the file is gone after.
+rtsid="roundtrip-aaaa-bbbb-cccc-000011112222"
+printf 'SESSION: %s\nWork the widgets.\n' "${rtsid}" >"${work}/repo/.claude/active-goal.${rtsid}"
+printf '{"hook_event_name":"StopFailure","session_id":"SID","cwd":"CWD","failure_category":"server_error","failure_details":"live wires"}' |
+	sed -e "s|SID|${rtsid}|" -e "s|CWD|${work}/repo|" |
+	bash "${HOOK}" >/dev/null 2>&1
+rout="$(printf '{"hook_event_name":"UserPromptSubmit","prompt":"hi","session_id":"SID","turn_id":"t9","cwd":"CWD","transcript_path":null}' |
+	sed -e "s|SID|${rtsid}|" -e "s|CWD|${work}/repo|" |
+	bash "${repo_root}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${rout}" && rg -q 'Work the widgets' <<<"${rout}" &&
+	ok "round trip restates the recorded failure" || no "round trip restates the recorded failure"
+[ ! -e "${work}/repo/.claude/active-goal.${rtsid}.resume" ] &&
+	ok "round trip consumes the note" || no "round trip consumes the note"
+
 printf '\nstop-failure mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

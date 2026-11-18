@@ -42,7 +42,8 @@ out = {
     "session_id": first("session_id"),
     "cwd": first("cwd"),
     "failure_category": first("failure_category", "category", "failureCategory", "error_category", default="unknown"),
-    "failure_details": first("failure_details", "details", "safe_details", "message", "error", "error_message"),
+    # Prefer explicitly safe text when the envelope carries both.
+    "failure_details": first("safe_details", "failure_details", "details", "message", "error", "error_message"),
 }
 if isinstance(d.get("turn_id"), str) and d.get("turn_id"):
     out["turn_id"] = d["turn_id"]

@@ -50,7 +50,7 @@ if not text:
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": text}}))' 2>/dev/null)" || return 0
 	[ -n "${out}" ] || return 0
 	printf '%s\n' "${out}"
-	[ -n "${resume_file:-}" ] && rm -f "${resume_file}"
+	[ -n "${resume_file:-}" ] && rm -f "${resume_file}" 2>/dev/null
 	return 0
 }
 

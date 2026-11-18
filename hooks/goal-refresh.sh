@@ -377,7 +377,10 @@ fi
 # layout against BOTH hooks and asserts they decide alike.
 first_line="$(printf '%s\n' "${goal}" | head -1)"
 case "${first_line}" in
-DONE* | done*) exit 0 ;;
+DONE* | done*)
+	resume_note_discard
+	exit 0
+	;;
 esac
 
 # CONSENT lines are metadata, not the objective and not a header. They are held
@@ -441,7 +444,10 @@ esac
 
 # DONE beneath the header, which the raw first-line check above cannot see.
 case "$(printf '%s\n' "${goal_body}" | head -1)" in
-DONE* | done*) exit 0 ;;
+DONE* | done*)
+	resume_note_discard
+	exit 0
+	;;
 esac
 [ -n "${goal}" ] || exit 0
 

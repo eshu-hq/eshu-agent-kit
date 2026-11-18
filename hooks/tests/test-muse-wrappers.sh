@@ -120,6 +120,15 @@ printf '{"hook_event_name":"StopFailure","session_id":"SID","cwd":"REPO","weird"
 	ok "unknown StopFailure shape degrades gracefully" || no "unknown StopFailure shape degrades gracefully"
 rm -f "${repo}/.claude/active-goal.${sid}.resume"
 
+# 4f2. A dual envelope through the wrapper records the safe text, not raw.
+printf '{"hook_event_name":"StopFailure","session_id":"SID","cwd":"REPO","failure_category":"server_error","failure_details":"RAW-PRIVATE-XYZ","safe_details":"safe summary"}' |
+	sed -e "s|SID|${sid}|g" -e "s|REPO|${repo}|g" |
+	bash "${MH}/stop-failure.sh" >/dev/null 2>&1
+note="$(cat "${repo}/.claude/active-goal.${sid}.resume" 2>/dev/null)"
+rg -q 'safe summary' <<<"${note}" && ! rg -q 'RAW-PRIVATE-XYZ' <<<"${note}" &&
+	ok "wrapper prefers safe text end to end" || no "wrapper prefers safe text end to end"
+rm -f "${repo}/.claude/active-goal.${sid}.resume"
+
 # 4g. An empty goal file cannot restate, but the note still gets its
 # one announcement instead of lingering silently.
 : >"${repo}/.claude/active-goal.${sid}"
@@ -140,6 +149,17 @@ out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
 [ -f "${repo}/.claude/active-goal.00000000-0000-0000-0000-000000000000.resume" ] &&
 	ok "another session's note is not consumed" || no "another session's note is not consumed"
 rm -f "${repo}/.claude/active-goal.00000000-0000-0000-0000-000000000000.resume"
+
+# 4i. An explicit retired goal file clears a pending note silently: the
+# override names that file on purpose, so there is nothing to restate.
+printf 'DONE\nFinished.\n' >"${repo}/.claude/override-goal.md"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | CLAUDE_GOAL_FILE="${repo}/.claude/override-goal.md" bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+[ -z "${out}" ] &&
+	ok "override retired goal stays silent" || no "override retired goal stays silent"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "override retired goal consumes the note" || no "override retired goal consumes the note"
+rm -f "${repo}/.claude/override-goal.md"
 
 # 5. A governed .go write is refused until the skill load is recorded.
 nudge_in='{"hook_event_name":"PreToolUse","tool_name":"write_file","tool_input":{"path":"REPO/x.go","content":"x"},"tool_use_id":"u1","session_id":"SID","turn_id":"t1","cwd":"REPO","transcript_path":null}'
