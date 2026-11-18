@@ -13,6 +13,27 @@
 ./install.sh --rules --repo /path/to/repo  # Claude Code path-scoped rules + rules lint
 ```
 
+## Uninstall
+
+```sh
+./install.sh --uninstall --repo /path/to/repo [--force]
+./install.sh --uninstall --global [harness...] [--force]
+```
+
+`--uninstall` removes only what the kit provably owns and prints every
+removal: symlinks into the kit, generated marker files, byte-identical
+copies of kit files, and the matching version pin. User files, modified
+copies, and links pointing outside the kit always survive. Skill alias
+wrappers (real directories carrying `.kit-alias`) survive too unless
+you pass `--force`. Partial modes mirror the install ones
+(`--agents`, `--hooks`, `--rules` with `--repo`; `--agents` with
+`--global`; `--hooks --global (muse|claude)`). Uninstalling global
+hooks drops the kit-owned tree; your settings are never edited.
+Global uninstall never edits settings that hold your model choices
+or hook registrations: the OpenCode config merge, the Muse
+`managed_hooks_path` key, and the Claude `settings.json` hook entries
+are left untouched, with the manual undo printed instead.
+
 ## Skill name aliases
 
 Some repos call their skills by different names than the kit directories
