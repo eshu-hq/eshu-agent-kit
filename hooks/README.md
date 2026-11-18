@@ -179,7 +179,7 @@ merge), with this checkout's path baked in. The bridge translates OpenCode
 events into the same sibling envelopes the Muse wrappers use, then runs the
 shared bash scripts — the hook logic stays in one copy per event. Every
 mapping below was verified live against OpenCode 1.19.6 with a real model,
-not just fixtures.
+not just fixtures; the session transcripts live on issue #46.
 
 | Kit hook | OpenCode event | Status |
 |---|---|---|
@@ -203,4 +203,7 @@ the default export.
   marker; uninstall regenerates the expected content and byte-compares
   before deleting, and never scans the shared plugins directory, so user
   plugins are never inventoried or touched.
-- **Undo:** `./install.sh --uninstall --hooks --global opencode`.
+- **Undo:** `./install.sh --uninstall --hooks --global opencode`. If you moved
+  the checkout since installing, reinstall from the new location first so
+  uninstall recognizes the file; otherwise it keeps it and tells you to
+  remove it by hand.

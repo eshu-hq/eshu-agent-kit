@@ -34,9 +34,27 @@ import { spawn } from "node:child_process";
 // resolve its siblings without trusting the repo it runs in. ESHU_KIT_DIR
 // overrides the baked path (relocating a checkout without reinstalling,
 // and the node:test suites, which run the template before install).
-const KIT_DIR =
-  (typeof process !== "undefined" && process.env?.ESHU_KIT_DIR) ||
-  "%%KIT_DIR%%";
+// Read per call, not once at load, so a relocated checkout takes effect
+// without restarting the host -- and so tests can point at fixture kits.
+const KIT_DIR = "%%KIT_DIR%%";
+
+function resolveKitDir() {
+  const override =
+    typeof process !== "undefined" ? process.env?.ESHU_KIT_DIR : undefined;
+  if (typeof override === "string" && override !== "") return override;
+  return KIT_DIR;
+}
+
+// Sibling part ids must be unique even for two restatements in the same
+// millisecond, so a counter rides along with the timestamp.
+let partCounter = 0;
+
+function nextPartId() {
+  partCounter = (partCounter + 1) % 1296;
+  return `prt_eshu_bridge_${Date.now().toString(36)}_${partCounter
+    .toString(36)
+    .padStart(2, "0")}`;
+}
 
 // A hung sibling must never stall the in-process host. Tests shrink the
 // window through OPENCODE_BRIDGE_TIMEOUT_MS; production uses the default.
@@ -185,7 +203,11 @@ async function handleChatMessage(deps, input, output) {
       text: texts.join("\n"),
       cwd,
     });
-    const stdout = await runSibling(deps.kitDir, "goal-refresh.sh", envelope);
+    const stdout = await runSibling(
+      resolveKitDir(),
+      "goal-refresh.sh",
+      envelope,
+    );
     const context = extractContext(stdout);
     if (context === null) return "silent";
     const first = parts[0];
@@ -194,7 +216,7 @@ async function handleChatMessage(deps, input, output) {
       text: context,
       messageID: (first && asText(first.messageID)) || asText(input.messageID),
       sessionID: input.sessionID,
-      id: `prt_eshu_bridge_${Date.now().toString(36)}`,
+      id: nextPartId(),
     });
     return "restated";
   } catch {
@@ -216,7 +238,11 @@ async function handleSessionError(deps, event) {
       cwd,
       error: props.error,
     });
-    const stdout = await runSibling(deps.kitDir, "stop-failure.sh", envelope);
+    const stdout = await runSibling(
+      resolveKitDir(),
+      "stop-failure.sh",
+      envelope,
+    );
     return stdout === null ? "silent" : "recorded";
   } catch {
     return "silent";
@@ -256,7 +282,6 @@ export default async (pluginInput) => {
       : "";
   const sessions = createSessionDirs();
   const deps = {
-    kitDir: KIT_DIR,
     resolveDir: sessions.resolve(fallbackDir),
   };
   return {
