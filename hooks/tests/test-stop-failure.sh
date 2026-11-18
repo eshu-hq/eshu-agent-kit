@@ -146,6 +146,17 @@ rg -q 'LAST TURN FAILED \(server error\)' <<<"${note}" && rg -q 'live wires' <<<
 	ok "newline fields are flattened" || no "newline fields are flattened"
 rm -f "${resume}"
 
+# 16b. The session id is flattened too: a newline in it cannot split the
+# protocol, and the note lands under the flattened name (hand-computed:
+# "note\nsid" -> "note sid" -> "note-sid"), never under a fractured path.
+printf '{"hook_event_name":"StopFailure","session_id":"note\\nsid","cwd":"CWD","failure_category":"ok","failure_details":"fine"}' |
+	sed -e "s|CWD|${work}/repo|" |
+	bash "${HOOK}" >/dev/null 2>&1
+flatnote="${work}/repo/.claude/active-goal.note-sid.resume"
+[ -f "${flatnote}" ] && [ "$(wc -l <"${flatnote}")" -eq 2 ] &&
+	ok "newline session id lands one flattened note" || no "newline session id lands one flattened note"
+rm -f "${flatnote}"
+
 # 17. Round trip through the real refresher: a note written by the sibling
 # surfaces once with the goal restated, and the file is gone after.
 rtsid="roundtrip-aaaa-bbbb-cccc-000011112222"

@@ -1,3 +1,7 @@
 # Runtime drift snapshots written by scripts/check-docs-stale.sh
 # (the docs lane truncates and rewrites this on every run).
 .eshu-doc-state/
+# Per-session goal and resume-note files if hooks ever run with this
+# checkout as cwd (see hooks/README.md: consumers ignore active-goal*
+# wherever they keep goal files; the kit ignores its own copies here).
+.claude/active-goal*
