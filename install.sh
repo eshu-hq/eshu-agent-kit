@@ -295,11 +295,14 @@ case "${1:-}" in
 			TARGET="${2:-}"
 			MANIFEST=""
 			if [ "${3:-}" = "--aliases" ]; then
-				MANIFEST="${4:-}"
-				[ -n "$MANIFEST" ] || {
+				if [ $# -ne 4 ] || [ -z "${4:-}" ]; then
 					echo "usage: ./install.sh --repo /path/to/repo [--aliases manifest.tsv]" >&2
 					exit 1
-				}
+				fi
+				MANIFEST="$4"
+			elif [ $# -ne 2 ]; then
+				echo "usage: ./install.sh --repo /path/to/repo [--aliases manifest.tsv]" >&2
+				exit 1
 			fi
 			[ -n "$TARGET" ] || {
 				echo "usage: ./install.sh --repo /path/to/repo [--aliases manifest.tsv]" >&2

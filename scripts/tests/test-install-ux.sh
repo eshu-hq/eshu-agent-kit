@@ -93,6 +93,14 @@ if "${kit}/install.sh" --pick --agents --repo "${work}/x" >/dev/null 2>&1; then
 else
 	ok "--pick mixed with parts fails"
 fi
+# Bare --repo rejects trailing args: --uninstall stays exclusive everywhere,
+# so a combined uninstall can never silently install instead.
+if "${kit}/install.sh" --repo "${work}/should-not-exist" --uninstall >/dev/null 2>&1; then
+	no "bare --repo rejects a trailing --uninstall"
+else
+	[ ! -e "${work}/should-not-exist" ] &&
+		ok "bare --repo rejects a trailing --uninstall" || no "bare --repo rejects a trailing --uninstall"
+fi
 
 # 6. --pick with piped answers installs exactly the picked parts.
 picked="${work}/picked"
