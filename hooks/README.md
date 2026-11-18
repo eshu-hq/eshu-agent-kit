@@ -95,7 +95,10 @@ final model failure, it records an at-most-once note (`.claude/`
 `active-goal.<session>.resume`) with the failure category, and the next
 `UserPromptSubmit` surfaces it through the normal goal restatement -- or
 standalone when no goal is in flight -- then deletes it. A retired goal
-clears a leftover note silently instead. Be clear-eyed about what this
+clears a leftover note silently instead. Treat the note like any other
+goal file for version control: wherever a repo ignores `active-goal*`,
+ignore `active-goal.*.resume` too, so a failure note is never committed.
+Be clear-eyed about what this
 does not do: no hook can re-drive a dead turn or retry the model call.
 The runner already retried before giving up; the note means the next turn
 starts from what was in flight instead of a blank slate. Consuming repos

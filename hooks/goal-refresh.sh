@@ -408,7 +408,13 @@ while IFS= read -r goal_line; do
 "
 done < <(printf '%s\n' "${goal}")
 goal_body="${goal_body%$'\n'}"
-[ -n "${goal_body}" ] || exit 0
+# A path that cannot restate a goal still owes a pending note its one
+# announcement: surfacing it standalone keeps the failure record from
+# lingering into a stale surprise -- or never surfacing at all.
+[ -n "${goal_body}" ] || {
+	resume_note_consume_standalone
+	exit 0
+}
 
 # A goal belongs to the session that set it. An unheaded file is the owner's
 # own hand-written goal and is honoured as-is.
@@ -417,7 +423,10 @@ case "${header_line}" in
 SESSION:*)
 	owner="${header_line#SESSION:}"
 	owner="${owner# }"
-	[ "${owner}" = "${session_id}" ] || exit 0
+	[ "${owner}" = "${session_id}" ] || {
+		resume_note_consume_standalone
+		exit 0
+	}
 	# Drop the header from the text the agent sees, from BOTH views: the
 	# body drives the DONE re-check, the full goal still carries the
 	# CONSENT lines the restatement needs.
@@ -440,7 +449,10 @@ for line in sys.stdin.read().splitlines():
 ' 2>/dev/null)"
 	;;
 esac
-[ -n "${goal_body}" ] || exit 0
+[ -n "${goal_body}" ] || {
+	resume_note_consume_standalone
+	exit 0
+}
 
 # DONE beneath the header, which the raw first-line check above cannot see.
 case "$(printf '%s\n' "${goal_body}" | head -1)" in
@@ -449,7 +461,10 @@ DONE* | done*)
 	exit 0
 	;;
 esac
-[ -n "${goal}" ] || exit 0
+[ -n "${goal}" ] || {
+	resume_note_consume_standalone
+	exit 0
+}
 
 # A named, unloaded project skill gets a nudge too -- see lib/skill-nudge-lib.sh.
 # shellcheck source=hooks/lib/skill-nudge-lib.sh

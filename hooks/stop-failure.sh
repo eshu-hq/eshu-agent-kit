@@ -31,8 +31,11 @@ payload="$(cat)"
 [ -n "${payload}" ] || exit 0
 
 # Defensive envelope read: unparseable input, missing keys, and wrong types
-# all degrade to placeholders. Four \n-separated fields; details are
-# flattened to one line by the parser so the separator cannot collide.
+# all degrade to placeholders. Four \n-separated fields, one line each --
+# every field is flattened by the parser so the separator cannot collide.
+# This sibling only understands post-translation envelopes: the owning
+# wrapper (hooks/muse/stop-failure.sh) maps the harness's key spellings
+# onto the four names below first. A direct caller must do the same.
 parsed="$(printf '%s' "${payload}" | python3 -c '
 import json, re, sys
 try:
@@ -46,11 +49,13 @@ def g(k, dflt=""):
     if v is None:
         return dflt
     return str(v)
-session_id = g("session_id")
-cwd = g("cwd")
+def flat(v):
+    return re.sub(r"\s+", " ", v).strip()
+session_id = flat(g("session_id"))
+cwd = flat(g("cwd"))
 print(session_id if session_id else "-")
 print(cwd if cwd else "-")
-cat = g("failure_category") or g("category")
+cat = flat(g("failure_category") or g("category"))
 print(cat if cat else "unknown")
 # Prefer explicitly safe text when the envelope carries both.
 det = re.sub(r"\s+", " ", g("safe_details") or g("failure_details") or g("details") or g("message"))

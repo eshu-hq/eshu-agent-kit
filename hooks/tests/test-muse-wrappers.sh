@@ -161,6 +161,32 @@ out="$(with_ids "${payload_prompt}" | CLAUDE_GOAL_FILE="${repo}/.claude/override
 	ok "override retired goal consumes the note" || no "override retired goal consumes the note"
 rm -f "${repo}/.claude/override-goal.md"
 
+# 4j. A pending note is never stranded by an unrestatable goal: another
+# session's file, a header-only file, and a metadata-only file all surface
+# the note standalone instead of leaving it to go stale.
+printf 'SESSION: someone-else\nTheir objective.\n' >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" && ! rg -q 'Their objective' <<<"${out}" &&
+	ok "foreign goal surfaces the note alone" || no "foreign goal surfaces the note alone"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "foreign goal consumes the note" || no "foreign goal consumes the note"
+printf 'SESSION: %s\n' "${sid}" >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" &&
+	ok "header-only goal surfaces the note alone" || no "header-only goal surfaces the note alone"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "header-only goal consumes the note" || no "header-only goal consumes the note"
+printf 'CONSENT: /tmp/x\n' >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" &&
+	ok "metadata-only goal surfaces the note alone" || no "metadata-only goal surfaces the note alone"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "metadata-only goal consumes the note" || no "metadata-only goal consumes the note"
+rm -f "${repo}/.claude/active-goal.${sid}"
+
 # 5. A governed .go write is refused until the skill load is recorded.
 nudge_in='{"hook_event_name":"PreToolUse","tool_name":"write_file","tool_input":{"path":"REPO/x.go","content":"x"},"tool_use_id":"u1","session_id":"SID","turn_id":"t1","cwd":"REPO","transcript_path":null}'
 if with_ids "${nudge_in}" | bash "${MH}/skill-nudge.sh" >/dev/null 2>&1; then
@@ -309,7 +335,7 @@ rm -f "${grepo}/.muse/hooks.json"
 # the StopFailure wrapper quiets the global copy for that event only.
 gfail='{"hook_event_name":"StopFailure","session_id":"SID","turn_id":"t9","cwd":"GREPO","failure_category":"server_error","failure_details":"boom"}'
 out="$(gp "${gfail}" | bash "${GMH}/stop-failure.sh" 2>/dev/null)"
-[ -n "${out}" ] || [ -f "${grepo}/.claude/active-goal.${sid}.resume" ] &&
+[ -f "${grepo}/.claude/active-goal.${sid}.resume" ] &&
 	ok "global stop-failure records without project hooks" || no "global stop-failure records without project hooks"
 rm -f "${grepo}/.claude/active-goal.${sid}.resume"
 printf '{"hooks":{"StopFailure":[{"matcher":"","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/stop-failure.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"

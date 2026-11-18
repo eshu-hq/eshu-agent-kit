@@ -107,14 +107,26 @@ rg -q 'LAST TURN FAILED \(unknown\)' "${resume}" &&
 	[ -z "$(find "${work}" -name '*.resume' -not -path "${work}/repo/*" 2>/dev/null)" ] &&
 	ok "no note escapes the payload repo" || no "no note escapes the payload repo"
 
-# 9. An unwritable .claude dir fails open instead of erroring out.
+# 9. An unwritable .claude dir fails open instead of erroring out, and the
+# atomic write leaves no tmp litter behind either way. (Root ignores file
+# permission bits, so the unwritable half only bites for non-root runs.)
+# Clear the note earlier tests left behind first, so what follows proves
+# the hook itself wrote nothing.
+rm -f "${resume}"
 chmod a-w "${work}/repo/.claude"
 if with_ids "${payload}" | bash "${HOOK}" >/dev/null 2>&1; then
 	ok "unwritable dir fails open" || no "unwritable dir fails open"
 else
 	no "unwritable dir fails open"
 fi
+[ -z "$(find "${work}/repo/.claude" -name '*.tmp.*' 2>/dev/null)" ] &&
+	ok "failed write leaves no tmp litter" || no "failed write leaves no tmp litter"
+if [ "$(id -u)" -ne 0 ]; then
+	[ ! -e "${resume}" ] &&
+		ok "unwritable dir writes no note" || no "unwritable dir writes no note"
+fi
 chmod u+w "${work}/repo/.claude"
+rm -f "${resume}"
 
 # 15. When the envelope carries both raw and explicitly safe text, the note
 # records the safe text only.
@@ -125,7 +137,16 @@ rg -q 'safe summary' <<<"${note}" && ! rg -q 'RAW-PRIVATE-XYZ' <<<"${note}" &&
 	ok "safe text wins over raw details" || no "safe text wins over raw details"
 rm -f "${resume}"
 
-# 16. Round trip through the real refresher: a note written by the sibling
+# 16. A newline smuggled into any envelope field cannot split the note's
+# four-line protocol: every field is flattened before writing.
+nlpayload='{"hook_event_name":"StopFailure","session_id":"SID","cwd":"CWD","failure_category":"server\nerror","failure_details":"live wires"}'
+with_ids "${nlpayload}" | bash "${HOOK}" >/dev/null 2>&1
+note="$(cat "${resume}" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server error\)' <<<"${note}" && rg -q 'live wires' <<<"${note}" &&
+	ok "newline fields are flattened" || no "newline fields are flattened"
+rm -f "${resume}"
+
+# 17. Round trip through the real refresher: a note written by the sibling
 # surfaces once with the goal restated, and the file is gone after.
 rtsid="roundtrip-aaaa-bbbb-cccc-000011112222"
 printf 'SESSION: %s\nWork the widgets.\n' "${rtsid}" >"${work}/repo/.claude/active-goal.${rtsid}"
