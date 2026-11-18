@@ -30,7 +30,7 @@ Scopes:
 With no PARTS the installer keeps its historical defaults: bare --repo
 installs skills, bare --global installs skills and agents. --rules only
 works with --repo. --hooks --global needs exactly one harness
-(muse|claude). --uninstall stays exclusive and cannot be combined.
+(muse|claude|opencode). --uninstall stays exclusive and cannot be combined.
 
 Flags:
   --force      uninstall only: also remove kit alias wrappers
@@ -177,14 +177,15 @@ install_global_part() {
 		;;
 	hooks)
 		[ "${#selected[@]}" -eq 1 ] || {
-			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
+			echo "usage: ./install.sh --hooks --global (muse|claude|opencode)" >&2
 			return 1
 		}
 		case "${selected[0]}" in
 		muse) install_hooks_global_muse ;;
 		claude) install_hooks_global_claude ;;
+		opencode) install_hooks_global_opencode ;;
 		*)
-			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
+			echo "usage: ./install.sh --hooks --global (muse|claude|opencode)" >&2
 			return 1
 			;;
 		esac

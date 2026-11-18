@@ -168,3 +168,36 @@ unlike Muse one-entry-per-tool. Read this before opting in:
   place; if it moves, re-run the installer.
 - **Undo:** delete the kit entries from `~/.claude/settings.json` and remove
   `~/.claude/agent-kit-hooks/`.
+
+### Global install for OpenCode (machine-wide, opt-in)
+
+OpenCode has no shell-hook lifecycle: behavior ships as a small JavaScript
+plugin on its event bus instead. `./install.sh --hooks --global opencode`
+copies one generated file,
+`~/.config/opencode/plugins/eshu-bridge.js` (auto-discovered, no settings
+merge), with this checkout's path baked in. The bridge translates OpenCode
+events into the same sibling envelopes the Muse wrappers use, then runs the
+shared bash scripts — the hook logic stays in one copy per event.
+
+| Kit hook | OpenCode event | Status |
+|---|---|---|
+| goal-refresh plus resume note | `session.prompt` appends the restated goal to the admitted prompt | Shipped, fixture-tested; live-session confirmation pending |
+| stop-failure note | `session.retry` records a note when OpenCode rules out another retry, never touching the decision | Shipped, fixture-tested; live-session confirmation pending |
+| on-compact warning | No matching hook verified yet; needs a live session to confirm the summary handoff | Designed, not built |
+| skill-nudge, live-gate blocks | The documented deny path (`permission.evaluate`) is unproven for every tool call; a block built on it could fail silent | Designed, not built |
+| doc-staleness, issue-capture | `tool.execute.after` cannot show text to the user through any documented channel | Designed, not built |
+| skill-loaded markers | OpenCode has no skill-load event to observe | Not applicable |
+
+The `retry` bridge records only terminal failures (OpenCode already decided
+against another attempt). Whether auxiliary model calls also reach that hook
+is unconfirmed without a live session, so an occasional early note is
+possible; the reader still announces it at most once.
+
+- **Trust model.** The plugin is in-process code, so the global bridge shells
+  out only to this kit checkout, never to repo code. Sibling writes stay
+  where the other harnesses put them: the resume note lands in the session's
+  own cwd, beside its goal file. The bridge file carries a Generated-by
+  marker; uninstall regenerates the expected content and byte-compares
+  before deleting, and never scans the shared plugins directory, so user
+  plugins are never inventoried or touched.
+- **Undo:** `./install.sh --uninstall --hooks --global opencode`.

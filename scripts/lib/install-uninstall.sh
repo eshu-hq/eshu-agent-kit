@@ -320,6 +320,34 @@ uninstall_hooks_global_claude() {
 	fi
 }
 
+# uninstall_hooks_global_opencode -- drop the machine-wide OpenCode bridge
+# file. Ownership is proved by regenerating the expected content to a temp
+# file and byte-comparing (the managed-hooks.json precedent): a modified or
+# foreign file is reported with a manual undo, never deleted. The shared
+# plugins directory is never scanned and user plugins are never touched.
+uninstall_hooks_global_opencode() {
+	local dir dest expected
+	dir="$(opencode_plugin_dir)"
+	dest="$dir/eshu-bridge.js"
+	if [ ! -e "$dest" ] && [ ! -L "$dest" ]; then
+		uninstall_keeping "$dest" "no kit bridge installed; left untouched"
+		return 0
+	fi
+	expected="$(mktemp)" || return 1
+	if ! write_opencode_plugin "$expected" >/dev/null 2>&1; then
+		rm -f "$expected"
+		uninstall_keeping "$dest" "cannot regenerate the kit bridge here; remove by hand if it is yours"
+		return 0
+	fi
+	if cmp -s "$dest" "$expected"; then
+		rm -f "$expected"
+		uninstall_remove "$dest"
+	else
+		rm -f "$expected"
+		uninstall_keeping "$dest" "differs from the kit bridge; remove by hand to finish uninstall"
+	fi
+}
+
 uninstall_global() {
 	local scope="$1" force="$2" harness tree
 	case "$scope" in
@@ -347,7 +375,7 @@ uninstall_usage() {
 	echo "       ./install.sh --uninstall (--agents|--hooks|--rules) --repo /path/to/repo [--force]" >&2
 	echo "       ./install.sh --uninstall --global [harness...] [--force]" >&2
 	echo "       ./install.sh --uninstall --agents --global [harness...] [--force]" >&2
-	echo "       ./install.sh --uninstall --hooks --global muse [--force]" >&2
+	echo "       ./install.sh --uninstall --hooks --global (muse|claude|opencode) [--force]" >&2
 }
 
 uninstall_main() {
@@ -398,6 +426,8 @@ uninstall_main() {
 			uninstall_hooks_global_muse "$force"
 		elif [ "${2:-}" = --global ] && [ "${3:-}" = claude ] && [ $# -eq 3 ]; then
 			uninstall_hooks_global_claude "$force"
+		elif [ "${2:-}" = --global ] && [ "${3:-}" = opencode ] && [ $# -eq 3 ]; then
+			uninstall_hooks_global_opencode
 		else
 			uninstall_usage
 			return 1
