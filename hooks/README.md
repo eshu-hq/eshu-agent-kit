@@ -168,3 +168,42 @@ unlike Muse one-entry-per-tool. Read this before opting in:
   place; if it moves, re-run the installer.
 - **Undo:** delete the kit entries from `~/.claude/settings.json` and remove
   `~/.claude/agent-kit-hooks/`.
+
+### Global install for OpenCode (machine-wide, opt-in)
+
+OpenCode has no shell-hook lifecycle: behavior ships as a small JavaScript
+plugin on its event bus instead. `./install.sh --hooks --global opencode`
+copies one generated file,
+`~/.config/opencode/plugins/eshu-bridge.js` (auto-discovered, no settings
+merge), with this checkout's path baked in. The bridge translates OpenCode
+events into the same sibling envelopes the Muse wrappers use, then runs the
+shared bash scripts — the hook logic stays in one copy per event. Every
+mapping below was verified live against OpenCode 1.19.6 with a real model,
+not just fixtures; the verification record lives on issue #46.
+
+| Kit hook | OpenCode event | Status |
+|---|---|---|
+| goal-refresh plus resume note | `chat.message` appends the restated goal as a text part | Shipped, verified live |
+| stop-failure note | `session.error` records a note on terminal provider failure | Shipped, verified live |
+| on-compact warning | `experimental.session.compacting` accepts context, but firing needs a real compaction to confirm | Designed, not built |
+| skill-nudge, live-gate blocks | throwing in `tool.execute.before` blocks the call and the session survives, but V1 omits the command text the guard and nudge decide on | Designed, not built |
+| issue-capture | same missing command text: the extractor cannot tell a create from a read | Designed, not built |
+| doc-staleness | global hooks never execute repo code, so the checker no-ops by rule | Not applicable |
+| skill-loaded markers | OpenCode has no skill-load event to observe | Not applicable |
+
+A plugin file must carry exactly one export: the default plugin function.
+V1 silently skips files with extra named exports, with no error logged, so
+the bridge keeps every helper module-local and the tests drive it through
+the default export.
+
+- **Trust model.** The plugin is in-process code, so the global bridge shells
+  out only to this kit checkout, never to repo code. Sibling writes stay
+  where the other harnesses put them: the resume note lands in the session's
+  own cwd, beside its goal file. The bridge file carries a Generated-by
+  marker; uninstall regenerates the expected content and byte-compares
+  before deleting, and never scans the shared plugins directory, so user
+  plugins are never inventoried or touched.
+- **Undo:** `./install.sh --uninstall --hooks --global opencode`. If you moved
+  the checkout since installing, reinstall from the new location first so
+  uninstall recognizes the file; otherwise it keeps it and tells you to
+  remove it by hand.

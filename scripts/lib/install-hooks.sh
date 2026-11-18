@@ -68,14 +68,15 @@ install_hooks_mode() {
 		case "${1:-}/${2:-}" in
 		muse/) install_hooks_global_muse ;;
 		claude/) install_hooks_global_claude ;;
+		opencode/) install_hooks_global_opencode ;;
 		*)
-			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
+			echo "usage: ./install.sh --hooks --global (muse|claude|opencode)" >&2
 			return 1
 			;;
 		esac
 		;;
 	*)
-		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude)" >&2
+		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude|opencode)" >&2
 		return 1
 		;;
 	esac
