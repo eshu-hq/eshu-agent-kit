@@ -348,9 +348,16 @@ except Exception:
 esac
 
 # ── refresher ──────────────────────────────────────────────────────────────
-[ -f "${goal_file}" ] || exit 0
-goal="$(cat "${goal_file}" 2>/dev/null)"
-[ -n "${goal}" ] || exit 0
+# At-most-once resume note from a StopFailure hook (lib/resume-note.sh).
+# shellcheck source=hooks/lib/resume-note.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/resume-note.sh" 2>/dev/null || exit 0
+resume_note_load "${cwd_prefix}" "${session_id}" "${have_cwd}"
+goal=""
+[ -f "${goal_file}" ] && goal="$(cat "${goal_file}" 2>/dev/null)"
+if [ -z "${goal}" ]; then
+	resume_note_consume_standalone
+	exit 0
+fi
 
 # The ORDER here is the contract, and it must match goal-continue.sh exactly:
 # DONE, then strip CONSENT, then SESSION, then DONE again beneath the header.
@@ -483,6 +490,6 @@ fi
 issues_note="$(gi_restate_note "${goal_file}")"
 
 printf '%s' "${goal}" | CONSENT_ENV="${CLAUDE_GOAL_CONSENT:-}" NUDGE_SKILLS="${nudge_skills}" \
-	ISSUES_NOTE="${issues_note}" python3 "$(dirname "${BASH_SOURCE[0]}")/lib/goal-refresh-note.py" 2>/dev/null || exit 0
-
+	ISSUES_NOTE="${issues_note}" RESUME_NOTE="${resume_note}" python3 "$(dirname "${BASH_SOURCE[0]}")/lib/goal-refresh-note.py" 2>/dev/null || exit 0
+[ -n "${resume_file}" ] && rm -f "${resume_file}"
 exit 0

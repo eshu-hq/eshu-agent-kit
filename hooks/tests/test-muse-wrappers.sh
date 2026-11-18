@@ -46,7 +46,7 @@ payload_prompt='{"hook_event_name":"UserPromptSubmit","prompt":"continue","sessi
 with_ids() { printf '%s' "$1" | sed -e "s|SID|${sid}|g" -e "s|REPO|${repo}|g"; }
 
 # 1. Garbage input fails open in every wrapper.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
 	if printf 'garbage' | bash "${MH}/${w}.sh" >/dev/null 2>&1; then
 		ok "garbage payload fails open: ${w}"
 	else
@@ -74,6 +74,72 @@ printf 'SESSION: %s\nHold the line.\n' "${sid}" >"${repo}/.claude/active-goal.${
 out="$(cd "${repo}/sub" && with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
 rg -q 'Hold the line' <<<"${out}" &&
 	ok "goal-refresh restates the goal from a subdirectory" || no "goal-refresh restates the goal from a subdirectory"
+
+# 4b. A StopFailure note is restated once with the goal, then consumed.
+printf 'SESSION: %s\nFinish the migration.\n' "${sid}" >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\nThe active goal, if any, is unchanged.\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" && rg -q 'Finish the migration' <<<"${out}" &&
+	ok "resume note is restated once with the goal" || no "resume note is restated once with the goal"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "resume note is consumed after surfacing" || no "resume note is consumed after surfacing"
+
+# 4c. A StopFailure note with no goal in flight surfaces standalone.
+rm -f "${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (timeout) at 2026-01-01T00:00:00Z: stuck\nThe active goal, if any, is unchanged.\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(timeout\)' <<<"${out}" &&
+	ok "resume note without a goal still surfaces" || no "resume note without a goal still surfaces"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "standalone note is consumed after surfacing" || no "standalone note is consumed after surfacing"
+
+# 4d. A retired goal is skipped by the lookup, so a leftover note surfaces
+# standalone once (a completed turn never re-announces a dead one).
+printf 'DONE\nFinished.\n' >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" &&
+	ok "retired goal still surfaces the note once" || no "retired goal still surfaces the note once"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "surfaced note is consumed" || no "surfaced note is consumed"
+
+# 4e. A StopFailure payload writes the resume note through the wrapper.
+rm -f "${repo}/.claude/active-goal.${sid}.resume"
+printf '{"hook_event_name":"StopFailure","session_id":"SID","turn_id":"t9","cwd":"REPO","failure_category":"server_error","failure_details":"the model failed"}' |
+	sed -e "s|SID|${sid}|g" -e "s|REPO|${repo}|g" |
+	bash "${MH}/stop-failure.sh" >/dev/null 2>&1
+rg -q 'LAST TURN FAILED \(server_error\)' "${repo}/.claude/active-goal.${sid}.resume" &&
+	ok "stop-failure wrapper records the dead turn" || no "stop-failure wrapper records the dead turn"
+rm -f "${repo}/.claude/active-goal.${sid}.resume"
+
+# 4f. An unrecognized StopFailure shape still leaves a note, never an error.
+printf '{"hook_event_name":"StopFailure","session_id":"SID","cwd":"REPO","weird":"1"}' |
+	sed -e "s|SID|${sid}|g" -e "s|REPO|${repo}|g" |
+	bash "${MH}/stop-failure.sh" >/dev/null 2>&1
+[ -f "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "unknown StopFailure shape degrades gracefully" || no "unknown StopFailure shape degrades gracefully"
+rm -f "${repo}/.claude/active-goal.${sid}.resume"
+
+# 4g. An empty goal file cannot restate, but the note still gets its
+# one announcement instead of lingering silently.
+: >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: boom\n' >"${repo}/.claude/active-goal.${sid}.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+rg -q 'LAST TURN FAILED \(server_error\)' <<<"${out}" &&
+	ok "empty goal still surfaces the note once" || no "empty goal still surfaces the note once"
+[ ! -e "${repo}/.claude/active-goal.${sid}.resume" ] &&
+	rm -f "${repo}/.claude/active-goal.${sid}" &&
+	ok "empty goal consumes the note" || no "empty goal consumes the note"
+
+# 4h. A note for another session is not this session's business.
+printf 'SESSION: %s\nHold the line.\n' "${sid}" >"${repo}/.claude/active-goal.${sid}"
+printf 'LAST TURN FAILED (server_error) at 2026-01-01T00:00:00Z: theirs\n' >"${repo}/.claude/active-goal.00000000-0000-0000-0000-000000000000.resume"
+out="$(with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"
+! rg -q 'theirs' <<<"${out}" &&
+	ok "another session's note stays untouched" || no "another session's note stays untouched"
+[ -f "${repo}/.claude/active-goal.00000000-0000-0000-0000-000000000000.resume" ] &&
+	ok "another session's note is not consumed" || no "another session's note is not consumed"
+rm -f "${repo}/.claude/active-goal.00000000-0000-0000-0000-000000000000.resume"
 
 # 5. A governed .go write is refused until the skill load is recorded.
 nudge_in='{"hook_event_name":"PreToolUse","tool_name":"write_file","tool_input":{"path":"REPO/x.go","content":"x"},"tool_use_id":"u1","session_id":"SID","turn_id":"t1","cwd":"REPO","transcript_path":null}'
@@ -121,7 +187,7 @@ fi
 # 7. A missing .claude/hooks sibling fails open in every wrapper, never
 # blocks the tool call. on-compact needs a delegating payload to reach its
 # guard at all; the rest reach it on any input.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
 	rm "${repo}/.claude/hooks/${w}.sh"
 	if [ "${w}" = on-compact ]; then
 		in="$(printf '{"hook_event_name":"PreCompact","session_id":"%s","cwd":"%s","transcript_path":null}' "${sid}" "${repo}")"
@@ -154,7 +220,7 @@ gstop2='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_messa
 gstop3='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"g3","cwd":"GREPO","transcript_path":null}'
 
 # 8. Garbage input fails open in every global wrapper.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
 	if printf 'garbage' | bash "${GMH}/${w}.sh" >/dev/null 2>&1; then
 		ok "global garbage payload fails open: ${w}"
 	else
@@ -217,6 +283,19 @@ if gp "${gnudge/TOOL/edit_file}" | bash "${GMH}/skill-nudge.sh" >/dev/null 2>&1;
 else
 	no "pipe-list matcher defers both listed tools"
 fi
+rm -f "${grepo}/.muse/hooks.json"
+
+# 11b. Deferral covers StopFailure too: a project hooks.json that registers
+# the StopFailure wrapper quiets the global copy for that event only.
+gfail='{"hook_event_name":"StopFailure","session_id":"SID","turn_id":"t9","cwd":"GREPO","failure_category":"server_error","failure_details":"boom"}'
+out="$(gp "${gfail}" | bash "${GMH}/stop-failure.sh" 2>/dev/null)"
+[ -n "${out}" ] || [ -f "${grepo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "global stop-failure records without project hooks" || no "global stop-failure records without project hooks"
+rm -f "${grepo}/.claude/active-goal.${sid}.resume"
+printf '{"hooks":{"StopFailure":[{"matcher":"","hooks":[{"type":"command","command":"exec \\"$r/.muse/hooks/stop-failure.sh\\""}]}]}}\n' >"${grepo}/.muse/hooks.json"
+out="$(gp "${gfail}" | bash "${GMH}/stop-failure.sh" 2>/dev/null)"
+[ -z "${out}" ] && [ ! -e "${grepo}/.claude/active-goal.${sid}.resume" ] &&
+	ok "project StopFailure entry defers the global copy" || no "project StopFailure entry defers the global copy"
 rm -f "${grepo}/.muse/hooks.json"
 
 # 12. Unpinned repo: nudge stays silent, goal machinery still works globally.

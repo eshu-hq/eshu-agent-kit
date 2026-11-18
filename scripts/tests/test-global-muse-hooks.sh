@@ -53,7 +53,7 @@ key_is "$(settings_of "$x1")" schema_version 1 && key_is "$(settings_of "$x1")" 
 	[ "$(readlink "$(tree_of "$x1")/.claude/hooks/skill-nudge.sh")" = "${kit}/hooks/skill-nudge.sh" ] &&
 	ok "pseudo-root mirrors wrappers and siblings as kit links" || no "pseudo-root mirrors wrappers and siblings as kit links"
 
-# 2. Managed file parity with the project hooks.json: same 11
+# 2. Managed file parity with the project hooks.json: same 12
 # (event, matcher, basename) entries, absolute commands, no repo discovery.
 python3 - "$(tree_of "$x1")/managed-hooks.json" "${kit}/hooks/muse/hooks.json" "$(tree_of "$x1")" <<'PY' &&
 import json, re, sys
@@ -72,7 +72,7 @@ def entries(doc):
 
 
 me, pe = entries(managed), entries(project)
-assert me == pe and len(me) == 11, (sorted(me ^ pe), len(me))
+assert me == pe and len(me) == 12, (sorted(me ^ pe), len(me))
 for items in managed["hooks"].values():
     for item in items:
         for hook in item["hooks"]:
