@@ -33,14 +33,18 @@ comment.
 The shared voice and instruction rules live in
 `[fill-in: communication standard — this repo's writing-for-agents doc]`. The
 [wording reference](references/wording.md) gives examples for conversations,
-commits, PRs, and review comments. Preserve technical terms, explain unfamiliar
-ones in context, and retain reasoning, tradeoffs, and useful uncertainty.
+commits, PRs, and review comments. Write every surface — chat replies,
+commits, PRs, issues, review comments, owner reports — in plain natural
+language for a project manager or director audience: no unexplained jargon,
+comparisons read as tables, and flows read as diagrams (see Shape). Retain
+reasoning, tradeoffs, and useful uncertainty.
 
 - Keep the strength of a claim. "May have failed" stays uncertain; do not turn
   a theory into a fact or invent successful validation.
 - Keep logs, identifiers, test names, commands, and quoted reviewer text verbatim.
 - Use consistent names for the same technical concept. Explain shorthand such as
   "initial measurements" instead of leaving a reader to decode "T0 census".
+  The first time a term appears, say what it means in plain words.
 - Preserve required formats and an explicit request to keep an existing shape.
   Style advice does not change engineering, evidence, privacy, or approval rules.
 
