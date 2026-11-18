@@ -21,12 +21,13 @@
 //     part. Firing and mutation verified with a live model.
 //   session.error (event bus) -> stop-failure note on a terminal provider
 //     failure. Firing and payload shape verified live.
+//   experimental.session.compacting -> on-compact warning appended to the
+//     compaction context. Registered without errors; first live firing
+//     still to be observed (tracked in #54).
 // Deliberately not here (see hooks/README.md):
 //   tool.execute.before blocks: V1 tool hooks carry no command text or
 //     file path, and permission.ask stays silent on allowed calls.
 //   tool.execute.after capture: same missing command text.
-//   session.compacting: registration accepted; firing needs a real
-//     compaction to confirm.
 //   skill-loaded markers: no skill-load event to observe.
 import { spawn } from "node:child_process";
 
@@ -184,6 +185,11 @@ function runSibling(kitDir, name, payload) {
 }
 
 async function resolveCwd(resolveDir, sessionID) {
+  // An empty cwd is a valid answer, not an error: the sibling treats a
+  // missing cwd as have_cwd=0 (standalone note, no restatement) or falls
+  // back to its own $PWD for the pin walkup (on-compact.sh), which may
+  // scope to the wrong repo but can never execute repo code -- only
+  // kit-owned hooks run in this process.
   try {
     const dir = await resolveDir(sessionID);
     return typeof dir === "string" ? dir : "";
@@ -226,6 +232,40 @@ async function handleChatMessage(deps, input, output) {
       id: nextPartId(),
     });
     return "restated";
+  } catch {
+    return "silent";
+  }
+}
+
+// Compaction guard: after context compaction or resume, loaded skills are
+// gone even when the summary says they were used. Append the sibling's
+// warning to the compaction context so the next turn re-invokes its
+// skills instead of trusting the summary. Returns "appended" or "silent".
+async function handleCompacting(deps, input, output) {
+  try {
+    if (typeof input?.sessionID !== "string") return "silent";
+    if (!output || !Array.isArray(output.context)) return "silent";
+    const cwd = await resolveCwd(deps.resolveDir, input.sessionID);
+    // The envelope reuses the UserPromptSubmit shape: on-compact.sh only
+    // reads session_id and cwd and never branches on hook_event_name, so a
+    // dedicated envelope would add a second shape for no behavior.
+    const envelope = buildPromptEnvelope({
+      sessionID: input.sessionID,
+      text: "",
+      cwd,
+    });
+    const stdout = await runSibling(
+      resolveKitDir(),
+      "on-compact.sh",
+      envelope,
+    );
+    const context = extractContext(stdout);
+    if (context === null) return "silent";
+    // A resumed session can fire compacting again for the same turn;
+    // repeating the identical warning would only bloat the summary.
+    if (output.context.includes(context)) return "silent";
+    output.context.push(context);
+    return "appended";
   } catch {
     return "silent";
   }
@@ -312,6 +352,9 @@ export default async (pluginInput) => {
     },
     "chat.message": async (input, output) => {
       await handleChatMessage(deps, input, output);
+    },
+    "experimental.session.compacting": async (input, output) => {
+      await handleCompacting(deps, input, output);
     },
   };
 };
