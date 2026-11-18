@@ -133,10 +133,14 @@ function extractContext(stdout) {
 function runSibling(kitDir, name, payload) {
   return new Promise((resolve) => {
     let done = false;
+    // Declared before finish runs: the sync spawn-throw path below calls
+    // finish before the timer exists, and clearTimeout on an
+    // uninitialized const would throw a TDZ error instead of resolving.
+    let timer;
     const finish = (value) => {
       if (done) return;
       done = true;
-      clearTimeout(timer);
+      if (timer !== undefined) clearTimeout(timer);
       resolve(value);
     };
     let child;
@@ -149,7 +153,7 @@ function runSibling(kitDir, name, payload) {
       return;
     }
     let stdout = "";
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       try {
         child.kill("SIGKILL");
       } catch {
@@ -161,6 +165,9 @@ function runSibling(kitDir, name, payload) {
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
     });
+    // A stream error with no listener throws into the host: every stream
+    // the child touches ends the run as a silent failure instead.
+    child.stdout.on("error", () => finish(null));
     child.on("error", () => finish(null));
     // An stdin stream error (the child died before reading) is async and
     // uncaught by the try/catch around write: without this listener it

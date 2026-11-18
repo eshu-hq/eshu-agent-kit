@@ -13,11 +13,14 @@ const KIT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 // when run directly; the fail-open cases below override it per test.
 if (!process.env.ESHU_KIT_DIR) process.env.ESHU_KIT_DIR = KIT_DIR;
 
-function withKitDir(dir, fn) {
+// Await-aware: the restore must wait for the async body to settle,
+// otherwise resolveKitDir reads the restored value mid-flight and the
+// fixture never gets exercised. Callers must await this helper.
+async function withKitDir(dir, fn) {
   const prev = process.env.ESHU_KIT_DIR;
   process.env.ESHU_KIT_DIR = dir;
   try {
-    return fn();
+    return await fn();
   } finally {
     if (prev === undefined) delete process.env.ESHU_KIT_DIR;
     else process.env.ESHU_KIT_DIR = prev;
@@ -108,16 +111,23 @@ describe("prompt hook (chat.message)", () => {
     });
   });
 
-  it("appends distinct part ids on back-to-back restatements", async () => {
+  it("appends distinct part ids within the same millisecond", async () => {
     const repo = repoWithGoal("ses1", "Ship the widgets.\n");
     const hooks = await eshuBridge({ directory: repo });
-    const first = { parts: [{ type: "text", text: "go", messageID: "m", sessionID: "ses1", id: "p" }] };
-    const second = { parts: [{ type: "text", text: "go", messageID: "m", sessionID: "ses1", id: "p" }] };
-    await hooks["chat.message"]({ sessionID: "ses1", messageID: "m" }, first);
-    await hooks["chat.message"]({ sessionID: "ses1", messageID: "m" }, second);
-    assert.equal(first.parts.length, 2);
-    assert.equal(second.parts.length, 2);
-    assert.notEqual(first.parts[1].id, second.parts[1].id);
+    // Pin the clock: without the counter suffix both ids would be identical.
+    const realNow = Date.now;
+    Date.now = () => 1234567890000;
+    try {
+      const first = { parts: [{ type: "text", text: "go", messageID: "m", sessionID: "ses1", id: "p" }] };
+      const second = { parts: [{ type: "text", text: "go", messageID: "m", sessionID: "ses1", id: "p" }] };
+      await hooks["chat.message"]({ sessionID: "ses1", messageID: "m" }, first);
+      await hooks["chat.message"]({ sessionID: "ses1", messageID: "m" }, second);
+      assert.equal(first.parts.length, 2);
+      assert.equal(second.parts.length, 2);
+      assert.notEqual(first.parts[1].id, second.parts[1].id);
+    } finally {
+      Date.now = realNow;
+    }
   });
 });
 
@@ -169,15 +179,20 @@ describe("retry hook (session.error event)", () => {
 });
 
 describe("fail-open", () => {
-  it("a hung sibling never stalls the host", async () => {
+  it("a hung sibling is killed instead of stalling the host", async () => {
     const hungKit = join(work, "hung-kit", "hooks");
     mkdirSync(hungKit, { recursive: true });
-    writeFileSync(join(hungKit, "goal-refresh.sh"), "#!/bin/bash\nsleep 30\n");
+    // The fixture marks its own start, then hangs: the marker proves the
+    // bridge really executed this script (not the real sibling), the
+    // missing append proves it never waited for it, and the time bound
+    // proves the timeout fired instead of sleeping 30 seconds.
+    // `exec` replaces the shell so SIGKILL takes the sleeper, not just bash.
+    writeFileSync(
+      join(hungKit, "goal-refresh.sh"),
+      '#!/bin/bash\ntouch "$0.marker"\nexec sleep 30\n',
+    );
     const { chmodSync } = await import("node:fs");
     chmodSync(join(hungKit, "goal-refresh.sh"), 0o755);
-    // Point the bridge at the hung fixture: without the SIGKILL path this
-    // case would sleep the full 30 seconds, so the time bound below proves
-    // the timeout actually fired.
     await withKitDir(join(work, "hung-kit"), async () => {
       const hooks = await eshuBridge({ directory: work });
       const prev = process.env.OPENCODE_BRIDGE_TIMEOUT_MS;
@@ -186,6 +201,7 @@ describe("fail-open", () => {
         const started = Date.now();
         const output = { parts: [{ type: "text", text: "go" }] };
         await hooks["chat.message"]({ sessionID: "s" }, output);
+        assert.equal(existsSync(join(hungKit, "goal-refresh.sh.marker")), true);
         assert.equal(output.parts.length, 1);
         assert.ok(Date.now() - started < 10000, "returns well before the sleep ends");
       } finally {
