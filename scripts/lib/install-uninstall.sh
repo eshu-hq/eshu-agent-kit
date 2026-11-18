@@ -33,18 +33,22 @@ uninstall_keeping() {
 }
 
 # uninstall_alias_dir <dir> -- true when dir is a kit alias wrapper:
-# a real directory whose .kit-alias marker names this exact alias, as
-# materialize_alias writes it. Presence alone is not enough: --force
-# deletes, so a stray marker file must never qualify a user directory.
+# a real directory whose .kit-alias marker names this exact alias AND a
+# real kit skill source, exactly as materialize_alias writes it. Presence
+# alone is not enough: --force deletes, so a stray marker file must never
+# qualify a user directory -- not even one that shares the alias-name
+# prefix with an empty source.
 uninstall_alias_dir() {
-	local marker="$1/.kit-alias" line want
+	local marker="$1/.kit-alias" line want src
 	[ -d "$1" ] && [ ! -L "$1" ] && [ -f "$marker" ] || return 1
 	line="$(cat "$marker")"
 	want="alias=$(basename "$1") source="
 	case "$line" in
-	"$want"*) return 0 ;;
+	"$want"?*) src="${line#$want}" ;;
+	*) return 1 ;;
 	esac
-	return 1
+	[ -d "$KIT_DIR/skills/eshu/$src" ] || [ -d "$KIT_DIR/skills/core/$src" ] || return 1
+	return 0
 }
 
 # uninstall_managed_tree <dir> <force> -- drop owned entries and, with
@@ -91,13 +95,6 @@ uninstall_copy_tree() {
 			prune_owns_entry "$e" || continue
 			uninstall_remove "$e"
 			continue
-		elif [ "$mode" = strict ] && prune_owns_entry "$e"; then
-			# Repo copies are plain installer output (marker intact even
-			# after a small edit), so the marker still proves ownership.
-			# Global agent files may carry model choices under the same
-			# marker, so they always go through the copy logic below.
-			uninstall_remove "$e"
-			continue
 		fi
 		[ -f "$e" ] || continue
 		base="$(basename "$e")"
@@ -109,15 +106,22 @@ uninstall_copy_tree() {
 				break
 			fi
 		done
-		[ -n "$src" ] || continue
-		if cmp -s "$e" "$src"; then
+		if [ -n "$src" ] && cmp -s "$e" "$src"; then
 			uninstall_remove "$e"
-		elif [ "$mode" = model ] && [ "$force" = 1 ] && uninstall_model_only_diff "$e" "$src"; then
-			uninstall_remove "$e"
-		elif [ "$mode" = model ] && uninstall_model_only_diff "$e" "$src"; then
-			uninstall_keeping "$e" "carries model choices; re-run with --force to remove"
-		else
+		elif [ "$mode" = model ] && [ -n "$src" ] && uninstall_model_only_diff "$e" "$src"; then
+			if [ "$force" = 1 ]; then
+				uninstall_remove "$e"
+			else
+				uninstall_keeping "$e" "carries model choices; re-run with --force to remove"
+			fi
+		elif [ -n "$src" ]; then
+			# An edit keeps the Generated-by marker, so the marker alone
+			# never authorizes a delete: only a byte-identical copy goes.
 			uninstall_keeping "$e" "modified copy; remove by hand"
+		elif prune_owns_entry "$e"; then
+			# Kit-owned but no longer shipped: still someone's file until
+			# a human says otherwise.
+			uninstall_keeping "$e" "stale kit copy, no kit source to compare; remove by hand"
 		fi
 	done
 }
@@ -252,15 +256,15 @@ uninstall_opencode_note() {
 }
 
 uninstall_hooks_global_muse() {
-	local cfg settings tree managed expected val
+	local force="${1:-0}" cfg settings tree managed expected val
 	cfg="$(muse_config_dir)"
 	settings="$cfg/settings.json"
 	tree="$cfg/agent-kit-hooks"
 	managed="$tree/managed-hooks.json"
-	uninstall_managed_tree "$tree/.claude/hooks" 0
-	uninstall_managed_tree "$tree/.claude/hooks/lib" 0
-	uninstall_managed_tree "$tree/.muse/hooks" 0
-	uninstall_managed_tree "$tree/.muse/hooks/lib" 0
+	uninstall_managed_tree "$tree/.claude/hooks" "$force"
+	uninstall_managed_tree "$tree/.claude/hooks/lib" "$force"
+	uninstall_managed_tree "$tree/.muse/hooks" "$force"
+	uninstall_managed_tree "$tree/.muse/hooks/lib" "$force"
 	if [ -e "$managed" ] || [ -L "$managed" ]; then
 		if command -v python3 >/dev/null 2>&1; then
 			expected="$(mktemp)" || return 1
@@ -290,6 +294,29 @@ uninstall_hooks_global_muse() {
 		else
 			uninstall_keeping "$settings" "no kit managed_hooks_path; left untouched"
 		fi
+	fi
+}
+
+# uninstall_hooks_global_claude <force> -- drop the machine-wide Claude
+# hook tree. The hook entries live merged inside the user's
+# ~/.claude/settings.json hooks block, which uninstall never edits (same
+# rule as every other settings key): they are reported with a manual
+# undo, and the tree goes only when it holds nothing but kit links.
+uninstall_hooks_global_claude() {
+	local force="${1:-0}" cfg settings tree
+	cfg="$HOME/.claude"
+	settings="$cfg/settings.json"
+	tree="$cfg/agent-kit-hooks"
+	uninstall_managed_tree "$tree/.claude/hooks" "$force"
+	uninstall_managed_tree "$tree/.claude/hooks/lib" "$force"
+	uninstall_rmdir "$tree/.claude/hooks/lib"
+	uninstall_rmdir "$tree/.claude/hooks"
+	uninstall_rmdir "$tree/.claude"
+	uninstall_rmdir "$tree"
+	if [ -e "$settings" ] && rg -q "agent-kit-hooks" "$settings" 2>/dev/null; then
+		uninstall_keeping "$settings" "still holds kit hook entries; delete them by hand to finish uninstall (undo: remove the kit entries and $tree)"
+	elif [ -e "$settings" ]; then
+		uninstall_keeping "$settings" "no kit hook entries; left untouched"
 	fi
 }
 
@@ -368,7 +395,9 @@ uninstall_main() {
 			}
 			uninstall_repo "$3" hooks "$force"
 		elif [ "${2:-}" = --global ] && [ "${3:-}" = muse ] && [ $# -eq 3 ]; then
-			uninstall_hooks_global_muse
+			uninstall_hooks_global_muse "$force"
+		elif [ "${2:-}" = --global ] && [ "${3:-}" = claude ] && [ $# -eq 3 ]; then
+			uninstall_hooks_global_claude "$force"
 		else
 			uninstall_usage
 			return 1

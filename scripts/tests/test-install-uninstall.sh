@@ -102,6 +102,23 @@ printf 'tampered\n' >"${kept}/.agent-kit-version"
 [ "$(cat "${kept}/.agent-kit-version")" = "tampered" ] &&
 	ok "foreign version pin survives uninstall" || no "foreign version pin survives uninstall"
 
+# 1c. An edited copy whose Generated-by marker survived the edit is a
+# consumer file: strict uninstall keeps it and reports it as modified.
+repoe="${work}/repoe"
+"${kit}/install.sh" --agents --repo "${repoe}" >/dev/null 2>&1
+printf '# my tweak\n' >>"${repoe}/.agents/agents/scan-eshu.md"
+if "${kit}/install.sh" --uninstall --repo "${repoe}" >/dev/null 2>"${work}/err1c"; then
+	ok "edited-copy uninstall exits 0"
+else
+	no "edited-copy uninstall exits 0"
+fi
+rg -q '# my tweak' "${repoe}/.agents/agents/scan-eshu.md" &&
+	ok "marker-intact edited copy survives uninstall" || no "marker-intact edited copy survives uninstall"
+[ ! -e "${repoe}/.agents/agents/develop-eshu.md" ] &&
+	ok "identical sibling still removed" || no "identical sibling still removed"
+rg -q "keeping ${repoe}/.agents/agents/scan-eshu.md.*modified copy" "${work}/err1c" &&
+	ok "edited copy reported as modified" || no "edited copy reported as modified"
+
 # 2. Alias wrappers (real dirs with .kit-alias) survive without --force
 # and go with it.
 aliased="${work}/aliased"
@@ -120,6 +137,14 @@ printf 'x\n' >"${aliased}/.claude/skills/fake-wrapper/SKILL.md"
 	ok "--force removes alias wrappers" || no "--force removes alias wrappers"
 [ -f "${aliased}/.claude/skills/fake-wrapper/SKILL.md" ] &&
 	ok "--force keeps dirs with a stray marker" || no "--force keeps dirs with a stray marker"
+# An empty-source marker shares the alias-name prefix but was never written
+# by materialize_alias: --force must not treat it as a kit wrapper.
+mkdir -p "${aliased}/.claude/skills/evil-wrapper"
+printf 'alias=evil-wrapper source=\n' >"${aliased}/.claude/skills/evil-wrapper/.kit-alias"
+printf 'x\n' >"${aliased}/.claude/skills/evil-wrapper/SKILL.md"
+"${kit}/install.sh" --uninstall --repo "${aliased}" --force >/dev/null 2>&1 || no "forced uninstall exits 0 (evil)"
+[ -f "${aliased}/.claude/skills/evil-wrapper/SKILL.md" ] &&
+	ok "--force keeps dirs with an empty-source marker" || no "--force keeps dirs with an empty-source marker"
 
 # 3. Partial uninstall removes its own mode, keeps the rest and the pin.
 part="${work}/part"
@@ -194,6 +219,19 @@ rg -q "managed_hooks_path" "${h3}/.config/muse/settings.json" &&
 rg -q "managed_hooks_path" "${work}/err5b" &&
 	ok "settings manual undo is printed" || no "settings manual undo is printed"
 
+# 5b. --force is accepted on the hooks path and still removes the tree.
+h3b="${work}/h3b"
+HOME="${h3b}" "${kit}/install.sh" --hooks --global muse </dev/null >/dev/null 2>&1
+if HOME="${h3b}" "${kit}/install.sh" --uninstall --hooks --global muse --force >/dev/null 2>&1; then
+	ok "forced hooks uninstall exits 0"
+else
+	no "forced hooks uninstall exits 0"
+fi
+[ ! -e "${h3b}/.config/muse/agent-kit-hooks" ] &&
+	ok "forced hooks uninstall removes the tree" || no "forced hooks uninstall removes the tree"
+rg -q "managed_hooks_path" "${h3b}/.config/muse/settings.json" &&
+	ok "forced hooks uninstall keeps the settings key" || no "forced hooks uninstall keeps the settings key"
+
 # 6. Usage errors fail; an empty target succeeds with nothing to do.
 if "${kit}/install.sh" --uninstall >/dev/null 2>&1; then
 	no "--uninstall without scope fails"
@@ -226,6 +264,30 @@ if "${kit}/install.sh" --uninstall --repo "${work}/empty" >/dev/null 2>&1; then
 else
 	no "--uninstall on an empty target exits 0"
 fi
+
+# 7. Claude global hooks uninstall drops the tree but never settings
+# entries: merged user config is only ever reported, with a manual undo.
+h4="${work}/h4"
+HOME="${h4}" "${kit}/install.sh" --hooks --global claude </dev/null >/dev/null 2>&1 || no "claude global install exits 0"
+ctree="${h4}/.claude/agent-kit-hooks"
+[ -L "${ctree}/.claude/hooks/guard-live-gate.sh" ] &&
+	ok "claude global install links the tree" || no "claude global install links the tree"
+printf '# mine\n' >"${ctree}/.claude/hooks/mine.sh"
+ln -s "${kit}/hooks/skill-nudge.sh" "${ctree}/.claude/hooks/stale-old.sh"
+cp "${h4}/.claude/settings.json" "${work}/settings-golden.json"
+if HOME="${h4}" "${kit}/install.sh" --uninstall --hooks --global claude >/dev/null 2>"${work}/err7"; then
+	ok "claude hooks uninstall exits 0"
+else
+	no "claude hooks uninstall exits 0"
+fi
+[ ! -L "${ctree}/.claude/hooks/guard-live-gate.sh" ] && [ ! -e "${ctree}/.claude/hooks/stale-old.sh" ] &&
+	ok "claude hooks uninstall removes owned links" || no "claude hooks uninstall removes owned links"
+[ "$(cat "${ctree}/.claude/hooks/mine.sh")" = "# mine" ] &&
+	ok "unmarked file in the claude tree survives" || no "unmarked file in the claude tree survives"
+cmp -s "${h4}/.claude/settings.json" "${work}/settings-golden.json" &&
+	ok "claude hooks uninstall leaves settings byte-identical" || no "claude hooks uninstall leaves settings byte-identical"
+rg -q "settings.json" "${work}/err7" &&
+	ok "claude settings manual undo is printed" || no "claude settings manual undo is printed"
 
 printf '\ninstall-uninstall mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

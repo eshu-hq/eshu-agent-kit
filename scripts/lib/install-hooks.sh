@@ -49,6 +49,38 @@ install_hooks_repo() {
 	echo "wire the Claude/Codex hooks in settings.json (see hooks/README.md); Muse reads .muse/hooks.json"
 }
 
+install_hooks_mode() {
+	local scope="${1:-}"
+	shift || true
+	case "$scope" in
+	--repo)
+		[ -n "${1:-}" ] || {
+			echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
+			return 1
+		}
+		install_hooks_repo "$1"
+		stamp_version_pin "$1"
+		;;
+	--global)
+		# Machine-wide hooks execute outside the harness sandbox in every
+		# workspace, so this is an explicit per-harness opt-in, never a
+		# default or part of plain --global.
+		case "${1:-}/${2:-}" in
+		muse/) install_hooks_global_muse ;;
+		claude/) install_hooks_global_claude ;;
+		*)
+			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
+			return 1
+			;;
+		esac
+		;;
+	*)
+		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude)" >&2
+		return 1
+		;;
+	esac
+}
+
 install_rules_repo() {
 	local target="$1" f
 	mkdir -p "$target/.claude/rules" "$target/scripts"

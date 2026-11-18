@@ -444,35 +444,7 @@ case "$MODE" in
 	esac
 	;;
 --hooks)
-	SCOPE="${2:-}"
-	case "$SCOPE" in
-	--repo)
-		TARGET="${3:-}"
-		[ -n "$TARGET" ] || {
-			echo "usage: ./install.sh --hooks --repo /path/to/repo" >&2
-			exit 1
-		}
-		install_hooks_repo "$TARGET"
-		stamp_version_pin "$TARGET"
-		;;
-	--global)
-		# Machine-wide hooks execute outside the harness sandbox in every
-		# workspace, so this is an explicit per-harness opt-in, never a
-		# default or part of plain --global.
-		case "${3:-}/${4:-}" in
-		muse/) install_hooks_global_muse ;;
-		claude/) install_hooks_global_claude ;;
-		*)
-			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
-			exit 1
-			;;
-		esac
-		;;
-	*)
-		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude)" >&2
-		exit 1
-		;;
-	esac
+	install_hooks_mode "${@:2}" || exit 1
 	;;
 --rules)
 	SCOPE="${2:-}"
