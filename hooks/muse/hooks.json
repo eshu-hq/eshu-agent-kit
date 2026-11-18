@@ -110,6 +110,17 @@
           }
         ]
       }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "r=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; exec \"$r/.muse/hooks/stop-failure.sh\""
+          }
+        ]
+      }
     ]
   }
 }

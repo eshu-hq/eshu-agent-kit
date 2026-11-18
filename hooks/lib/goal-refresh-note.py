@@ -90,6 +90,12 @@ nudge_note = ""
 if nudge_ids:
     nudge_note = "\n\n" + " ".join("load `%s` now" % i for i in nudge_ids)
 
+# The dead turn's failure, written by stop-failure.sh and consumed once by
+# the refresher: it goes right after the goal so the "keep working" line
+# below reads as the response to it. An empty note adds nothing.
+resume_note = os.environ.get("RESUME_NOTE", "").strip()
+resume_block = "\n\n" + resume_note if resume_note else ""
+
 # Open issues filed during this goal, from the ledger (lib/goal-issues.py list).
 issues_note = os.environ.get("ISSUES_NOTE", "").strip()
 issues_block = "\n\n" + issues_note if issues_note else ""
@@ -97,6 +103,7 @@ issues_block = "\n\n" + issues_note if issues_note else ""
 note = (
     "ACTIVE GOAL (restated each turn so it cannot go stale):\n"
     + goal
+    + resume_block
     + "\n\nKeep working it. Take the next concrete action yourself. Do not ask "
       "the owner something the code, a local doc, a loaded skill, or a "
       "Deep-tier model dispatch can settle -- their rules already cover it."

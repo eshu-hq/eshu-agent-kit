@@ -20,6 +20,7 @@ Install them two ways. The marketplace plugin registers everything below automat
 | `goal-refresh.sh` | UserPromptSubmit | — | Restates the active goal every turn; writes the goal file `/goal` commands create. |
 | `on-compact.sh` | SessionStart | `compact\|resume` | Clears stale markers, re-points at `session-lifecycle`. Kit-pinned checkouts only. |
 | `goal-continue.sh` | Stop | — | Refuses to end the session while a declared goal is unfinished. Fail-open with no goal file. |
+| `stop-failure.sh` | StopFailure (Muse only) | — | Writes an at-most-once resume note when a turn dies in a model failure; the next prompt surfaces it and deletes it. Cannot re-drive the turn. |
 
 Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`).
 
@@ -88,6 +89,22 @@ logic stays in one copy. Matchers are Muse tool names, one entry per tool.
 Wrappers fail open on garbage payloads and on a missing sibling. Repo-specific
 guards (eshu's dispatch guard and goal-role router entries) are not part of
 the generic set; they stay in the consuming repo's own `hooks.json`.
+
+`stop-failure.sh` handles the `StopFailure` event: when a turn ends in a
+final model failure, it records an at-most-once note (`.claude/`
+`active-goal.<session>.resume`) with the failure category, and the next
+`UserPromptSubmit` surfaces it through the normal goal restatement -- or
+standalone when no goal is in flight -- then deletes it. A retired goal
+clears a leftover note silently instead. Treat the note like any other
+goal file for version control: wherever a repo ignores `active-goal*`,
+ignore `active-goal.*.resume` too, so a failure note is never committed.
+Be clear-eyed about what this
+does not do: no hook can re-drive a dead turn or retry the model call.
+The runner already retried before giving up; the note means the next turn
+starts from what was in flight instead of a blank slate. Consuming repos
+adopt it the same way as the other wrappers (re-run the installer to link
+the new files); the global pseudo-root picks it up through the generated
+`managed-hooks.json` with no extra step.
 
 ### Global install (machine-wide, opt-in)
 

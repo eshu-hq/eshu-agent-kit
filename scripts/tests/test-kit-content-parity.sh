@@ -145,5 +145,14 @@ else
 	no "link scan flags a synthetic docs/eshu link (RED)"
 fi
 
+# 5. Per-session goal and resume-note files are ignored in this checkout,
+# so a hook run with the kit as cwd never stages a failure note.
+if git -C "${repo_root}" check-ignore -q '.claude/active-goal.deadbeef.resume' 2>/dev/null &&
+	git -C "${repo_root}" check-ignore -q '.claude/active-goal.deadbeef' 2>/dev/null; then
+	ok "goal and resume-note files are git-ignored"
+else
+	no "goal and resume-note files are git-ignored"
+fi
+
 printf '\nkit-content-parity: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

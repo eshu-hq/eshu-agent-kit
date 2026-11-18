@@ -59,3 +59,42 @@ for skill_id in ids:
 print(" ".join(missing))
 ' 2>/dev/null
 }
+
+# Prints the space-joined skill-nudge names for a goal, or nothing when
+# there is nothing to scan. Split out of goal-refresh.sh to keep that file
+# under the repo's 500-line cap; behavior matches the inline block it
+# replaces. Always succeeds: an empty print is a legitimate "nothing to
+# nudge here" outcome, not a failure.
+goal_refresh_nudge_scan() { # goal_text session_id have_cwd cwd_prefix
+	local goal_text="$1" session_id="$2" have_cwd="$3" cwd_prefix="$4"
+	local skills_root="" d
+	# The scan needs the kit's skill dirs, not the cwd's own skill trees --
+	# those directories only exist at the kit root. A cwd one level down or
+	# any deeper worktree subdirectory has no skills of its own, so the scan
+	# would silently find nothing and no nudge would ever fire outside the
+	# repo root. kit_root_path is the same walk-up skill-nudge.sh already
+	# does to find the kit pin; sharing it keeps the two from drifting apart.
+	#
+	# Deliberately silent, not an error, when a root cannot be resolved: the
+	# cwd-less path the hook supports (no "cwd" in the payload) has nothing
+	# to walk up from, and a fixture or worktree that is not a kit-pinned
+	# checkout at all has no marker to find.
+	if [ "${have_cwd}" = "1" ]; then
+		skills_root="$(kit_root_path "${cwd_prefix}" 2>/dev/null)" || skills_root=""
+	fi
+	[ -n "${skills_root}" ] || return 0
+	# The skills a consuming repo sees are its harness trees: the installer
+	# puts every skill under its harness-visible name in .claude/skills,
+	# while .agents/skills carries only the ones the alias manifest does not
+	# rename. Both are scanned, because together they are the census a
+	# consumer's goal can name. The kit's own skills/eshu and skills/core are
+	# the SOURCE of those names, not what a consumer's goal can name.
+	#
+	# No scratch file in a shared /tmp: the loop output stays in the shell,
+	# so no PID-predictable path to squat on.
+	for d in "${skills_root}/.claude/skills" "${skills_root}/.agents/skills"; do
+		[ -d "$d" ] || continue
+		goal_refresh_missing_skill_nudges "${goal_text}" "$d" "$(printf '%s' "${session_id}" | cut -c1-12)"
+	done | tr '\n' ' '
+	return 0
+}
