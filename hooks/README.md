@@ -177,21 +177,24 @@ copies one generated file,
 `~/.config/opencode/plugins/eshu-bridge.js` (auto-discovered, no settings
 merge), with this checkout's path baked in. The bridge translates OpenCode
 events into the same sibling envelopes the Muse wrappers use, then runs the
-shared bash scripts — the hook logic stays in one copy per event.
+shared bash scripts — the hook logic stays in one copy per event. Every
+mapping below was verified live against OpenCode 1.19.6 with a real model,
+not just fixtures.
 
 | Kit hook | OpenCode event | Status |
 |---|---|---|
-| goal-refresh plus resume note | `session.prompt` appends the restated goal to the admitted prompt | Shipped, fixture-tested; live-session confirmation pending |
-| stop-failure note | `session.retry` records a note when OpenCode rules out another retry, never touching the decision | Shipped, fixture-tested; live-session confirmation pending |
-| on-compact warning | No matching hook verified yet; needs a live session to confirm the summary handoff | Designed, not built |
-| skill-nudge, live-gate blocks | The documented deny path (`permission.evaluate`) is unproven for every tool call; a block built on it could fail silent | Designed, not built |
-| doc-staleness, issue-capture | `tool.execute.after` cannot show text to the user through any documented channel | Designed, not built |
+| goal-refresh plus resume note | `chat.message` appends the restated goal as a text part | Shipped, verified live |
+| stop-failure note | `session.error` records a note on terminal provider failure | Shipped, verified live |
+| on-compact warning | `experimental.session.compacting` accepts context, but firing needs a real compaction to confirm | Designed, not built |
+| skill-nudge, live-gate blocks | throwing in `tool.execute.before` blocks the call and the session survives, but V1 omits the command text the guard and nudge decide on | Designed, not built |
+| issue-capture | same missing command text: the extractor cannot tell a create from a read | Designed, not built |
+| doc-staleness | global hooks never execute repo code, so the checker no-ops by rule | Not applicable |
 | skill-loaded markers | OpenCode has no skill-load event to observe | Not applicable |
 
-The `retry` bridge records only terminal failures (OpenCode already decided
-against another attempt). Whether auxiliary model calls also reach that hook
-is unconfirmed without a live session, so an occasional early note is
-possible; the reader still announces it at most once.
+A plugin file must carry exactly one export: the default plugin function.
+V1 silently skips files with extra named exports, with no error logged, so
+the bridge keeps every helper module-local and the tests drive it through
+the default export.
 
 - **Trust model.** The plugin is in-process code, so the global bridge shells
   out only to this kit checkout, never to repo code. Sibling writes stay
