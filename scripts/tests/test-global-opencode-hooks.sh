@@ -61,12 +61,15 @@ else
 fi
 # The bridge template carries an unsubstituted %%KIT_DIR%% until install;
 # point it at this checkout so the tests drive the real siblings.
+# node --test exits non-zero on any failure; the exit code (not TAP text,
+# whose summary format differs between node versions) is the assertion.
 node_out="$(ESHU_KIT_DIR="${kit}" node --test "${kit}/plugins/opencode/tests/test-bridge.js" 2>&1)"
-if rg -q '^# fail 0$' <<<"${node_out}"; then
+node_status=$?
+if [ "${node_status}" -eq 0 ]; then
 	ok "bridge unit and sibling tests pass"
 else
 	printf '%s\n' "${node_out}" >&2
-	no "bridge unit and sibling tests pass"
+	no "bridge unit and sibling tests pass (node exit ${node_status})"
 fi
 
 # 3. Reinstall is byte-identical and says unchanged.
