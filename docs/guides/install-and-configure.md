@@ -2,6 +2,8 @@
 
 ## Installer modes
 
+`./install.sh --help` prints the full reference. The common forms:
+
 ```sh
 ./install.sh --global                    # this machine: skills + agents, all harnesses
 ./install.sh --global claude codex       # or pick: claude, codex, opencode, muse, cursor, all
@@ -12,6 +14,16 @@
 ./install.sh --hooks --global muse        # machine-wide Muse hooks (explicit opt-in; see hooks/README.md)
 ./install.sh --rules --repo /path/to/repo  # Claude Code path-scoped rules + rules lint
 ```
+
+Parts combine in one call: `./install.sh --agents --hooks --repo /path/to/repo`
+installs both parts at once (any of `--skills --agents --hooks --rules`,
+in any order; bare modes keep their historical defaults). To choose parts
+interactively, run `./install.sh --pick [--repo DIR | --global [HARNESS...]]`
+and answer the numbered list. Piped answers work the same way
+(`printf '1 3\n' | ./install.sh --pick --repo DIR`), and with no terminal
+the picker keeps the displayed defaults — every repo part, or skills and
+agents globally (global hooks are never a default) — and prints the
+equivalent explicit command so the run stays reproducible.
 
 ## Uninstall
 
