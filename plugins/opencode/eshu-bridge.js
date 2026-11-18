@@ -21,12 +21,13 @@
 //     part. Firing and mutation verified with a live model.
 //   session.error (event bus) -> stop-failure note on a terminal provider
 //     failure. Firing and payload shape verified live.
+//   experimental.session.compacting -> on-compact warning appended to the
+//     compaction context. Registered without errors; first live firing
+//     still to be observed (tracked in #54).
 // Deliberately not here (see hooks/README.md):
 //   tool.execute.before blocks: V1 tool hooks carry no command text or
 //     file path, and permission.ask stays silent on allowed calls.
 //   tool.execute.after capture: same missing command text.
-//   session.compacting: registration accepted; firing needs a real
-//     compaction to confirm.
 //   skill-loaded markers: no skill-load event to observe.
 import { spawn } from "node:child_process";
 
@@ -231,6 +232,34 @@ async function handleChatMessage(deps, input, output) {
   }
 }
 
+// Compaction guard: after context compaction or resume, loaded skills are
+// gone even when the summary says they were used. Append the sibling's
+// warning to the compaction context so the next turn re-invokes its
+// skills instead of trusting the summary. Returns "appended" or "silent".
+async function handleCompacting(deps, input, output) {
+  try {
+    if (typeof input?.sessionID !== "string") return "silent";
+    if (!output || !Array.isArray(output.context)) return "silent";
+    const cwd = await resolveCwd(deps.resolveDir, input.sessionID);
+    const envelope = buildPromptEnvelope({
+      sessionID: input.sessionID,
+      text: "",
+      cwd,
+    });
+    const stdout = await runSibling(
+      resolveKitDir(),
+      "on-compact.sh",
+      envelope,
+    );
+    const context = extractContext(stdout);
+    if (context === null) return "silent";
+    output.context.push(context);
+    return "appended";
+  } catch {
+    return "silent";
+  }
+}
+
 // Dead-turn recorder: on a provider error event, write the at-most-once
 // resume note the next prompt picks up. Observes only. Returns "recorded",
 // "ignored", or "silent" when the note could not be written.
@@ -312,6 +341,9 @@ export default async (pluginInput) => {
     },
     "chat.message": async (input, output) => {
       await handleChatMessage(deps, input, output);
+    },
+    "experimental.session.compacting": async (input, output) => {
+      await handleCompacting(deps, input, output);
     },
   };
 };

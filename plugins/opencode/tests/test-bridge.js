@@ -178,6 +178,39 @@ describe("retry hook (session.error event)", () => {
   });
 });
 
+describe("compaction hook (experimental.session.compacting)", () => {
+  function pinnedRepo() {
+    const repo = join(work, "repo");
+    mkdirSync(join(repo, ".claude"), { recursive: true });
+    writeFileSync(join(repo, ".agent-kit-version"), "test\n");
+    return repo;
+  }
+
+  it("appends the compaction warning to the summary context", async () => {
+    const repo = pinnedRepo();
+    const hooks = await eshuBridge({ directory: repo });
+    const output = { context: [] };
+    await hooks["experimental.session.compacting"]({ sessionID: "ses1" }, output);
+    assert.equal(output.context.length, 1);
+    assert.match(output.context[0], /CONTEXT WAS COMPACTED OR RESUMED/);
+  });
+
+  it("stays silent outside a kit-pinned checkout", async () => {
+    const hooks = await eshuBridge({ directory: join(work, "unpinned") });
+    mkdirSync(join(work, "unpinned"), { recursive: true });
+    const output = { context: [] };
+    await hooks["experimental.session.compacting"]({ sessionID: "s" }, output);
+    assert.equal(output.context.length, 0);
+  });
+
+  it("stays silent without a session", async () => {
+    const hooks = await eshuBridge({ directory: work });
+    const output = { context: [] };
+    await hooks["experimental.session.compacting"]({}, output);
+    assert.equal(output.context.length, 0);
+  });
+});
+
 describe("fail-open", () => {
   it("a hung sibling is killed instead of stalling the host", async () => {
     const hungKit = join(work, "hung-kit", "hooks");
