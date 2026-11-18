@@ -203,11 +203,52 @@ describe("compaction hook (experimental.session.compacting)", () => {
     assert.equal(output.context.length, 0);
   });
 
-  it("stays silent without a session", async () => {
-    const hooks = await eshuBridge({ directory: work });
+  it("clears its own markers but never widens deletion to a hostile glob", async () => {
+    const { writeFileSync: write } = await import("node:fs");
+    const repo = pinnedRepo();
+    const own = `/tmp/claude-skill-loaded-zz9bridgetst-probe`;
+    const decoy = `/tmp/claude-skill-loaded-KEEPME-probe`;
+    write(own, "x");
+    write(decoy, "x");
+    try {
+      const hooks = await eshuBridge({ directory: repo });
+      // Benign id first: its own marker must go, proving the sibling ran.
+      await hooks["experimental.session.compacting"]({ sessionID: "zz9bridgetst" }, { context: [] });
+      assert.equal(existsSync(own), false, "the sibling clears its own session markers");
+      // Hostile id next: sanitized to empty, so the rm never runs and the
+      // decoy (which the old unquoted glob would have matched) survives.
+      const output = { context: [] };
+      await hooks["experimental.session.compacting"]({ sessionID: "*" }, output);
+      assert.equal(
+        existsSync(decoy),
+        true,
+        "a hostile session id must not delete other sessions' markers",
+      );
+    } finally {
+      rmSync(decoy, { force: true });
+      rmSync(own, { force: true });
+    }
+  });
+
+  it("stays silent without a session, even in a pinned repo", async () => {
+    // Pinned on purpose: an unpinned cwd would stay silent via the
+    // sibling's scope check instead, which would prove nothing about
+    // the handler's own session guard.
+    const repo = pinnedRepo();
+    const hooks = await eshuBridge({ directory: repo });
     const output = { context: [] };
     await hooks["experimental.session.compacting"]({}, output);
     assert.equal(output.context.length, 0);
+  });
+
+  it("does not duplicate the warning on a repeated event", async () => {
+    const repo = pinnedRepo();
+    const hooks = await eshuBridge({ directory: repo });
+    const output = { context: [] };
+    const input = { sessionID: "ses1" };
+    await hooks["experimental.session.compacting"](input, output);
+    await hooks["experimental.session.compacting"](input, output);
+    assert.equal(output.context.length, 1);
   });
 });
 

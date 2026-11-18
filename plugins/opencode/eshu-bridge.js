@@ -185,6 +185,11 @@ function runSibling(kitDir, name, payload) {
 }
 
 async function resolveCwd(resolveDir, sessionID) {
+  // An empty cwd is a valid answer, not an error: the sibling treats a
+  // missing cwd as have_cwd=0 (standalone note, no restatement) or falls
+  // back to its own $PWD for the pin walkup (on-compact.sh), which may
+  // scope to the wrong repo but can never execute repo code -- only
+  // kit-owned hooks run in this process.
   try {
     const dir = await resolveDir(sessionID);
     return typeof dir === "string" ? dir : "";
@@ -241,6 +246,9 @@ async function handleCompacting(deps, input, output) {
     if (typeof input?.sessionID !== "string") return "silent";
     if (!output || !Array.isArray(output.context)) return "silent";
     const cwd = await resolveCwd(deps.resolveDir, input.sessionID);
+    // The envelope reuses the UserPromptSubmit shape: on-compact.sh only
+    // reads session_id and cwd and never branches on hook_event_name, so a
+    // dedicated envelope would add a second shape for no behavior.
     const envelope = buildPromptEnvelope({
       sessionID: input.sessionID,
       text: "",
@@ -253,6 +261,9 @@ async function handleCompacting(deps, input, output) {
     );
     const context = extractContext(stdout);
     if (context === null) return "silent";
+    // A resumed session can fire compacting again for the same turn;
+    // repeating the identical warning would only bloat the summary.
+    if (output.context.includes(context)) return "silent";
     output.context.push(context);
     return "appended";
   } catch {

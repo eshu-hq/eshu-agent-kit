@@ -30,7 +30,13 @@ command -v python3 >/dev/null 2>&1 || exit 0
 # Scoped to this session's own markers, so a concurrent session keeps its own.
 # Ahead of the Eshu scope guard on purpose: a stale marker is wrong everywhere,
 # and the compaction that invalidated it does not care which repo you are in.
-CLR_SID=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("session_id","")[:12])' 2>/dev/null)
+# Session ids come from the harness, which a hostile prompt cannot forge but
+# a hostile harness could lace with glob metachars or slashes. Strip
+# everything outside [A-Za-z0-9_-] before the id reaches the rm glob, so a
+# fractured id can only fail to match (leaving a stale marker, the safe
+# direction) and never widen the deletion. Real ids (uuids, ses_*) contain
+# nothing else, so their markers resolve exactly as before.
+CLR_SID=$(printf '%s' "$INPUT" | python3 -c 'import json,sys,re; print(re.sub(r"[^A-Za-z0-9_-]", "", json.load(sys.stdin).get("session_id",""))[:12])' 2>/dev/null)
 if [ -n "${CLR_SID:-}" ]; then
 	rm -f "/tmp/claude-skill-loaded-${CLR_SID}-"* 2>/dev/null
 fi
