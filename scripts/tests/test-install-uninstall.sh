@@ -289,5 +289,14 @@ cmp -s "${h4}/.claude/settings.json" "${work}/settings-golden.json" &&
 rg -q "settings.json" "${work}/err7" &&
 	ok "claude settings manual undo is printed" || no "claude settings manual undo is printed"
 
+# 7b. Bare global uninstall keeps the claude tree and names the explicit
+# undo, the same way the Muse tree is kept.
+h7b="${work}/h7b"
+HOME="${h7b}" "${kit}/install.sh" --hooks --global claude </dev/null >/dev/null 2>&1 || no "claude global reinstall exits 0"
+ctree7b="${h7b}/.claude/agent-kit-hooks"
+out7b="$(HOME="${h7b}" "${kit}/install.sh" --uninstall --global claude 2>&1)"
+[ -L "${ctree7b}/.claude/hooks/guard-live-gate.sh" ] && rg -q 'keeping .*--uninstall --hooks --global claude' <<<"${out7b}" &&
+	ok "bare global uninstall keeps the claude tree with its undo" || no "bare global uninstall keeps the claude tree with its undo"
+
 printf '\ninstall-uninstall mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

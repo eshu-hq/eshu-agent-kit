@@ -115,7 +115,17 @@ out="$(run_install "$h7" "$x7" --uninstall --hooks --global opencode 2>&1)"
 rg -q 'keeping .*no kit bridge installed' <<<"${out}" &&
 	ok "empty uninstall reports the keep" || no "empty uninstall reports the keep"
 
-# 8. The sed substitution survives hostile checkout paths: the escaping
+# 8. Bare global uninstall keeps the bridge and names the explicit undo,
+# the same way the Muse tree is kept: hooks are never removed as a side
+# effect of a broad uninstall.
+h8="${work}/h8"
+x8="${work}/x8"
+run_install "$h8" "$x8" --hooks --global opencode >/dev/null 2>&1
+out="$(run_install "$h8" "$x8" --uninstall --global opencode 2>&1)"
+[ -f "$(bridge_of "$x8")" ] && rg -q 'keeping .*--uninstall --hooks --global opencode' <<<"${out}" &&
+	ok "bare global uninstall keeps the bridge with its undo" || no "bare global uninstall keeps the bridge with its undo"
+
+# 9. The sed substitution survives hostile checkout paths: the escaping
 # helper round-trips &, |, and backslash through the same expression the
 # writer uses, so KIT_DIR can contain any of them.
 # shellcheck source=scripts/lib/install-hooks-global-opencode.sh

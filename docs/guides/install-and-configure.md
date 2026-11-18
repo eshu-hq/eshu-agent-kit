@@ -12,6 +12,7 @@
 ./install.sh --repo /path/to/repo --aliases manifest.tsv  # harness skill names differ from kit dirs
 ./install.sh --hooks --repo /path/to/repo  # hook scripts only; wiring stays explicit
 ./install.sh --hooks --global muse        # machine-wide Muse hooks (explicit opt-in; see hooks/README.md)
+./install.sh --hooks --global opencode    # machine-wide OpenCode bridge (explicit opt-in; see hooks/README.md)
 ./install.sh --rules --repo /path/to/repo  # Claude Code path-scoped rules + rules lint
 ```
 
@@ -39,8 +40,11 @@ copies, and links pointing outside the kit always survive. Skill alias
 wrappers (real directories carrying `.kit-alias`) survive too unless
 you pass `--force`. Partial modes mirror the install ones
 (`--agents`, `--hooks`, `--rules` with `--repo`; `--agents` with
-`--global`; `--hooks --global (muse|claude)`). Uninstalling global
-hooks drops the kit-owned tree; your settings are never edited.
+`--global`; `--hooks --global (muse|claude|opencode)`). Uninstalling
+global hooks drops the kit-owned tree, except through bare
+`--uninstall --global`, which leaves hook registrations in place and
+tells you the explicit `--hooks --global` undo instead; your settings
+are never edited.
 Global uninstall never edits settings that hold your model choices
 or hook registrations: the OpenCode config merge, the Muse
 `managed_hooks_path` key, and the Claude `settings.json` hook entries

@@ -349,18 +349,37 @@ uninstall_hooks_global_opencode() {
 }
 
 uninstall_global() {
-	local scope="$1" force="$2" harness tree
+	local scope="$1" force="$2" harness tree bridge
 	case "$scope" in
 	all)
 		uninstall_global_skills "$force"
 		uninstall_global_agents "$force"
 		uninstall_opencode_note
+		# Global hooks are sticky on purpose: a broad uninstall never
+		# removes them as a side effect, it only points at the explicit
+		# --hooks --global undo. The Muse tree already works this way;
+		# Claude and OpenCode match it here.
 		for harness in "${selected[@]}"; do
-			[ "$harness" = muse ] || continue
-			tree="$(muse_config_dir)/agent-kit-hooks"
-			if [ -e "$tree" ]; then
-				uninstall_keeping "$tree" "installed by --hooks --global muse; run --uninstall --hooks --global muse to remove it"
-			fi
+			case "$harness" in
+			muse)
+				tree="$(muse_config_dir)/agent-kit-hooks"
+				if [ -e "$tree" ]; then
+					uninstall_keeping "$tree" "installed by --hooks --global muse; run --uninstall --hooks --global muse to remove it"
+				fi
+				;;
+			claude)
+				tree="$HOME/.claude/agent-kit-hooks"
+				if [ -e "$tree" ]; then
+					uninstall_keeping "$tree" "installed by --hooks --global claude; run --uninstall --hooks --global claude to remove it"
+				fi
+				;;
+			opencode)
+				bridge="$(opencode_plugin_dir)/eshu-bridge.js"
+				if [ -e "$bridge" ] || [ -L "$bridge" ]; then
+					uninstall_keeping "$bridge" "installed by --hooks --global opencode; run --uninstall --hooks --global opencode to remove it"
+				fi
+				;;
+			esac
 		done
 		;;
 	agents)
