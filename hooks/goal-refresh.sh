@@ -466,42 +466,11 @@ esac
 	exit 0
 }
 
-# A named, unloaded project skill gets a nudge too -- see lib/skill-nudge-lib.sh.
+# A named, unloaded project skill gets a nudge too -- the scan lives in
+# lib/skill-nudge-lib.sh (split out to keep this file under the cap).
 # shellcheck source=hooks/lib/skill-nudge-lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/skill-nudge-lib.sh"
-
-# The nudge scan needs the kit's skill dirs, not "${cwd_prefix}/.agents/skills"
-# directly -- those directories only exist at the kit root. A cwd one level
-# down or any deeper worktree subdirectory has no skills of its own, so the
-# scan would silently find nothing and no nudge would ever fire outside the
-# repo root. kit_root_path is the same walk-up skill-nudge.sh already does to
-# find the kit pin; sharing it is what keeps the two from drifting apart again.
-#
-# Deliberately silent, not an error, when a root cannot be resolved: the
-# cwd-less path this hook supports (no "cwd" in the payload, have_cwd=0) has
-# nothing to walk up from, and a fixture or worktree that is not a kit-pinned
-# checkout at all has no marker to find. Both are legitimate "nothing to nudge
-# here" outcomes, not failures.
-skills_root=""
-if [ "${have_cwd}" = "1" ]; then
-	skills_root="$(kit_root_path "${cwd_prefix}" 2>/dev/null)" || skills_root=""
-fi
-nudge_skills=""
-if [ -n "${skills_root}" ]; then
-	# The skills a consuming repo sees are its harness trees: the installer
-	# puts every skill under its harness-visible name in .claude/skills,
-	# while .agents/skills carries only the ones the alias manifest does not
-	# rename. Both are scanned, because together they are the census a
-	# consumer's goal can name. The kit's own skills/eshu and skills/core are
-	# the SOURCE of those names, not what a consumer's goal can name.
-	#
-	# Command substitution keeps the loop output in the shell: no scratch
-	# file in a shared /tmp, so no PID-predictable path to squat on.
-	nudge_skills="$(for d in "${skills_root}/.claude/skills" "${skills_root}/.agents/skills"; do
-		[ -d "$d" ] || continue
-		goal_refresh_missing_skill_nudges "${goal}" "$d" "$(printf '%s' "${session_id}" | cut -c1-12)"
-	done | tr '\n' ' ')"
-fi
+nudge_skills="$(goal_refresh_nudge_scan "${goal}" "${session_id}" "${have_cwd}" "${cwd_prefix}" 2>/dev/null)"
 
 # The restatement, consent bookkeeping, and skill-nudge text assembly live in
 # lib/goal-refresh-note.py -- kept out of this heredoc so the file fits under
