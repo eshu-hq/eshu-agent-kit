@@ -120,3 +120,34 @@ generated `managed-hooks.json`. Read this before opting in:
   when absent. Successful writes are atomic and normalize formatting.
 - **Undo:** remove the `managed_hooks_path` key from `settings.json` and
   delete `~/.config/muse/agent-kit-hooks/`.
+
+### Global install for Claude Code (machine-wide, opt-in)
+
+Plugin users already get machine-wide hooks through the marketplace plugin
+(`hooks/hooks.json` auto-registers). `./install.sh --hooks --global claude`
+is the non-plugin path: it links a pseudo-root tree under
+`~/.claude/agent-kit-hooks/` (mirroring the repo layout, so siblings resolve
+their lib unchanged) and merges the same 8 entries into the `hooks` block of
+`~/.claude/settings.json` with absolute commands into that tree. Matchers
+stay exactly as in `hooks/hooks.json` — Claude matches them as regex
+alternation natively (`Edit|MultiEdit|Write` in one entry, verified live),
+unlike Muse one-entry-per-tool. Read this before opting in:
+
+- **No double firing.** Every generated command runs with
+  `KIT_GLOBAL_HOOK=1`, under which global hooks never execute repo code: the
+  builtin nudge table applies (a repo's `.agents/nudge-table.sh` is not
+  sourced), the doc-staleness hook no-ops, and goal-router expansion stays
+  off. Reading per-repo *data* (goal files under the payload `cwd`) stays on.
+  Entries the plugin registration already covers (same event, matcher, and
+  hook basename) are skipped with a warning, so plugin users never fire
+  twice; re-run the installer after disabling the plugin to pick them up.
+- **Settings safety.** The writer is strict JSON: it refuses (file untouched,
+  no tree created) on malformed JSON, a non-object top level or `hooks`
+  block, or a symlinked `settings.json`. Existing entries and unknown keys
+  are never touched — covered entries are skipped, the rest are appended —
+  and reruns are byte-identical. Successful writes are atomic and normalize
+  formatting.
+- **The tree is symlinks into your kit checkout.** Keep the checkout in
+  place; if it moves, re-run the installer.
+- **Undo:** delete the kit entries from `~/.claude/settings.json` and remove
+  `~/.claude/agent-kit-hooks/`.

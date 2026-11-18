@@ -23,6 +23,7 @@ suites=(
 	scripts/tests/test-global-install.sh
 	scripts/tests/test-global-harness-selection.sh
 	scripts/tests/test-global-muse-hooks.sh
+	scripts/tests/test-global-claude-hooks.sh
 	scripts/tests/test-repo-install.sh
 	scripts/tests/test-repo-alias-install.sh
 	scripts/tests/test-install-prune.sh

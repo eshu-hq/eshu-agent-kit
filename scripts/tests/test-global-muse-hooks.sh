@@ -130,8 +130,9 @@ else
 		ok "refuses symlinked settings untouched" || no "refuses symlinked settings untouched"
 fi
 
-# 6. Harness surface: muse exactly, nothing else, zero mutations on refusal.
-for bad in "" claude all "muse extra"; do
+# 6. Harness surface: muse or claude exactly, nothing else, zero mutations
+# on refusal. (claude left this list when --hooks --global claude landed.)
+for bad in "" all "muse extra" "claude extra"; do
 	hb="${work}/hb"
 	xb="${work}/xb"
 	rm -rf "$hb" "$xb"

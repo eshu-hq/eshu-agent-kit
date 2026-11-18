@@ -4,7 +4,7 @@
 #   ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv]
 #   ./install.sh --agents --global [harness...] | ./install.sh --agents --repo /path/to/repo
 #   ./install.sh --hooks --repo /path/to/repo   (scripts only; wire them per hooks/README.md)
-#   ./install.sh --hooks --global muse         (machine-wide Muse hooks; explicit opt-in)
+#   ./install.sh --hooks --global (muse|claude) (machine-wide hooks; explicit opt-in)
 #   ./install.sh --rules --repo /path/to/repo   (Claude Code path-scoped rules + rules lint script)
 # Harness names for the global modes: claude, codex, opencode, muse, cursor, or all.
 # No harness name means all. The global modes ask a model ID per agent; the
@@ -367,6 +367,8 @@ source "$KIT_DIR/scripts/lib/install-hooks.sh"
 source "$KIT_DIR/scripts/lib/install-prune.sh"
 # shellcheck source=scripts/lib/install-hooks-global.sh
 source "$KIT_DIR/scripts/lib/install-hooks-global.sh"
+# shellcheck source=scripts/lib/install-hooks-global-claude.sh
+source "$KIT_DIR/scripts/lib/install-hooks-global-claude.sh"
 
 install_global() {
 	local harness dir
@@ -451,17 +453,20 @@ case "$MODE" in
 		stamp_version_pin "$TARGET"
 		;;
 	--global)
-		# Machine-wide hooks execute outside the Muse sandbox in every
-		# workspace, so this is an explicit muse-only opt-in, never a
+		# Machine-wide hooks execute outside the harness sandbox in every
+		# workspace, so this is an explicit per-harness opt-in, never a
 		# default or part of plain --global.
-		[ "${3:-}" = muse ] && [ -z "${4:-}" ] || {
-			echo "usage: ./install.sh --hooks --global muse" >&2
+		case "${3:-}/${4:-}" in
+		muse/) install_hooks_global_muse ;;
+		claude/) install_hooks_global_claude ;;
+		*)
+			echo "usage: ./install.sh --hooks --global (muse|claude)" >&2
 			exit 1
-		}
-		install_hooks_global_muse
+			;;
+		esac
 		;;
 	*)
-		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global muse" >&2
+		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude)" >&2
 		exit 1
 		;;
 	esac
@@ -485,7 +490,7 @@ case "$MODE" in
 	esac
 	;;
 *)
-	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global muse) | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
+	echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude)) | ./install.sh --rules --repo /path/to/repo  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
 	exit 1
 	;;
 esac
