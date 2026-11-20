@@ -39,6 +39,7 @@ Trace the changed flow before judging it:
 | Live/integration test harness | Prove cleanup happens before resources close, failures are not ignored, fixtures are isolated, and reruns cannot leave durable state. |
 | Generated, cassette, golden, or manifest | Prove source-of-truth regeneration path, watcher coverage, stale deletion behavior, and consumer readback. |
 | Queue, worker, retry, or concurrent write | Prove idempotency key, conflict domain, claim/lock ordering, duplicate delivery, retry scope, dead-letter behavior, and contention impact. |
+| Declared contract (env var, client dial, port, listener, flag) | Name the live reader, server, or listener for every declared setting, dial, and port the diff adds or enables. A declared-but-unwired contract — a setting with no reader, a dial with no live-server test, a port with no listener — is a blocking finding. Tests that pass without touching the production subject do not count. |
 
 ## Output Template
 
