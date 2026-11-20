@@ -52,6 +52,7 @@ those. You are a leaf agent: do not dispatch other agents.
    | a `*_live_test.go` file | A classified row in `specs/live-tests.v1.yaml`, then `bash scripts/verify-live-tests-ledger.sh`. |
    | an `ESHU_*` environment variable | An `Entry` in `go/internal/envregistry/entries.go`. Run `bash scripts/generate-env-registry-doc.sh`, then `scripts/verify-env-registry-doc.sh` and `scripts/verify-docs-cli-env-refs.sh`. |
    | a new test file | Run `rg -n -e TODO -e placeholder <test-files>`. A hit is real when it is a stub type, an empty assertion, or a TODO that skips behavior. SQL placeholders and ordinary prose are not hits. |
+| a newly set or provisioned env var, a new client dial, or a new listener port | Name the live code that reads it, the live server that answers it, and the listener that opens it, plus the test that proves it end to end. A setting with no reader, a dial with no live-server test, or a port with no listener blocks the handoff. |
 
    In `specs/ci-gates.v1.yaml`, `env-registry-doc` and `live-backend-tests` (the
    owner of the ledger validator) have no `local.pre_push: floor`. `make
