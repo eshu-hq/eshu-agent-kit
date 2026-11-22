@@ -109,7 +109,7 @@ Your report must contain:
 - each gate's command, exit code, and class: `PASS`, `BRANCH`, `INHERITED`, or `ENV`
 - the table row you took, the proof you reran because of it, and why
 - for row 3 or 4, the scoped rebase verdict file: its finding counts for the
-  reviewed scope, with `PREPUSH_EXIT` and the head SHA it ran on
+  reviewed scope, with `PREPUSH_EXIT` and the head SHA it ran on, or `not run`
 - anything `NOT_CHECKED`, with the reason
 
 Include the head line described in

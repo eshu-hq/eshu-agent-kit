@@ -216,10 +216,10 @@ underneath it.
 
 One clean full semantic review is required before push. Capture its inputs
 with `ci-gates review-attest capture`. `make pre-push` is the required floor
-before every push (except row 4a, tier S, or an owner push order; see Rebase
-Waiver in `code-review`); `make pre-pr` (`make pre-pr-full` for a package move) stays
-recommended, not required, for queue/lease/claim code, schema DDL, hot-path
-Cypher or graph writes, reducer projection/materialization, or a move. After
+once per PR, on the push that opens it (never on row 4a, tier S, or an owner
+push order; see Rebase Waiver in `code-review` for a rebase). `make pre-pr`
+(`make pre-pr-full` for a package move) runs for a move, to reproduce a CI red,
+or when the owner asks. After
 preflight, a matching `review-attest verify` receipt replaces a duplicate full
 semantic pass; it does not weaken the finding bar above. The receipt binds the base and head, merge
 base, diff and commit range, clean worktree and submodules, exact PR claims,

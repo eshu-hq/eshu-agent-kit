@@ -121,9 +121,9 @@ tier S use neither. The attest tool hashes the file. It does not read it, so the
 MUST be truthful by its own words.
 
 The note MUST NOT claim a new review happened. It carries no finding counts for
-the rebased head and no "clean" or "ready" statement. Write it only after
-`make pre-push` exits 0 on the rebased head. It states these fields, one
-per line:
+the rebased head and no "clean" or "ready" statement. When the rebase runs the
+floor (SKILL.md, "The floor on a rebase"), write it only after `make pre-push`
+exits 0 on the rebased head. It states these fields, one per line:
 
 - `rule`: `conflict-free rebase waiver`, `code-review` Rebase Waiver. Add
   the owner confirmation: 2026-10-09 21:53 EDT, coordinator session.
@@ -144,8 +144,10 @@ per line:
   stated as not head-bound), and the focused proof the rebase can affect rerun with its exit
   codes, or `none affected` and why. Do this before capture: the receipt hashes
   the claims file.
-- `make pre-push`: exit code 0 and the head SHA it ran on. That head equals the
-  `new head`.
+- `make pre-push`: exit code 0 and the head SHA it ran on, which equals the
+  `new head`; or `not run`, with the overlap command and its output showing no
+  non-test source file changed on both sides and no conflict in one (for the
+  build-and-vet trigger, that command's exit codes instead).
 - `CI wave`: `pending, recorded in the PR after push`. Fill in the head SHA,
   the query, and two stable reads in the PR before merge. The receipt cannot
   hold this value, because the push comes after capture.
@@ -165,9 +167,9 @@ waiver note. Pass it as `--verdict` to `ci-gates review-attest capture`.
 
 It claims only the scope the review covered: the conflict resolution hunks or
 the added commit, read against the whole diff. It never claims the old commits.
-Those rest on the prior verdict, which it names. Write it only after
-`make pre-push` exits 0 on the rebased head. It states these fields, one per
-line:
+Those rest on the prior verdict, which it names. When the rebase runs the floor
+(SKILL.md, "The floor on a rebase"), write it only after `make pre-push` exits 0
+on the rebased head. It states these fields, one per line:
 
 - `rule`: `scoped rebase verdict`, `code-review` Rebase Waiver, and the
   row taken (3 or 4) with the `range-diff` lines that put the rebase there.
@@ -183,8 +185,9 @@ line:
   line is `=`.
 - `patch-id`: the value before and after the rebase, and why they differ
   (the added commit or the resolution), or that they are equal.
-- `PREPUSH_EXIT`: `make pre-push` exit code 0 and the head SHA it ran on. That
-  head equals the `new head`.
+- `PREPUSH_EXIT`: `make pre-push` exit code 0 and the head SHA it ran on, which
+  equals the `new head`; or `not run`, with the overlap command and its output
+  (or the build and vet exit codes).
 
 `--review-packet`, `--claims-file`, and `--base` are the same as for a
 verdict. Name the packet in the verdict. Any edit to the verdict voids the

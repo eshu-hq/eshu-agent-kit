@@ -21,11 +21,11 @@ ambiguous, invalidated, or the environment matters and cannot be verified.
 Refresh live PR status and ownership even when local proof remains reusable.
 
 This does not waive final promotion: `make pre-push` is the required floor
-before every push (except row 4a, tier S, or an owner push order; see Rebase Waiver in
-`code-review`), `make pre-pr`/`make pre-pr-full` stay recommended for risky
-changes (queue/lease/claim code, schema DDL, hot-path Cypher or graph writes,
-reducer materialization, package moves), and `review-attest verify` must match
-the reviewed inputs before push. A rebase or amend invalidates prior review
+once per PR, on the push that opens it (never on row 4a, tier S, or an owner
+push order; see Rebase Waiver in `code-review` for a rebase), `make pre-pr`/
+`make pre-pr-full` run only for a package move, a CI red to reproduce, or when
+the owner asks, and `review-attest verify` must match the reviewed inputs
+before push. A rebase or amend invalidates prior review
 receipts. Once pushed, CI decides the merge (`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`).
 See [local testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md).
 

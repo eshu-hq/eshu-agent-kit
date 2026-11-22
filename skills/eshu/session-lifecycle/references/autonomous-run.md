@@ -78,16 +78,21 @@ Contents: [Steps](#steps), [Reply](#reply),
    - write to the main checkout
    - tear down a Compose stack you did not start
 
+   Pushing a branch, force-pushing an authorized rebase, and creating, editing,
+   commenting on or merging a PR, and creating or commenting on an issue, are
+   covered by the goal's authorization (the goal text, its consent line, or an
+   owner order). They get no arbiter review first, and no arbiter review of a PR
+   after it exists (owner direction 2026-11-22).
+
    Get an independent arbiter model's review first for these, every time, no
    matter how confident you are — then do it, and name it in the report:
 
-   - `git push`, force-push, or anything that moves a remote ref
-   - `gh pr create`, `edit`, `merge`, `comment`; `gh issue create` or `comment`
    - deploys and remote-host actions
    - **changing the golden standard** — the cassettes under `testdata/cassettes/`
      or the B-12 snapshot — to match a design you researched rather than one the
      owner settled
-   - anything a person outside this machine would see
+   - anything else a person outside this machine would see, other than the PR
+     and issue acts above
 
    That golden-standard entry is not a pre-merge/post-merge distinction, and it
    is the one exception worth understanding rather than memorising. The safety
@@ -143,6 +148,6 @@ Your report must contain:
 
 Autonomy is not a proof exemption. A run that ends with the predicate met but
 the gates unrun has not met the predicate. The promotion ladder in particular
-is untouched: local proof, then a clean review, then `make pre-push` (plus
-`make pre-pr`/`make pre-pr-full` for a risky change), then `review-attest
+is untouched: local proof, then a clean review, then `make pre-push` (once per
+PR; `make pre-pr-full` only for a package move), then `review-attest
 verify`, and the push itself is still bucket three.

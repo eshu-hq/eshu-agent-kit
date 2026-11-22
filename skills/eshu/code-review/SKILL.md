@@ -55,9 +55,7 @@ Load the project skills whose contracts match the diff, using root skill routing
 
 A separate reviewer works read-only until the verdict is delivered. Use a
 separate context when delegation is available and authorized. If it is unavailable
-or the user explicitly requests self-review, name that mode and limitation. An
-external-review replacement has additional independence requirements in
-`issue-driver`; author-side review does not satisfy that second review.
+or the user explicitly requests self-review, name that mode and limitation.
 
 This skill runs at **Workhorse tier** through `review-eshu`, and at **Deep
 tier** through `review-eshu-deep` for the final review of a difficult diff
@@ -75,17 +73,25 @@ affected proof, and repeat the full review. Deferred P2 findings need the linked
 issue and owner agreement required by the merge bar; P3 does not restart the loop.
 
 Capture the clean verdict's exact inputs with `ci-gates review-attest capture`.
-The order is: proof, clean preliminary review plus that capture, `make
-pre-push`, `ci-gates review-attest verify`, then push. For a waiver note,
-`make pre-push` runs before the capture ([Rebase Waiver](#rebase-waiver)).
-`make pre-push` is the required floor before every push (except row 4a, tier S, or an owner push order; see
-[Rebase Waiver](#rebase-waiver)) — changed-package test/lint/build/vet, the
-file cap, registry-selected static gates, and docs-contradiction. For
-queue/lease/claim code, schema DDL, hot-path Cypher or graph writes, reducer
-projection/materialization, or a package move, the orchestrator also runs one
-serialized `make pre-pr` (`make pre-pr-full` for a move) before that push —
-recommended for that risk class, not required otherwise; subagents never run
-it themselves. After preflight, `ci-gates review-attest verify` replaces a
+The order for the first push of a PR is: proof, clean preliminary review plus
+that capture, `make pre-push`, `ci-gates review-attest verify`, then push.
+`make pre-push` is the fast local floor: changed-package test/lint/build/vet,
+the file cap, registry-selected static gates, and docs-contradiction. Run it
+**once per PR**, on the push that opens the PR, not on every push (owner
+direction 2026-11-22). A later push (a review fix, a small addition) runs the
+focused proof for what it changed: tests, build, vet and lint of the touched
+packages, the file-type checks, and each blocking gate that
+`bash scripts/dev/select-gates.sh --base origin/main --tier pre-pr --explain`
+lists for the changed paths and the floor defers (its `local.command`). Then
+review, capture, verify, push (tier S: its checks and a PR comment instead).
+Rerun the floor later only when CI is red on something the
+floor covers, or when a later push changes a Go package the first run did not
+cover. A rebase has its own rule ([Rebase Waiver](#rebase-waiver)). Row 4a,
+tier S, and an owner push order never run the floor. `make pre-pr` is not part
+of promotion. Run it for a package move (`make pre-pr-full`), to reproduce a
+CI red that the failing gate's own `local.command` cannot, or when the owner
+asks. Subagents never run either. After the floor,
+`ci-gates review-attest verify` replaces a
 second full semantic review only when the receipt matches. Any changed base,
 commit, tree, worktree, submodule, PR claim, review packet, or verdict
 invalidates it: repeat affected proof and full review, then capture a new
@@ -158,15 +164,15 @@ escalation. If any one fails, row 2 applies: full review.
    dispositioned.
 
 Write a transfer note and pass it as `--verdict` to
-`ci-gates review-attest capture`. Run `make pre-push` on the rebased head
-first, then write the note, capture,
-`ci-gates review-attest verify`, push. The note states the prior verdict and
+`ci-gates review-attest capture`. The floor does not run here (predicate 2
+requires zero file overlap), so write the note after the focused proof exits 0,
+capture, `ci-gates review-attest verify`, push. The note states the prior verdict and
 its head SHA, the four SHAs, the `range-diff` output, the equal `patch-id`
 values, the reversion-scan and zero-overlap commands with their empty output,
 each transferred thread with its fixed-awaiting-push disposition, the
 truthful open-findings count (never 0 while a thread reads unresolved), the
-re-read claims and rerun proof with exit codes, and the `make pre-push` exit
-code with its head SHA. It MUST NOT claim a new review happened.
+re-read claims and rerun proof with exit codes, and `make pre-push: not run`
+with the empty `comm -12` output. It MUST NOT claim a new review happened.
 
 The transfer expires on any new red or any failed identity predicate. Merge
 bars are unchanged: green pushed-head CI, resolved threads, and mergeable
@@ -247,18 +253,40 @@ the content:
 drops a line the new base added. Read the files both sides touched. List them
 with `comm -12 <(git diff --name-only <new-base>..HEAD | sort -u)
 <(git diff --name-only <old-base>..<new-base> | sort -u)`. This scan is
-textual. A semantic collision with no shared hunk shows only in the merged-tree
-vet and tests of `make pre-push`, and in CI.
+textual. A semantic collision with no shared hunk shows only in CI, or in the
+merged-tree vet and tests of `make pre-push` when the rebase runs it (next
+paragraph).
+
+**The floor on a rebase.** A rebase does not rerun `make pre-push` unless it
+is likely to change behavior (owner direction 2026-11-22). The test is a
+same-file proxy. It holds when either of these is true:
+
+- the file list from the `comm -12` command above, the files both the PR and
+  the new base commits changed, contains a non-test Go, SQL, Cypher,
+  migration, or queue/lease/claim file;
+- a conflict was resolved in one of those files (row 4b).
+
+When neither of those holds but both ranges changed non-test Go anywhere (a base
+change to a signature or type can break a caller the PR added in another file), run
+`cd go && go build ./... && go vet ./...` on the rebased tree instead of the
+floor. With none of these, the floor does not run: run the
+[row 4a checks](#row-4a-mechanical-conflict) that fit the touched files,
+`git diff --check`, and the focused proof the rebase can affect, then push. Other
+cross-file collisions surface in CI, which reads the merged tree. The note or
+comment says `make pre-push: not run`, with the command and the output that show
+no condition holds.
 
 **Order.** Row 4a and tier S have no note, no verdict file, and no receipt,
 and they do not wait for `make pre-push`: run their checks, post the comment,
 push. A green check on their own surface is the proof; "pushing before the
 floor exits would be pushing untested" is not a reason to wait on those lanes.
-The waiver note, the fixed-awaiting-push transfer note, and the scoped rebase
-verdict state the `make pre-push` exit, so the floor runs first: `make pre-push`
-on the rebased head, then write the note or verdict, capture (`--verdict <file>`),
-`ci-gates review-attest verify`, push. The file records the exit code and the
-head SHA the floor ran on. Never write it before the floor exits 0. A floor red that reproduces
+When the floor runs on a rebase, the waiver note, the fixed-awaiting-push
+transfer note, and the scoped rebase verdict state its exit, so it runs first:
+`make pre-push` on the rebased head, then write the note or verdict, capture
+(`--verdict <file>`), `ci-gates review-attest verify`, push. The file records
+the exit code and the head SHA the floor ran on. Never write it before the
+floor exits 0. When the floor does not run, write the note after the focused
+proof exits 0. A floor red that reproduces
 on the bare base AND passes on the CI OS for the touched surface is recorded, not
 fixed; name the issue. Before capture, re-read the PR title and body claims
 against the final diff, and rerun the proof the rebase can affect. The receipt
@@ -307,8 +335,11 @@ measured on the **cumulative** delta since the last clean verdict for the
 branch, so ten small commits cannot stack an unreviewed large change:
 
 1. A clean prior verdict for the branch exists; name it. No finding is open.
-2. `git diff --numstat <verdict-head>..HEAD` shows at most 2 files and at most
-   10 changed lines, added plus deleted.
+2. `git diff --numstat <verdict-head>..HEAD` shows at most 5 files and at most
+   60 changed lines, added plus deleted, and at most 20 net-new Markdown lines
+   (Markdown lines added minus Markdown lines deleted). The cap on new prose is
+   there because a lane that accepts unlimited documentation gets used to pad a
+   PR. Owner direction 2026-11-22; the limit was 2 files and 10 lines.
 3. Every file is Markdown, shell, JSON/YAML data, `_test.go`, `testdata/`, or
    a fixture. No non-test Go, SQL, Cypher, migration, or queue/lease/claim code.
 4. No file is gate, hook, or agent-rule logic. A path is gate or hook logic
@@ -319,9 +350,11 @@ branch, so ten small commits cannot stack an unreviewed large change:
    `specs/ci-gates.d/` (all of it, trigger additions included). The `rg` test
    cannot see agent-rule logic, so these paths are excluded by name:
    `AGENTS.md` (root and scoped), `.agents/skills/**`, `.claude/rules/**`,
-   `.claude/settings.json`, `.muse/hooks.json`, `.codex/**`,
-   `docs/internal/agent-*.md`, and `docs/internal/writing-for-agents.md`. A rule
-   edit there takes row 3's scoped review.
+   `.claude/settings.json`, `.muse/hooks.json`, `.codex/**`, `.claude/skills/**`,
+   `.cursor/**`, `.opencode/**`, `.muse/**`, `docs/internal/agent-*.md`,
+   `docs/internal/writing-for-agents.md`, `docs/public/reference/local-testing.md`,
+   `docs/public/reference/local-testing/**`, `CONTRIBUTING.md`, and
+   `DEVELOPING.md`. A rule edit there takes row 3's scoped review.
 5. A change to a test or check only adds files or cases, or regenerates a file
    with a named generator whose command you record in the PR comment. This holds
    for `_test.go`, `testdata/`, fixtures, golden files, and shell tests alike.
