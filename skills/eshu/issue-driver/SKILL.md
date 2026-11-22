@@ -75,16 +75,16 @@ liveness misjudgement.
    Use that skill's finding schema, proof tiers, and merge bar as the single
    source of review policy.
 4. Capture the clean review's inputs with `ci-gates review-attest capture`.
-   For a waiver note or a scoped rebase verdict, run `make pre-push` first and
+   For a waiver note or a scoped rebase verdict, run `make pre-push` first only
+   when the rebase triggers it (`code-review`, "The floor on a rebase"), and
    capture after it exits 0.
-   Run `make pre-push` before every push (except row 4a, tier S, or an owner push order; see Rebase
-   Waiver in `code-review`) — the required floor (changed-package
-   test/lint/build/vet, file cap, registry-selected static gates,
-   docs-contradiction). For queue/lease/claim code, schema DDL, hot-path
-   Cypher or graph writes, reducer projection/materialization, or a package
-   move, the orchestrator should also run one serialized `make pre-pr`
-   (`make pre-pr-full` for a move) before that push — recommended for that
-   risk class, not required otherwise. Keep the shared machine quiet for
+   Run `make pre-push` once per PR, on the push that opens it (never on row 4a,
+   tier S, or an owner push order; see Rebase Waiver in `code-review`) — the
+   fast floor (changed-package test/lint/build/vet, file cap,
+   registry-selected static gates, docs-contradiction). Later pushes run
+   focused proof only. `make pre-pr` is not part of promotion: run it for a
+   package move (`make pre-pr-full`), to reproduce a CI red, or when the owner
+   asks. Keep the shared machine quiet for
    either live lane: coordinate ownership across worktrees/clones and inspect
    the live-gate lock and running gate process; absence of a `make pre-pr`
    process alone does not prove the machine is free. A wall-time proof owns the
@@ -124,12 +124,13 @@ liveness misjudgement.
    stable check reads, cancelled gates, findings, and unavailable reviewers.
    Never request a GitHub Copilot review; handle any unrequested Copilot
    comment like any present reviewer's.
-   Every requested reviewer must have a disposition. If none produces a review
-   after retries, obtain the additional independent review specified there;
-   the author-side verdict cannot be relabelled as that replacement.
+   Every requested reviewer must have a disposition. A reviewer that does not
+   answer does not trigger another review: the independent review that ran
+   before the push and the green CI wave stand, and the PR says which reviewers
+   were unavailable (owner direction 2026-11-22).
 8. Merge only when that endpoint and act are authorized, checks are stably
    green, findings and threads are dispositioned, current base/head evidence
-   remains valid, and independent review requirements are met. Confirm local
+   remains valid, and the pre-push review is clean. Confirm local
    HEAD equals the PR head, execute the merge, and verify `MERGED` through the
    GitHub API. Existing session authorization applies without repeated consent.
    An authorized merge needs no arbiter review: the preliminary review and the
@@ -148,6 +149,22 @@ liveness misjudgement.
 For long-running `/goal` drives, load [sustained-drives.md](references/sustained-drives.md)
 for goal composition and bounded waiter/liveness mechanics. The skill does not
 create a goal or schedule future work by itself.
+
+## Before You File An Issue
+
+Filing is not deferring. The issue storm and the goal items that bubbled up
+late both came from treating a filed issue as finished work. Settle these first:
+
+1. A fix that fits the files this PR already changes goes into this PR: a doc
+   line, a test, a comment, a small cleanup. Do it now; do not file it.
+2. Search before you create: `gh issue list --state open --search "<key words>"`
+   and the open children of the epic. When one matches, comment on it with what
+   you found. Never open a second issue for the same problem.
+3. File only real work: it needs a design decision, its own measurement or
+   proof, access you do not have, or it spans more than one package owner. The
+   number of issues is not limited, but each issue is exactly one problem. Do
+   not bundle two problems into one issue, and do not split one problem across
+   several.
 
 ## Issues Created During A Goal
 
@@ -185,6 +202,13 @@ unavailable infrastructure may need separate work. Take the design decision to
 an arbiter model, not the owner. Create the follow-up issue inside the goal and
 link it to the originating issue and epic; the ledger then holds it to the goal.
 Do not expand the drive silently: say in the goal report what was added.
+A small defect goes into an open PR of this goal that already touches that
+file, within the small-change tier. Otherwise file one issue for it (the ledger
+holds it to the goal); do not park it on a list nothing checks. Open no PR for
+one or two Markdown files unless that is the whole deliverable or it repairs
+`main`. At the start of a goal, group the lanes by the files they touch and give
+each group one PR. These last two are guidance, not a check: nothing verifies
+them, so the report says what was grouped.
 A follow-up issue created under this section follows
 [Issues Created During A Goal](#issues-created-during-a-goal) in full.
 
@@ -204,11 +228,10 @@ is complete only when:
   issue, owner agreement quoted in the PR, and its severity-table category per
   the merge bar. The verdict includes applicable proof and probes, all five
   passes, cross-pass comparison, generated/docs/private-data scans, and verification.
-- Required independent replacement reviews appear as PR comments when used,
-  identifying their model, base/head, and unavailable reviewers.
+- The PR says which requested reviewers were unavailable, if any.
 - The promotion record includes clean preliminary review counts, reviewed
   inputs, exact preflight command/result, post-preflight head and clean status,
-  and a verified receipt or replacement full review. GitHub CI evidence uses
+  and a verified receipt, or a row 4a or tier S record. GitHub CI evidence uses
   two stable full-check reads tied to the current head, as monitoring specifies.
 - Before closing an issue as fixed, the applicable full verification suite from
   `docs/public/reference/local-testing.md` has run with exact tool versions and

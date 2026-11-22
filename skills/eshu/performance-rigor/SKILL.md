@@ -99,10 +99,10 @@ level of improvement and name the next measured bottleneck.
 
 Run focused reproduction and required integration/golden and performance-evidence
 gates. Follow [code-review](../code-review/SKILL.md) and root rules for
-review, attestation, `make pre-push` (the required fast floor), and push; this
-skill's own risk classes — queue/lease, schema DDL, hot-path Cypher or graph
-writes, and reducer projection/materialization — warrant the deeper, optional
-`make pre-pr`/`make pre-pr-full` preflight first. A verified unchanged receipt
+review, attestation, `make pre-push` (the required fast floor), and push.
+`make pre-pr` is not part of promotion. This skill's risk classes (queue/lease,
+schema DDL, hot-path Cypher or graph writes, reducer projection/materialization)
+are held by the Evidence Rules in the root canon, not by `make pre-pr`. A verified unchanged receipt
 avoids a duplicate semantic review. Changed inputs invalidate that receipt.
 Capture live CI/review truth and apply the declared retention mode at closeout.
 

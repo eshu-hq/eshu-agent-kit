@@ -99,14 +99,13 @@ proof, then broader checks when callers or shared contracts are affected. Use
 [local testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md) as the gate
 source of truth.
 
-`make pre-push` is the fast local floor before every push (except row 4a, tier S, or an owner push order):
-changed-package
+`make pre-push` is the fast local floor, run once per PR on the push that opens
+it (never on row 4a, tier S, or an owner push order): changed-package
 test, lint, build, and vet, the file-count cap, the registry-selected static
 gates (slow ones deferred to CI with a printed reason), and
-docs-contradiction. `make pre-pr` and `make pre-pr-full` are recommended, not
-required, for higher-risk changes — queue, lease, or claim code; schema DDL;
-hot-path Cypher or graph writes; reducer projection or materialization; and
-package moves (use `pre-pr-full` for moves). CI decides the merge (`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`): a
+docs-contradiction. Later pushes run focused proof only. `make pre-pr` and
+`make pre-pr-full` are not part of promotion: run them for a package move (use
+`pre-pr-full`), to reproduce a CI red, or when the owner asks. CI decides the merge (`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`): a
 red Ifá/Odù, contract, performance, or end-to-end gate is a finding; when CI
 fails, reproduce only that failing gate locally.
 

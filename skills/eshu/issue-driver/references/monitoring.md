@@ -31,9 +31,10 @@ Keep outward-facing comments and review requests within user authorization.
   force-push, so both of its "stable" reads can honestly describe a head that no
   longer exists. A read whose SHA is not the current head is stale — discard it.
   Before merging, confirm local `HEAD` equals the PR's `headRefOid`.
-  Only the orchestrator runs `make pre-push` before every push (except row 4a, tier S, or an owner push order) and, for a
-  risky change only, the late `make pre-pr`/`make pre-pr-full`; dispatched
-  executors run focused proof only (see
+  Only the orchestrator runs `make pre-push`, once per PR on the push that opens
+  it (never on row 4a, tier S, or an owner push order), and `make pre-pr` or
+  `make pre-pr-full` only for a package move, a CI red it must reproduce, or
+  when the owner asks; dispatched executors run focused proof only (see
   `[fill-in: orchestration, PR, and CI discipline — this repo's discipline doc]`).
 - **Cancelled is not failed, but a cancelled BLOCKING gate is not self-healing.**
   A cancelled job does not re-run itself — only a new push or an explicit rerun
@@ -44,7 +45,7 @@ Keep outward-facing comments and review requests within user authorization.
   concluding, since a hung setup step — a package install stalling until the
   runner kills it — presents identically to a real failure.
 - **Keep the machine quiet when running a live lane (`make pre-pr`/
-  `make pre-pr-full`, now reserved for risky changes).** They bind fixed host
+  `make pre-pr-full`, now rare).** They bind fixed host
   ports and saturate CPU, so a build, a second gate, or another worktree's
   live-lane run alongside produces a RED that is starvation, not a defect. One
   session lost a 936s run this way and drew two wrong conclusions from it
@@ -73,69 +74,15 @@ Keep outward-facing comments and review requests within user authorization.
   owner and anyone from the community who chooses to review. If Copilot (or
   any unrequested bot) comments anyway, handle that comment like any other
   present reviewer's — read it, disposition it, resolve when fixed.
-- **If no external reviewer produces a review, dispatch a replacement.**
-  A quota message is NOT a review and NOT a retryable failure — re-requesting it
+- **A reviewer that does not answer is not a reason for another review.** A
+  quota message is NOT a review and NOT a retryable failure — re-requesting it
   only burns polls. Recognise the shape rather than the exact wording, e.g.
-  `chatgpt-codex-connector[bot]` posts "reached your Codex usage limits".
-  More than one can be down at the same time,
-  and when all of them are, a PR silently drops to zero external review while
-  every other gate stays green.
-
-  "Every external reviewer" means every reviewer actually requested on this PR,
-  not every reviewer available to the repository. Verify it: for each
-  requested reviewer, the fallback triggers only when it has either posted a
-  quota/unavailable message or failed to produce a review. Cursor and Claude
-  emit no quota shape, so if either was requested and has not answered, chase
-  that review first — the fallback is for when no external reviewer can answer,
-  not for when the two GitHub-App bots happen to be the only ones asked.
-
-  The trigger is the set of reviewers that actually produced a review being
-  empty after retries — whatever the reason, quota or silence. When it is, the
-  coverage MUST be replaced, not waived: dispatch a subagent in a separate
-  context to run the full `code-review` against the final diff. Ask it to
-  evaluate requirements against evidence, covering proof tier, all required passes
-  including hostile read, cross-pass contradiction check,
-  severity/confidence/disposition per finding, and the generated-artifact,
-  docs, private-data and evidence scans.
-
-  This replacement is **additional to the author-side review gate, never the same
-  verdict relabelled**. Re-pointing at the author-side verdict would leave the PR with the
-  one review this clause exists to prevent.
-
-  The replacement verdict MUST be posted as a PR comment with required verdict
-  evidence, reviewing model, and the base/head SHAs it covers — so the independence
-  claim lands in GitHub truth rather than in a PR body the dispatching agent
-  wrote about itself.
-
-  The replacement must be **independent in a way the dispatching agent cannot
-  self-certify**. Two requirements are hard, because both are checkable in any
-  harness: it MUST run in a fresh context that did not write the diff, and its
-  verdict MUST be posted as a PR comment naming the reviewing model.
-
-  Prefer a **different model lineage than the author's wherever the harness
-  offers one** — a different lineage catches what a single family rationalizes
-  away (`[fill-in: orchestration model — this repo's agent orchestration doc]`
-  reaches for a cross-family model as an independent verifier for that reason).
-  This is a preference, not a MUST, because some harnesses expose only one
-  lineage: Claude Code's Agent tool offers Anthropic models only, so a
-  Claude-authored diff cannot get a cross-lineage reviewer there. When the
-  harness cannot offer one, say so in the PR comment — "this review shares the
-  author's lineage" — rather than leaving the reader to assume independence the
-  setup could not provide. An unsatisfiable MUST would simply be skipped, and
-  the clause skipped would be the one replacing external review.
-
-  Self-review is the last resort, not a fallback of convenience. Delegation is
-  unavailable when the harness lacks the capability or active instructions
-  prohibit its use. Taking that branch requires stating the specific limitation
-  AND owner confirmation of that exception (including an existing explicit
-  grant for that exception) before proceeding — an agent that wrote the
-  diff, reviewed it itself, and self-certified that delegation was unavailable
-  has produced no independent review at all.
-
-  State in the PR which reviewers were unavailable and what replaced them.
-  Merging with "the bots were out of credit" and nothing in their place is a
-  rule violation, not a shortcut: the merge bar is a reviewed diff, and where
-  that review comes from is an implementation detail.
+  `chatgpt-codex-connector[bot]` posts "reached your Codex usage limits". When
+  no hosted reviewer answers, the independent review that ran before the push
+  and the green CI wave on the pushed head stand as the review of record. Do
+  not dispatch a second full review of a PR that already exists (owner
+  direction 2026-11-22). Say in the PR which reviewers were unavailable, and
+  never claim a review that did not happen.
 - Check GHA on every PR. Enumerate **every** check's state, not just the green
   rollup; on red, root-cause (no symptom patch), fix, rerun. While checks are
   pending, poll the PR about every 60 seconds for merge conflicts and new review

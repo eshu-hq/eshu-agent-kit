@@ -53,9 +53,10 @@ turn after context compaction.
 
 6. **Verify promotion state.** Any rebase or amend invalidates the review
    receipt. Before the next push, use the current `code-review` promotion
-   sequence and run `make pre-push` (the required floor, except row 4a, tier S, or an owner push order; add `make pre-pr`/
-   `make pre-pr-full` only for a risky change) — an inherited summary cannot
-   replace either. If HEAD did not change, inspect the actual receipt rather
+   sequence. Run `make pre-push` (the floor) only if the PR has not had one yet, or
+   a rebase triggers it (`code-review`, "The floor on a rebase"). Run
+   `make pre-pr`/`make pre-pr-full` only for a package move or a CI red to
+   reproduce. An inherited summary cannot replace a floor the PR never had. If HEAD did not change, inspect the actual receipt rather
    than assuming it is absent or valid.
 
 7. **Verify each acceptance criterion against HEAD before implementing

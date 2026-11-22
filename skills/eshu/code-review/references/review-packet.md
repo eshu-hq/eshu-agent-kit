@@ -18,7 +18,7 @@ Review target:
 - no PR exists yet: yes|no
 - review phase: preliminary|final
 - preliminary review head and P0/P1/P2-blocking/P2-deferred/P3 counts:
-- pre-push command and result (plus pre-pr/-full if run for a risky change):
+- pre-push command and result (plus pre-pr/-full if run: package move, CI red, or owner ask):
 - post-preflight head and clean-status result:
 
 Intent:
