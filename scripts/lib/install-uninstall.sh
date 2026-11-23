@@ -174,6 +174,7 @@ uninstall_repo() {
 		uninstall_managed_tree "$target/.codex/agents" "$force"
 		uninstall_managed_tree "$target/.opencode/agent" "$force"
 		uninstall_managed_tree "$target/.cursor/agents" "$force"
+		uninstall_managed_tree "$target/.agy/agents" "$force"
 		uninstall_identical_copy "$target/.agents/roles.json" "$KIT_DIR/agents/roles.json" "points outside the kit; left in place"
 		uninstall_identical_copy "$target/scripts/agent-roles.py" "$KIT_DIR/agents/agent-roles.py" "points outside the kit; left in place"
 		;;
@@ -218,6 +219,7 @@ uninstall_repo() {
 	uninstall_rmdir "$target/.codex/hooks"
 	uninstall_rmdir "$target/.opencode/agent"
 	uninstall_rmdir "$target/.cursor/agents"
+	uninstall_rmdir "$target/.agy/agents"
 	uninstall_rmdir "$target/.muse/hooks/lib"
 	uninstall_rmdir "$target/.muse/hooks"
 	uninstall_rmdir "$target/.muse"
@@ -225,6 +227,7 @@ uninstall_repo() {
 	uninstall_rmdir "$target/.codex"
 	uninstall_rmdir "$target/.opencode"
 	uninstall_rmdir "$target/.cursor"
+	uninstall_rmdir "$target/.agy"
 	uninstall_rmdir "$target/scripts"
 }
 

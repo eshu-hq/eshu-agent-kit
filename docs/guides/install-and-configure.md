@@ -6,7 +6,7 @@
 
 ```sh
 ./install.sh --global                    # this machine: skills + agents, all harnesses
-./install.sh --global claude codex       # or pick: claude, codex, opencode, muse, cursor, all
+./install.sh --global claude codex       # or pick: claude, codex, opencode, muse, cursor, agy, all
 ./install.sh --agents --global opencode  # agents only, for the picked harnesses
 ./install.sh --repo /path/to/repo        # skills into one repo + writes its version pin
 ./install.sh --repo /path/to/repo --aliases manifest.tsv  # harness skill names differ from kit dirs
@@ -91,6 +91,18 @@ Straight from [install.sh](../../install.sh):
   Resolve those paths by hand if you want the kit version.
 - Repo mode never prompts. `--repo` also writes the kit's
   [VERSION](../../VERSION) into the target repo as `.agent-kit-version`.
+- For Antigravity (`agy`), global installs link skills into
+  `~/.gemini/config/skills` and write subagents to
+  `~/.gemini/config/agents` (shared across Antigravity CLI, App, and IDE).
+  Repo mode links skills into `.agents/skills` (which Antigravity reads
+  natively) and `--agents --repo` links `agy` subagents into `.agy/agents`
+  while keeping `.agents/agents` for Muse copies. Because Antigravity also
+  scans workspace `.agents/agents/` ahead of `~/.gemini/config/agents/`, a
+  repo with Muse agent copies in `.agents/agents/` shadows global `agy`
+  agents of the same name until those workspace files are removed or
+  pointed at `agy` definitions. For headless runs, `agents/agent-roles.py
+  agy-exec ROLE TASK` invokes `agy -p` with the tier's `cli_model`,
+  `--sandbox`, and `--mode plan` for read-only roles.
 
 ## The bits you configure
 

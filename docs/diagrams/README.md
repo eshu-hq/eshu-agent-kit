@@ -12,7 +12,7 @@ you run, at the version your repo pins.
 
 ```mermaid
 flowchart LR
-    KIT["eshu-agent-kit (this repo)<br/>skills · roles · hooks · rules"] -->|"install.sh or plugin,<br/>at a pinned version"| H["Agent harness on a machine<br/>Claude Code · Codex · OpenCode · Muse · Cursor"]
+    KIT["eshu-agent-kit (this repo)<br/>skills · roles · hooks · rules"] -->|"install.sh or plugin,<br/>at a pinned version"| H["Agent harness on a machine<br/>Claude Code · Codex · OpenCode · Muse · Cursor · Antigravity"]
     H --> A["Agent working in an<br/>eshu-hq product repo"]
     R["Product repo overlay:<br/>.agent-kit-version + AGENTS.md pointers"] -.->|"says which kit<br/>version to install"| H
 ```
@@ -30,7 +30,7 @@ hooks allow or block actions as they happen.
 
 ```mermaid
 flowchart LR
-    U["You give the agent<br/>a task"] --> H["Harness<br/>Claude Code, Codex, OpenCode, Muse, or Cursor"]
+    U["You give the agent<br/>a task"] --> H["Harness<br/>Claude Code, Codex, OpenCode, Muse, Cursor, or Antigravity"]
     H --> A["Agent loads the kit skill<br/>that matches the task"]
     A --> T{"Task needs Eshu data?"}
     T -->|"yes"| M["Eshu MCP / API tools,<br/>used per mcp-call-rigor"]

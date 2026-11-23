@@ -25,7 +25,7 @@ Parts (pick any; repeatable; order does not matter):
 Scopes:
   --repo DIR           install into one repo checkout (stamps the kit pin)
   --global [HARNESS]   install machine-wide; one or more of
-                       claude codex opencode muse cursor, or all (default)
+                       claude codex opencode muse cursor agy, or all (default)
 
 With no PARTS the installer keeps its historical defaults: bare --repo
 installs skills, bare --global installs skills and agents. --rules only

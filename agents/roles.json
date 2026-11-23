@@ -24,6 +24,12 @@
       "workhorse": {"model": "deepseek/deepseek-v4-pro#high"},
       "deep": {"model": "deepseek/deepseek-v4-pro#max"},
       "arbiter": {"model": "minimax-coding-plan/MiniMax-M3.1-Flash"}
+    },
+    "agy": {
+      "fast": {"model": "flash", "cli_model": "gemini-3.8-flash-high"},
+      "workhorse": {"model": "inherit", "cli_model": "gemini-4-neon-medium"},
+      "deep": {"model": "pro", "cli_model": "gemini-4-neon-high"},
+      "arbiter": {"model": "pro", "cli_model": "gemini-4-neon-xhigh"}
     }
   },
   "roles": {

@@ -4,7 +4,7 @@
 #   ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv]
 #   ./install.sh --agents --hooks --repo /path/to/repo   (one call, several parts)
 #   ./install.sh --pick [--repo DIR | --global [harness...]]   (choose parts interactively)
-# Harness names for the global modes: claude, codex, opencode, muse, cursor, or all.
+# Harness names for the global modes: claude, codex, opencode, muse, cursor, agy, or all.
 # No harness name means all. The global modes ask a model ID per agent; the
 # default is the kit value from agents/roles.json, so plain Enter keeps it.
 # Piped or empty stdin also keeps every default. Repo modes never prompt.
@@ -14,7 +14,7 @@ set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:-}"
-HARNESSES=(claude codex opencode muse cursor)
+HARNESSES=(claude codex opencode muse cursor agy)
 selected=()
 
 link_dir() {
@@ -50,9 +50,9 @@ resolve_harnesses() {
 	selected=()
 	for h in "$@"; do
 		case "$h" in
-		all | claude | codex | opencode | muse | cursor) : ;;
+		all | claude | codex | opencode | muse | cursor | agy) : ;;
 		*)
-			printf 'unknown harness: %s (choose: claude, codex, opencode, muse, cursor, all)\n' "$h" >&2
+			printf 'unknown harness: %s (choose: claude, codex, opencode, muse, cursor, agy, all)\n' "$h" >&2
 			return 1
 			;;
 		esac
@@ -80,6 +80,7 @@ skills_dir_for() {
 	opencode) printf '%s\n' "$HOME/.config/opencode/skill" ;;
 	muse) printf '%s\n' "$HOME/.agents/skills" ;;
 	cursor) printf '%s\n' "$HOME/.cursor/skills" ;;
+	agy) printf '%s\n' "$HOME/.gemini/config/skills" ;;
 	esac
 }
 
@@ -90,6 +91,7 @@ agents_src_for() {
 	opencode) printf '%s\n' "$KIT_DIR/.opencode/agent/*.md" ;;
 	muse) printf '%s\n' "$KIT_DIR/agents/*.md" ;;
 	cursor) printf '%s\n' "$KIT_DIR/.cursor/agents/*.md" ;;
+	agy) printf '%s\n' "$KIT_DIR/.agy/agents/*.md" ;;
 	esac
 }
 
@@ -100,6 +102,7 @@ agents_dir_for() {
 	opencode) printf '%s\n' "$HOME/.config/opencode/agents" ;;
 	muse) printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/muse/agents" ;;
 	cursor) printf '%s\n' "$HOME/.cursor/agents" ;;
+	agy) printf '%s\n' "$HOME/.gemini/config/agents" ;;
 	esac
 }
 
@@ -199,11 +202,13 @@ install_agents_repo() {
 	link_files "$KIT_DIR/.codex/agents/*.toml" "$target/.codex/agents"
 	link_files "$KIT_DIR/.opencode/agent/*.md" "$target/.opencode/agent"
 	link_files "$KIT_DIR/.cursor/agents/*.md" "$target/.cursor/agents"
+	link_files "$KIT_DIR/.agy/agents/*.md" "$target/.agy/agents"
 	prune_dir "$target/.agents/agents" "$KIT_DIR/agents/*.md"
 	prune_dir "$target/.claude/agents" "$KIT_DIR/.claude/agents/*.md"
 	prune_dir "$target/.codex/agents" "$KIT_DIR/.codex/agents/*.toml"
 	prune_dir "$target/.opencode/agent" "$KIT_DIR/.opencode/agent/*.md"
 	prune_dir "$target/.cursor/agents" "$KIT_DIR/.cursor/agents/*.md"
+	prune_dir "$target/.agy/agents" "$KIT_DIR/.agy/agents/*.md"
 	# The launcher belongs in the consuming repo: scripts/goal-role-router.py
 	# tells the coordinator to run `scripts/agent-roles.py muse-exec ROLE
 	# TASK` and `codex-exec ROLE TASK`, so a repo that does not have it
@@ -371,7 +376,7 @@ case "${1:-}" in
 			esac
 			;;
 		*)
-			echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude|opencode)) | ./install.sh --rules --repo /path/to/repo | ./install.sh --uninstall (--repo | --agents --repo | --hooks --repo | --rules --repo /path/to/repo | --global [harness...] | --agents --global [harness...] | --hooks --global (muse|claude|opencode)) [--force]  (harnesses: claude, codex, opencode, muse, cursor, all)" >&2
+			echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude|opencode)) | ./install.sh --rules --repo /path/to/repo | ./install.sh --uninstall (--repo | --agents --repo | --hooks --repo | --rules --repo /path/to/repo | --global [harness...] | --agents --global [harness...] | --hooks --global (muse|claude|opencode)) [--force]  (harnesses: claude, codex, opencode, muse, cursor, agy, all)" >&2
 			echo "run ./install.sh --help for the full reference" >&2
 			exit 1
 			;;
