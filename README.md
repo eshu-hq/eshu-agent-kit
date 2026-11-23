@@ -14,7 +14,7 @@ instructions and model.
 
 ```mermaid
 flowchart LR
-    KIT["eshu-agent-kit (this repo)<br/>skills · roles · hooks · rules"] -->|"install.sh or plugin,<br/>at a pinned version"| H["Agent harness on a machine<br/>Claude Code · Codex · OpenCode · Muse · Cursor"]
+    KIT["eshu-agent-kit (this repo)<br/>skills · roles · hooks · rules"] -->|"install.sh or plugin,<br/>at a pinned version"| H["Agent harness on a machine<br/>Claude Code · Codex · OpenCode · Muse · Cursor · Antigravity"]
     H --> A["Agent working in an<br/>eshu-hq product repo"]
     R["Product repo overlay:<br/>.agent-kit-version + AGENTS.md pointers"] -.->|"says which kit<br/>version to install"| H
 ```

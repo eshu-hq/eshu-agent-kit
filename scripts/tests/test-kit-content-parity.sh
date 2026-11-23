@@ -119,7 +119,8 @@ for probe in \
 	"${REVIEW}|comm -12 <(git diff --name-only <new-base>..HEAD" \
 	"${REVIEW}|fixed-awaiting-push transfer above, never as a zero count" \
 	"${REVIEW}|never as a zero count" \
-	"${REVIEW}|The waiver note, the fixed-awaiting-push transfer note, and the scoped rebase" \
+	"${REVIEW}|When the floor runs on a rebase, the waiver note, the fixed-awaiting-push" \
+	"${REVIEW}|transfer note, and the scoped rebase verdict state its exit, so it runs first:" \
 	"${REVIEW}|A waiver or transfer receipt proves only that the note and the inputs did" \
 	"${REVIEW}|inherited-breakage" \
 	"${MERGEBAR}|the fixed-awaiting-push" \

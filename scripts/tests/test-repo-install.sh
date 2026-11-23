@@ -64,6 +64,32 @@ if [ -f "${repo}/.agents/agents/scan-eshu.md" ] &&
 else
 	no "--agents --repo copies Muse project agents as regular files"
 fi
+if [ -L "${repo}/.agy/agents/review-eshu.md" ] &&
+	[ "$(readlink "${repo}/.agy/agents/review-eshu.md")" = "${kit}/.agy/agents/review-eshu.md" ]; then
+	ok "--agents --repo links agy subagent definitions"
+else
+	no "--agents --repo links agy subagent definitions"
+fi
+if python3 "${kit}/agents/agent-roles.py" check >/dev/null 2>&1; then
+	ok "agent-roles.py check passes on committed bindings"
+else
+	no "agent-roles.py check passes on committed bindings"
+fi
+agy_read="$(python3 "${kit}/agents/agent-roles.py" agy-exec review-eshu "check diff" --dry-run)"
+agy_write="$(python3 "${kit}/agents/agent-roles.py" agy-exec develop-eshu "fix bug" --dry-run)"
+if python3 -c '
+import json, sys
+read_out = json.loads(sys.argv[1])
+write_out = json.loads(sys.argv[2])
+assert read_out["argv"] == ["agy", "--model", "gemini-4-neon-medium", "--sandbox", "--mode", "plan", "-p"], read_out
+assert write_out["argv"] == ["agy", "--model", "gemini-4-neon-medium", "--sandbox", "-p"], write_out
+assert "Act as the review-eshu role." in read_out["prompt"]
+assert "Act as the develop-eshu role." in write_out["prompt"]
+' "${agy_read}" "${agy_write}"; then
+	ok "agent-roles.py agy-exec dry-run builds expected read/write argv"
+else
+	no "agent-roles.py agy-exec dry-run builds expected read/write argv"
+fi
 "${kit}/install.sh" --hooks --repo "${repo}" >/dev/null 2>&1
 [ -e "${repo}/.claude/hooks/guard-live-gate.sh" ] &&
 	ok "--hooks --repo links hook scripts" || no "--hooks --repo links hook scripts"

@@ -24,14 +24,15 @@ portable — check the registry.
 
 ## Harness support
 
-[install.sh](../../install.sh) supports five harnesses by name:
-`claude`, `codex`, `opencode`, `muse`, and `cursor`, plus `all`. No
-name means all of them.
+[install.sh](../../install.sh) supports six harnesses by name:
+`claude`, `codex`, `opencode`, `muse`, `cursor`, and `agy`, plus `all`.
+No name means all of them.
 
 | Harness | Skills | Roles | Hooks | Rules |
 | --- | --- | --- | --- | --- |
 | Claude Code | plugin or installer | installer | plugin registers all 8 | yes (`--rules`) |
 | Codex, OpenCode, Muse, Cursor | installer | installer | separate install + explicit registration | no |
+| Antigravity (`agy`) | installer (`~/.gemini/config/skills`, repo `.agents/skills`) | installer (`~/.gemini/config/agents`, repo `.agy/agents`) + `agy-exec` | none yet | no |
 
 Installing the plugin won't break an unrelated repo, because every
 hook fails open outside its scope. See

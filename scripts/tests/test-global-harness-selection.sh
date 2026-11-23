@@ -21,6 +21,8 @@ HOME="$home1" "$kit/install.sh" --global </dev/null >/dev/null
 [ -e "$home1/.config/opencode/agents/develop-eshu.md" ]
 [ -e "$home1/.config/muse/agents/scan-eshu.md" ]
 [ -e "$home1/.cursor/agents/review-eshu.md" ]
+[ -e "$home1/.gemini/config/skills" ]
+[ -e "$home1/.gemini/config/agents/review-eshu.md" ]
 
 # 2. One harness name writes only its directories.
 home2="$work/home2"
@@ -31,6 +33,8 @@ HOME="$home2" "$kit/install.sh" --global claude </dev/null >/dev/null
 [ ! -e "$home2/.config/opencode/agents" ]
 [ ! -e "$home2/.config/muse/agents" ]
 [ ! -e "$home2/.cursor/agents" ]
+[ ! -e "$home2/.gemini/config/skills" ]
+[ ! -e "$home2/.gemini/config/agents" ]
 
 # 3. An unknown harness fails and prints the pick list.
 if out="$(HOME="$work/home3" "$kit/install.sh" --global nope 2>&1)"; then
@@ -38,7 +42,7 @@ if out="$(HOME="$work/home3" "$kit/install.sh" --global nope 2>&1)"; then
 	exit 1
 fi
 case "$out" in
-*claude*codex*opencode*muse*cursor*) : ;;
+*claude*codex*opencode*muse*cursor*agy*) : ;;
 *)
 	printf 'not ok - pick list missing: %s\n' "$out" >&2
 	exit 1
@@ -133,5 +137,22 @@ HOME="$home9" "$kit/install.sh" --agents --global muse </dev/null >/dev/null 2>"
 grep -q '.agents/agents' "$err9"
 [ "$(cat "$home9/.agents/agents/scan-eshu.md")" = "# OLD-CHOICE" ]
 [ -e "$home9/.config/muse/agents/scan-eshu.md" ]
+
+# 11. Selecting agy installs skills and agents under ~/.gemini/config only,
+# keeps tier defaults on EOF, and rewrites the model line on piped input.
+home10="$work/home10"
+HOME="$home10" "$kit/install.sh" --global agy </dev/null >/dev/null
+[ -L "$home10/.gemini/config/skills/code-review" ]
+[ -f "$home10/.gemini/config/agents/scan-eshu.md" ]
+grep -q '^model: flash$' "$home10/.gemini/config/agents/scan-eshu.md"
+grep -q '^model: inherit$' "$home10/.gemini/config/agents/review-eshu.md"
+grep -q '^model: pro$' "$home10/.gemini/config/agents/arbiter-eshu.md"
+[ ! -e "$home10/.claude/skills" ]
+[ ! -e "$home10/.config/muse/agents" ]
+agy_answers=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do agy_answers="${agy_answers}pro\n"; done
+# shellcheck disable=SC2059  # \n separators are the point here.
+printf "$agy_answers" | HOME="$home10" "$kit/install.sh" --agents --global agy >/dev/null
+grep -q '^model: pro$' "$home10/.gemini/config/agents/scan-eshu.md"
 
 echo 'global harness selection passed'

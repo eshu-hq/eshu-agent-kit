@@ -50,6 +50,8 @@ err1="$(cat "${work}/err1")"
 	ok "repo uninstall removes skill links" || no "repo uninstall removes skill links"
 [ ! -e "${repo}/.agents/agents/develop-eshu.md" ] &&
 	ok "repo uninstall removes identical agent copies" || no "repo uninstall removes identical agent copies"
+[ ! -L "${repo}/.agy/agents/review-eshu.md" ] && [ ! -e "${repo}/.agy" ] &&
+	ok "repo uninstall removes agy agent links and empty dir" || no "repo uninstall removes agy agent links and empty dir"
 [ ! -L "${repo}/.agents/roles.json" ] &&
 	ok "repo uninstall removes the role manifest link" || no "repo uninstall removes the role manifest link"
 [ ! -L "${repo}/scripts/agent-roles.py" ] &&
@@ -165,7 +167,8 @@ part="${work}/part"
 # model choices and user files, and never edits the opencode config.
 h1="${work}/h1"
 HOME="${h1}" "${kit}/install.sh" --global muse opencode </dev/null >/dev/null 2>&1
-sed -i 's/^model:.*/model: custom-model/' "${h1}/.config/muse/agents/develop-eshu.md"
+sed -i.bak 's/^model:.*/model: custom-model/' "${h1}/.config/muse/agents/develop-eshu.md"
+rm -f "${h1}/.config/muse/agents/develop-eshu.md.bak"
 printf '# keep\n' >"${h1}/.config/muse/agents/keep.md"
 mkdir -p "${h1}/.agents/agents"
 printf '# prior choice\n' >"${h1}/.agents/agents/scan-eshu.md"
@@ -297,6 +300,32 @@ ctree7b="${h7b}/.claude/agent-kit-hooks"
 out7b="$(HOME="${h7b}" "${kit}/install.sh" --uninstall --global claude 2>&1)"
 [ -L "${ctree7b}/.claude/hooks/guard-live-gate.sh" ] && rg -q 'keeping .*--uninstall --hooks --global claude' <<<"${out7b}" &&
 	ok "bare global uninstall keeps the claude tree with its undo" || no "bare global uninstall keeps the claude tree with its undo"
+
+# 8. Global agy uninstall removes skill links and default agent files,
+# keeps model choices until --force, and leaves unmarked files alone.
+h8="${work}/h8"
+HOME="${h8}" "${kit}/install.sh" --global agy </dev/null >/dev/null 2>&1
+awk 'sub(/^model: .*/, "model: pro") || 1' "${h8}/.gemini/config/agents/develop-eshu.md" >"${work}/dev-agy.md"
+mv "${work}/dev-agy.md" "${h8}/.gemini/config/agents/develop-eshu.md"
+printf '# keep\n' >"${h8}/.gemini/config/agents/keep.md"
+if HOME="${h8}" "${kit}/install.sh" --uninstall --global agy >/dev/null 2>"${work}/err8"; then
+	ok "global agy uninstall exits 0"
+else
+	no "global agy uninstall exits 0"
+fi
+[ ! -L "${h8}/.gemini/config/skills/code-review" ] &&
+	ok "global agy uninstall removes skill links" || no "global agy uninstall removes skill links"
+[ ! -e "${h8}/.gemini/config/agents/scan-eshu.md" ] &&
+	ok "global agy uninstall removes default agent files" || no "global agy uninstall removes default agent files"
+rg -q '^model: pro$' "${h8}/.gemini/config/agents/develop-eshu.md" &&
+	ok "global agy uninstall keeps model choices" || no "global agy uninstall keeps model choices"
+[ "$(cat "${h8}/.gemini/config/agents/keep.md")" = "# keep" ] &&
+	ok "unmarked global agy agent survives uninstall" || no "unmarked global agy agent survives uninstall"
+HOME="${h8}" "${kit}/install.sh" --uninstall --global agy --force >/dev/null 2>&1 || no "forced global agy uninstall exits 0"
+[ ! -e "${h8}/.gemini/config/agents/develop-eshu.md" ] &&
+	ok "--force removes agy model-choice agent files" || no "--force removes agy model-choice agent files"
+[ "$(cat "${h8}/.gemini/config/agents/keep.md")" = "# keep" ] &&
+	ok "--force keeps unmarked global agy agent" || no "--force keeps unmarked global agy agent"
 
 printf '\ninstall-uninstall mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
