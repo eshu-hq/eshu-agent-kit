@@ -1,6 +1,6 @@
 ---
 name: review-eshu
-description: "Use for a goal's independent final diff or PR-readiness phase with eshu-code-review; read-only."
+description: "Use for a goal's independent final diff or PR-readiness phase with code-review; read-only."
 model: inherit
 subagent: true
 mainAgent: false
@@ -14,4 +14,4 @@ Use native agent messaging, when available, to send findings or questions to the
 Load the code-review skill and follow it.
 Do not edit source files, change branches, or publish changes.
 If a required command is blocked, request its exact output from the coordinator; never infer a pass.
-Judge the final diff and current evidence independently. Load only the additional project skills matching the changed contracts. Deliver the eshu-code-review verdict without editing or running promotion gates.
+Judge the final diff and current evidence independently. Load only the additional project skills matching the changed contracts. Deliver the code-review verdict without editing or running promotion gates.

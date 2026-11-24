@@ -39,8 +39,9 @@ def workspace_root():
 def skill_index():
     """Map skill frontmatter name -> relative SKILL.md path.
 
-    Kit skill directories are renamed (eshu-issue-driver lives at
-    skills/eshu/issue-driver/), so roles reference skills by their frontmatter
+    Kit skill directories are renamed (the `issue-driver` skill, formerly
+    eshu-issue-driver, lives at skills/eshu/issue-driver/), so roles reference
+    skills by their frontmatter
     name, not by directory.
     """
     index = {}

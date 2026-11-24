@@ -13,7 +13,7 @@ idempotent and shared across worktrees.
 
 Never `--no-verify` a commit or a push. Commit-stage gates are fast. Before
 every push (except row 4a, tier S, or an owner push order; see Rebase Waiver in
-`eshu-code-review`), run `make pre-push` (`scripts/dev/pre-push.sh`): the fast local
+`code-review`), run `make pre-push` (`scripts/dev/pre-push.sh`): the fast local
 floor of changed-package `go test`, the 500-line file cap, changed-package
 gofumpt/lint/build/vet, the allowlisted fast registry gates
 (`local.pre_push: floor`, which includes changed-package gosec, measurement

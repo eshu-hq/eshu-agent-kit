@@ -2,7 +2,7 @@
 
 Detail for the timing-proof rules that the
 [Agent Engineering Guide](agent-guide.md#live-gate-serialization-and-contention)
-and the `eshu-performance-rigor` skill point to. Use it when a claim depends on
+and the `performance-rigor` skill point to. Use it when a claim depends on
 wall time, a ratio of wall times, or a test harness that creates and drops
 databases.
 

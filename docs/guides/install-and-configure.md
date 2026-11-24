@@ -53,7 +53,8 @@ are left untouched, with the manual undo printed instead.
 ## Skill name aliases
 
 Some repos call their skills by different names than the kit directories
-(`eshu-code-review` for the kit's `code-review`). A manifest maps each
+(the kit's `code-review`, visible as `eshu-code-review` in `.claude/skills`
+and `.codex/skills`). A manifest maps each
 harness-visible name to its kit source, one `alias<TAB>source` row per
 line; the Eshu manifest at
 [templates/repo-overlay/eshu-aliases.tsv](../../templates/repo-overlay/eshu-aliases.tsv)
