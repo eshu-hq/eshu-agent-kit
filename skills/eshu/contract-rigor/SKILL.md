@@ -23,7 +23,7 @@ touch it.
 - A fixture pack is added or changed.
 - An Odù (a fixture-pack entry, see #4572) overlaps a cassette or the B-12
   snapshot — when snapshots or cassettes are also touched, add
-  `eshu-golden-corpus-rigor` alongside this skill.
+  `golden-corpus-rigor` alongside this skill.
 
 If yes to any, the rules below apply before the change is done.
 
@@ -139,7 +139,7 @@ implementation of this pinning story, proved by the
 `scorecard-example-conformance` gate above.
 
 When a fixture pack change also touches a cassette or the B-12 snapshot
-(`testdata/golden/e2e-20repo-snapshot.json`), load `eshu-golden-corpus-rigor`
+(`testdata/golden/e2e-20repo-snapshot.json`), load `golden-corpus-rigor`
 in addition to this skill — that skill owns the golden-corpus gate contract.
 
 ## Missing required fields dead-letter, they never silently zero out
@@ -157,6 +157,6 @@ wrong graph identity that looks fine until someone traces it back.
   `sdk/go/factschema` code: that is family-migration work (design doc
   section 7), not this skill's job to perform — this skill tells you the
   rules to apply while doing it.
-- Cassette and B-12 snapshot mechanics: `eshu-golden-corpus-rigor`.
+- Cassette and B-12 snapshot mechanics: `golden-corpus-rigor`.
 - Go edits generally: `golang-engineering`.
-- MCP/API response shapes for fact-derived data: `eshu-mcp-call-rigor`.
+- MCP/API response shapes for fact-derived data: `mcp-call-rigor`.

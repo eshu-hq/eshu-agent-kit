@@ -314,7 +314,7 @@ Incremental, family by family, accuracy first:
 
 Per-stage verification follows repository rules: failing regression tests
 first for behavior changes, focused package gates, docs build for doc
-changes, and `eshu-code-review` before every PR.
+changes, and `code-review` before every PR.
 
 ## 8. Explicit non-goals
 

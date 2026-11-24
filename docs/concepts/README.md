@@ -18,7 +18,7 @@ here and ships by version.
 
 You hand the harness a task and it hands the work to an agent, which
 loads whichever kit skill fits. Some skills send the agent to Eshu's
-MCP or API tools for graph answers (`eshu-mcp-call-rigor` covers how to
+MCP or API tools for graph answers (`mcp-call-rigor` covers how to
 call them well), and hooks sit underneath the whole run, allowing or
 blocking actions as they happen.
 

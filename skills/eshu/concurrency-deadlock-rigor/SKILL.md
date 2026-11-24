@@ -13,7 +13,7 @@ queue/lease/claim change is in scope for root
 [Prove-The-Theory-First](../../../AGENTS.md#mandatory-prove-the-theory-first):
 prove the theory with the cheapest shim before implementing or dispatching it.
 
-Add `eshu-performance-rigor` when changing concurrency to improve throughput,
+Add `performance-rigor` when changing concurrency to improve throughput,
 queue drain, bootstrap wall time, or resource use.
 
 ## Mandatory Reasoning
@@ -70,6 +70,32 @@ owned dispatch variant, not one representative query or handler. Include:
   the row-self lease/status/visibility predicates on the locked relation and prove
   a row another worker claimed and committed between snapshot and lock is dropped.
   Row-set equivalence does NOT cover this.
+
+### Producer And Consumer Proof
+
+A queue defect is never proven fixed from one side: the producer can enqueue
+exactly what the consumer cannot handle, and the consumer can mishandle exactly
+what the producer wrote correctly. Every queue fix therefore ships three tests,
+repro-first:
+
+1. A reproducer of the reported defect that fails before the fix and passes
+   after, on the same input. Done when the pre-fix run is red and the
+   post-fix run is green.
+2. A producer-side test at the enqueue boundary: payload shape, ordering,
+   idempotency keys, lease and claim terms. Done when the malformed or
+   duplicate enqueue the defect allowed is now rejected or deduplicated.
+3. A consumer-side test at the dequeue boundary: handling, acknowledgement,
+   retry, and dead-letter routing. Done when the poison, duplicate, or stale
+   message the defect mishandled now lands in the intended state.
+
+Where each test lives follows the defect, not the symptom:
+
+- Defect in shared in-flight mechanics (materialized edges, determinism, the
+  contract layer) is pinned in `go/internal/ifa`, beside the mechanism it
+  covers.
+- Defect in what one side writes or reads lives beside that producer or
+  consumer. A defect spanning the boundary gets tests on both sides; never
+  cover a two-sided defect with only the side that was easier to test.
 
 ## Observability
 

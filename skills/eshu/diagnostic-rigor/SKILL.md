@@ -8,7 +8,7 @@ description: "Use when the cause of an Eshu failure is unknown: a queue stall, b
 Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
 
 This skill owns causal diagnosis and observability. Use
-[eshu-performance-rigor](../performance-rigor/SKILL.md) for optimization,
+[performance-rigor](../performance-rigor/SKILL.md) for optimization,
 benchmark design, or any latency, throughput, resource, or wall-time claim.
 Ordinary passing test runs do not require this diagnostic workflow.
 
@@ -25,7 +25,7 @@ Form a narrow hypothesis and add telemetry if existing signals cannot test it.
 Use focused local proof; rebuild production binaries before runtime validation.
 Preserve correctness, bounded runtime cost, and intended concurrent behavior.
 A performance-sensitive change needs the impact declaration and applicable proof
-from [eshu-performance-rigor](../performance-rigor/SKILL.md) before
+from [performance-rigor](../performance-rigor/SKILL.md) before
 implementation; this skill does not define a second proof ladder.
 
 Bind proof to exact source, binary/image digest, retained-data and harness/browser

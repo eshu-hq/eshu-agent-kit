@@ -1,6 +1,6 @@
 ---
 name: performance-rigor
-description: "Use when proving or improving an Eshu latency, throughput, resource, or wall-time claim: benchmarks, contribution budgets, scaled runs, and before/after evidence. Find an unknown cause first with eshu-diagnostic-rigor."
+description: "Use when proving or improving an Eshu latency, throughput, resource, or wall-time claim: benchmarks, contribution budgets, scaled runs, and before/after evidence. Find an unknown cause first with diagnostic-rigor."
 ---
 
 # Performance Rigor
@@ -8,7 +8,7 @@ description: "Use when proving or improving an Eshu latency, throughput, resourc
 Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 This skill owns measured performance impact. Use
-[eshu-diagnostic-rigor](../diagnostic-rigor/SKILL.md) first when the cause or
+[diagnostic-rigor](../diagnostic-rigor/SKILL.md) first when the cause or
 bottleneck is unknown; routine test execution alone does not need diagnosis.
 
 For a covered query family, follow `[fill-in: query engineering — this repo's covered query-family contract]`.
