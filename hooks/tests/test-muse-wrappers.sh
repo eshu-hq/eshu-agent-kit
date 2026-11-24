@@ -69,6 +69,40 @@ out="$(with_ids "${payload_stop}" | bash "${MH}/goal-continue.sh" 2>/dev/null)"
 rg -q '"decision"[[:space:]]*:[[:space:]]*"block"' <<<"${out}" &&
 	no "goal-continue allows Stop once DONE" || ok "goal-continue allows Stop once DONE"
 
+# 3b. A Muse-format transcript counts completed tool effects as progress, so
+# a working Muse session is never released by the no-progress budget. The
+# scanner used to know only Claude/Codex records and read every Muse stop
+# as no-progress: three working stops spent the budget and the fourth stop
+# was allowed mid-goal, which reads exactly like a clean finish.
+printf 'SESSION: %s\nShip muse work.\n' "${sid}" >"${repo}/.claude/active-goal.${sid}"
+musetx="${repo}/.claude/muse-transcript.jsonl"
+: >"${musetx}"
+muse_work() { # one completed Muse tool effect
+	printf '%s\n' '{"record_type":"event","payload_type":"tool_batch.effect.terminal","payload":{"kind":"tool_batch_effect","record":{"kind":"terminal","call_id":"c1","tool_name":"bash"}}}' >>"${musetx}"
+}
+muse_stop='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"mt1","cwd":"REPO","transcript_path":"MTX"}'
+muse_stop_payload() { with_ids "${muse_stop}" | sed -e "s|MTX|${musetx}|g"; }
+mblocks=0
+for _ in 1 2 3 4 5 6; do
+	muse_work
+	rg -q '"block"' <<<"$(muse_stop_payload | bash "${MH}/goal-continue.sh" 2>/dev/null)" && mblocks=$((mblocks + 1))
+done
+[ "${mblocks}" -eq 6 ] &&
+	ok "goal-continue counts Muse tool effects as progress" || no "goal-continue counts Muse tool effects as progress (blocked ${mblocks}/6)"
+
+# 3c. A started-but-never-completed Muse effect earns no credit: only the
+# terminal record proves the agent did work.
+: >"${musetx}"
+printf '%s\n' '{"record_type":"event","payload_type":"tool_batch.effect.started","payload":{"kind":"tool_batch_effect","record":{"kind":"started","call_id":"c2","tool_name":"bash"}}}' >>"${musetx}"
+muse_stop2='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"mt2","cwd":"REPO","transcript_path":"MTX"}'
+muse_stop_payload2() { with_ids "${muse_stop2}" | sed -e "s|MTX|${musetx}|g"; }
+mblocks2=0
+for _ in 1 2 3 4 5; do
+	rg -q '"block"' <<<"$(muse_stop_payload2 | bash "${MH}/goal-continue.sh" 2>/dev/null)" && mblocks2=$((mblocks2 + 1))
+done
+[ "${mblocks2}" -eq 3 ] &&
+	ok "an uncompleted Muse effect still spends the budget" || no "an uncompleted Muse effect still spends the budget (blocked ${mblocks2}/5)"
+
 # 4. The active goal is restated on prompt submit, from any subdirectory.
 printf 'SESSION: %s\nHold the line.\n' "${sid}" >"${repo}/.claude/active-goal.${sid}"
 out="$(cd "${repo}/sub" && with_ids "${payload_prompt}" | bash "${MH}/goal-refresh.sh" 2>/dev/null)"

@@ -23,7 +23,7 @@ gp_tool_calls_since() { # transcript offset
 		return 0
 	fi
 	TX="${transcript}" OFF="${offset}" python3 -c '
-"""Count tool calls in appended Claude and Codex JSONL records."""
+"""Count tool calls in appended Claude, Codex, and Muse JSONL records."""
 import json
 import os
 import sys
@@ -67,6 +67,15 @@ try:
                 "function_call", "custom_tool_call"
             }:
                 return 1
+        if record.get("record_type") == "event":
+            # Muse session log: one completed tool execution per terminal
+            # effect record. Started records earn nothing -- only the
+            # terminal proves the agent did work.
+            if record.get("payload_type") == "tool_batch.effect.terminal":
+                payload = record.get("payload")
+                inner = payload.get("record") if isinstance(payload, dict) else None
+                if isinstance(inner, dict) and inner.get("kind") == "terminal":
+                    return 1
         return 0
 
     count = 0
