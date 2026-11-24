@@ -65,7 +65,8 @@ liveness misjudgement.
    equivalent installed GitHub connector may be used; identify that fallback
    in the evidence. Fetch `origin`, rebase on fresh `origin/main`, rerun proof
    affected by the rebase, and inspect the diff for unrelated reversions.
-   For Go changes, run `cd go && go vet ./...` to catch test compilation drift.
+   For Go changes, run the consuming repo's vet gate for the touched packages
+   (Eshu: `cd go && go vet ./...`) to catch test compilation drift.
 3. Run the complete preliminary `code-review` on the rebased diff, except
    when the rebase table in that skill ("Rebase Waiver") sends this rebase to a
    waiver note or a scoped re-review instead. See step 5. Use
@@ -94,13 +95,11 @@ liveness misjudgement.
    Matching inputs reuse the preliminary semantic review. A changed base,
    commit, tree, worktree, submodule, PR claim, review packet, or verdict
    requires affected proof and a new full review/receipt before promotion.
-   The one exception is a rebase. The decision table in `code-review`
-   ("Rebase Waiver") sends it to row 4a or tier S (no review, no
-   `make pre-push`, no receipt: run the file-type checks, comment, push; tier S
-   excludes agent-rule files and test-assertion edits), a
-   waiver note, a scoped re-review with a scoped rebase verdict, or the full
-   review. A `CHANGELOG.md` union or a regenerated pin is row 4a; do not wait
-   on a floor for it.
+   The one exception is a rebase: follow the decision table in `code-review`
+   ("Rebase Waiver") for which outcome applies — row 4a, tier S, waiver note,
+   scoped re-review with a scoped rebase verdict, or full review. That table
+   is the single source; do not re-derive its rows here. A `CHANGELOG.md`
+   union or a regenerated pin is row 4a; do not wait on a floor for it.
    On preflight failure, diagnose and fix it, rerun affected proof, and obtain
    a clean preliminary review before another attempt. Deferred P2 and cosmetic
    P3 findings do not restart this loop. Once pushed, CI decides the merge
@@ -139,11 +138,8 @@ liveness misjudgement.
    act is not authorized, a finding is disputed, or the change moves a shared
    contract those reviews did not cover. Before any merge, run
    `bash scripts/dev/pre-enqueue-check.sh <pr> <reviewed-head-sha>` (and hand
-   its output to the arbiter when one runs). The script checks merge-tree against
-   `origin/main`; its merge-queue arm passes with "queue empty" because `main`
-   has no merge queue (#8288). A clean merge-tree against main can still
-   conflict with a sibling PR that merges first: #7298 collided with #7295 on
-   a generated `ci-gates.md` row. The script is one
+   its output to the arbiter when one runs); see [monitoring.md](references/monitoring.md)
+   for what its arms mean. The script is one
    read, so it does not replace the two stable CI reads.
 
 For long-running `/goal` drives, load [sustained-drives.md](references/sustained-drives.md)

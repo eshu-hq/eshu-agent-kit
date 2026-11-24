@@ -5,7 +5,7 @@ description: "Use as the last step before an executor hands a branch to a review
 
 # Executor Preflight
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with the `publish` skill.
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with the `publish` skill.
 
 Run this on the final commit, before you hand a branch to a reviewer. It catches
 the text and registry defects that otherwise cost one review round each.
@@ -20,14 +20,17 @@ those. You are a leaf agent: do not dispatch other agents.
    commit. A new commit voids the results; restart at this step.
 
 2. **Check the shape.** If a body or draft exists, run
-   `bash .agents/skills/publish/scripts/check-shape.sh --pr <body-file>`.
+   `bash scripts/check-shape.sh --pr <body-file>` from the skill directory
+   that owns it (`skills/eshu/publish/scripts/` in-kit,
+   `.agents/skills/publish/scripts/` in a consumer checkout).
    Use `--issue` for an issue draft. Fix every `FAIL` line. Done when the exit
    code is 0. If no body exists, record this step as `NOT_CHECKED` with that
    reason.
 
 3. **Re-measure the claims that bear on a decision.** List each contract
    claim, measured result, and statement of what a test or gate proves in the PR
-   body and in the docs you changed. Run a command at this HEAD for each one.
+   body and in the docs you changed — at most ~10 decision-bearing rows; group
+   the rest by gate. Run a command at this HEAD for each one.
    Write the rows as `claim | command | measured | match`. If a row does not
    match, fix the text. If the text is right, fix the code. Done when every row
    matches.
@@ -37,7 +40,8 @@ those. You are a leaf agent: do not dispatch other agents.
    Link it, name its command, or use a generated value. If a derivable figure
    is wrong, fix it in this pass: no receipt exists yet, so the fix costs one
    pass. A derivable-figure mismatch that you leave does not block the handoff.
-   Record it for the verdict's P3 list.
+   Record it for the verdict's P3 list with the correct value and the command
+   that computes it.
 
    Leave a timing or baseline-bound claim as it is. Do not re-run it at this
    HEAD, because that destroys its provenance. Check that it names its run id
@@ -48,9 +52,9 @@ those. You are a leaf agent: do not dispatch other agents.
 
    | The diff adds | Check |
    |---|---|
-   | a `.go` file, tests included | `bash scripts/verify-license-header.sh`. Fix with `bash scripts/add-license-header.sh` inside the worktree. |
-   | a `*_live_test.go` file | A classified row in `specs/live-tests.v1.yaml`, then `bash scripts/verify-live-tests-ledger.sh`. |
-   | an `ESHU_*` environment variable | An `Entry` in `go/internal/envregistry/entries.go`. Run `bash scripts/generate-env-registry-doc.sh`, then `scripts/verify-env-registry-doc.sh` and `scripts/verify-docs-cli-env-refs.sh`. |
+   | a `.go` file, tests included | `bash scripts/verify-license-header.sh`; fix with `bash scripts/add-license-header.sh` (rule owned by `golang-engineering`). |
+   | a `*_live_test.go` file | Classified row in `specs/live-tests.v1.yaml`, then `bash scripts/verify-live-tests-ledger.sh` (ledger mechanics: `generator-script-discipline`). |
+   | an `ESHU_*` environment variable | `Entry` in `go/internal/envregistry/entries.go`; run `bash scripts/generate-env-registry-doc.sh`, then `scripts/verify-env-registry-doc.sh` and `scripts/verify-docs-cli-env-refs.sh` (ledger mechanics: `generator-script-discipline`). |
    | a new test file | Run `rg -n -e TODO -e placeholder <test-files>`. A hit is real when it is a stub type, an empty assertion, or a TODO that skips behavior. SQL placeholders and ordinary prose are not hits. |
 | a newly set or provisioned env var, a new client dial, or a new listener port | Name the live code that reads it, the live server that answers it, and the listener that opens it, plus the test that proves it end to end. A setting with no reader, a dial with no live-server test, or a port with no listener blocks the handoff. |
 

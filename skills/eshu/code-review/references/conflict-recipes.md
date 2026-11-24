@@ -109,7 +109,9 @@ generator and stages the result, then run the artifact's own drift gate
 
 ## Agent-rule files
 
-`AGENTS.md`, `.agents/skills/**`, `.claude/rules/**`, `.claude/settings.json`,
+The tier-S gate/hook path test in [SKILL.md](../SKILL.md#small-change-tier)
+criterion 4 is the single list of agent-rule paths. In short, `AGENTS.md`,
+`.agents/skills/**`, `.claude/rules/**`, `.claude/settings.json`,
 `.muse/hooks.json`, `.codex/**`, `docs/internal/agent-*.md`, and
 `docs/internal/writing-for-agents.md` are the rules this review regime runs on.
 A conflict there is row 4a only as a keep-both union of distinct bullets, rows,

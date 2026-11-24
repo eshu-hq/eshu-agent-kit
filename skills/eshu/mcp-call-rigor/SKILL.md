@@ -5,7 +5,7 @@ description: "Use before calling or changing an Eshu MCP/API tool: scope, limit,
 
 # MCP Call Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Use this skill before any Eshu MCP/API call that might query the graph, read the
 content store, or return a list of results. The goal is a correct answer through
@@ -18,8 +18,9 @@ Every list or search tool has:
 - canonical scope such as `repo_id`, `workload_id`, `service_id`,
   `environment`, or an explicit `scope`
 - required or defaulted `limit`
-- deterministic ordering
-- server-side timeout or cancellation path
+- deterministic ordering (name the `order_by`/sort argument sent)
+- server-side timeout or cancellation path (name the timeout value or
+  cancel handle sent)
 - `truncated` or continuation metadata when more results exist
 - structured envelope metadata: `truth.level`, `truth.profile`,
   `truth.freshness.state`, and `error`
@@ -54,20 +55,18 @@ not assume a registered tool works. Tools that need a selector take it in
 
 ## Local MCP Preflight
 
-Before blaming Eshu query truth, prove the local transport is reading the
-current owner state:
+Transport-cause diagnosis (stale ports, dead sessions, backend health)
+belongs to `diagnostic-rigor` references/api-mcp-validation.md — work that
+ladder before blaming Eshu query truth. This preflight covers only the
+MCP-specific checks:
 
 1. Confirm the MCP server is visible to the current client session.
-2. Check the local owner record for the active workspace.
-3. Confirm the current Postgres and graph/Bolt ports are listening.
-4. Confirm the MCP child connected to those current ports, not stale ports from
-   a previous owner.
-5. Confirm the repo is indexed and the response freshness is not `building` or
+2. Confirm the repo is indexed and the response freshness is not `building` or
    `stale`.
 
-For Codex CLI, repo-local `.mcp.json` is not enough by itself. Use the active
-Codex MCP configuration or per-launch `-c mcp_servers.<name>...` override and
-verify visibility in the session.
+If the client ignores repo-local MCP config, use that harness's active MCP
+configuration or launch override and verify visibility in the session (see
+the harness wiring, not this skill).
 
 ## Failure Classification
 
@@ -120,6 +119,8 @@ scripts/verify-performance-evidence.sh
 
 Add tracked `Performance Evidence:`, `Benchmark Evidence:`, or
 `No-Regression Evidence:` plus `Observability Evidence:` or
-`No-Observability-Change:` to a docs/ADR/package note. Name the scope, limit,
+`No-Observability-Change:` (exact marker format owned by
+telemetry-coverage-discipline — name real `eshu_dp_*` signals; a blank or
+invented signal is invalid) to a docs/ADR/package note. Name the scope, limit,
 timeout, result cardinality, backend/query shape, and the metric/span/log/status
 signal that proves the tool is bounded and diagnosable.

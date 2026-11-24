@@ -40,8 +40,9 @@ When you are invoked because the marker file has new lines:
    - For changes to `doc.go`, `go doc ./<package>` prints the new comment;
      use `go vet ./<package>` when package declarations or code changed.
    - No section duplicates content between README and doc.go.
-6. Remove the resolved lines from `.eshu-doc-state/stale.jsonl` (or rotate the
-   file to a `.resolved` sibling so you keep history).
+6. Remove the resolved lines from `.eshu-doc-state/stale.jsonl` (or, only
+   with the session's existing file-scope authorization, rotate the file to
+   a `.resolved` sibling so you keep history).
 7. Continue the authorized task through its agreed completion boundary. Stage
    or commit only within the session’s existing scope and authorization; a
    doc update does not create a new approval requirement or grant publication.

@@ -9,7 +9,9 @@ the default branch moved under a branch you have out.
 ## Choose an implementation
 
 Two implementations share the event contract in [Events](#events). Pick one
-per repo; do not hand-roll a third poll loop.
+per repo; do not hand-roll a third poll loop. The consuming overlay fills
+every bracketed value below; if any is empty, stop and report instead of
+polling with a guess.
 
 - **Eshu repos:** the committed watcher binary (`go/cmd/pr-watch` in the Eshu
   repo). Build it once and run it in the background over every PR you own;
@@ -53,7 +55,7 @@ token setup]`. A shared account means `--author` is not ownership (step 2).
    in-flight checks as done and reports a false green.
 
    ```bash
-   gh pr view "$PR" --repo [fill-in: owner/repo] --json statusCheckRollup --jq '
+   gh pr view "$PR" --repo <owner/repo: overlay fills> --json statusCheckRollup --jq '
      [.statusCheckRollup[]] as $c
      | { total:   ($c | length),
          pending: ([$c[] | select((.status // "") == "QUEUED"
@@ -73,8 +75,8 @@ token setup]`. A shared account means `--author` is not ownership (step 2).
 
 4. **CI is complete only after two consecutive stable reads, with the
    merge-rule contexts present.** The watcher's `GREEN` event is this rule: it
-   also needs the ruleset-required contexts (`[fill-in: ruleset-required
-   check names]`) to exist and succeed, because a fresh PR shows only its
+   also needs the ruleset-required contexts (overlay fills: the required
+   check names) to exist and succeed, because a fresh PR shows only its
    always-on external checks for minutes before the full wave registers. Both
    `pending == 0` and an unchanged `total` across two reads. Large check sets
    register in waves, so a single zero-pending read lands in the gap between
@@ -85,11 +87,11 @@ token setup]`. A shared account means `--author` is not ownership (step 2).
 | Event | What to do |
 |---|---|
 | `CI-FAIL job=…` | Reproduce that gate locally, fix, push. Includes a cancelled blocking gate: a cancelled job never re-runs itself, so rerun it explicitly or push. |
-| `CONFLICT state=…` | `CONFLICTING` or `BEHIND`: resolve against the conflict-recipe list at `[fill-in: conflict-recipe list path]` and run its check; a clean test merge means rebase and re-verify ([rebase-verify.md](rebase-verify.md)). `UNKNOWN`: the merge state could not be read twice running — read the conflict yourself. |
-| `NEW-THREAD`, `NEW-REVIEW`, `NEW-COMMENT` | Any author, including your own account and bots that commented unrequested. Read the body and fix first. |
+| `CONFLICT state=…` | `CONFLICTING` or `BEHIND`: resolve against the conflict recipes at `code-review` references/conflict-recipes.md and run its check; a clean test merge means rebase and re-verify ([rebase-verify.md](rebase-verify.md)). `UNKNOWN`: the merge state could not be read twice running — read the conflict yourself. |
+| `NEW-THREAD`, `NEW-REVIEW`, `NEW-COMMENT` | Any author, including your own account and bots that commented unrequested. Read the body and fix first; disposition threads per `resolve-review-threads`. |
 | `HEAD-MOVED … source=foreign` | Someone else pushed. Fetch and rebase onto the remote head before you push; never force. `source=local` is your own push. |
 | `MERGED` / `CLOSED` | Stop pushing to the branch. A follow-up is a new branch and PR. |
-| `GREEN` | Rollup SUCCESS, nothing pending, every check read, every ruleset-required context present and successful, head and total unchanged on two reads (step 4). It does not mean mergeable: judge threads and `[fill-in: merge rule]`. A red anywhere already came as `CI-FAIL`. |
+| `GREEN` | Rollup SUCCESS, nothing pending, every check read, every ruleset-required context present and successful, head and total unchanged on two reads (step 4). It does not mean mergeable: judge threads and the merge bar (`code-review`, "Merge bar"). A red anywhere already came as `CI-FAIL`. |
 | `ERROR` | A read failed; the watcher keeps polling. A repeating error needs a look. |
 
 ## Reply

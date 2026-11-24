@@ -49,19 +49,8 @@ Severity:
   Do not tag a finding "P2 (nit, non-blocking)". A finding that does not block
   is P3.
 
-**P3 is decided by consequence, not by file type.** "It is markdown" is not a
-severity. Documentation in this repo is the control plane: `AGENTS.md`, the
-skills under `.agents/skills/`, and the hook docs are read and followed by
-agents, so text that misdirects one is as expensive as code that misbehaves.
-Prose stays at P2 or above whenever it is an instruction an agent follows, a
-diagnostic procedure, an evidence table or claim a reviewer relies on, or
-anywhere the documentation contradicts the code — that last one is already a
-blocking condition and does not become weaker for being written in English.
-
-This does not cover a derivable figure (see
-[Derivable figures](merge-bar.md#derivable-figures)). An evidence table that
-miscounts a derivable figure is P3, unless the correct figure changes a
-decision that the table supports.
+**P3 is decided by consequence, not by file type** — see "Prose form" in
+[merge-bar.md](merge-bar.md#prose-form), which owns this rule.
 
 Worked examples, all real findings on #6220, all documentation, none of them
 P3: a diagnostic naming a stamp file the hook no longer writes, so following it

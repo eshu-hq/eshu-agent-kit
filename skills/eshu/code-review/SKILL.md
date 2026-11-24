@@ -5,7 +5,7 @@ description: Produces the push/PR/merge review verdict on an Eshu diff — proof
 
 # Code Review
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths and not-yet-moved `eshu-*` names resolve in the consuming repo checkout (see `skills/registry.md`). Skill-to-skill links resolve in-kit.
+Scope: this is the `eshu` layer of the kit. Relative `docs/` and `scripts/` paths and `eshu-*` names (all renamed by now; see `skills/registry.md`) resolve in the consuming repo checkout (see `skills/registry.md`). Skill-to-skill links resolve in-kit.
 
 Review the final work product against its requirements and evidence. Author
 confidence, local memory, and file type do not establish safety. Process wording
@@ -18,7 +18,8 @@ Load the project skills whose contracts match the diff, using root skill routing
    changed files, proof actually run, and open findings. Build the bounded
    [review packet](references/review-packet.md) for a separate reviewer or a
    self-review; never substitute chat history for it. Before any expensive
-   proof, run `publish`'s `check-shape.sh` on the PR body when one exists.
+   proof, run `bash ../publish/scripts/check-shape.sh --pr <body-file>` on the
+   PR body when one exists.
    Re-measure each SHA, file list, and decision-bearing claim that the body or
    changed docs make at this head. A mismatch in a derivable figure is P3 and
    never restarts the review (see
@@ -100,7 +101,7 @@ receipt. A rebase is the exception: the table in
 Do not edit between verified attestation and push. A review receipt
 reuses semantic review; it does not waive independent review, current GitHub
 state, CI, or authorization. Once pushed, CI decides the merge
-(`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`):
+([merge-bar.md](references/merge-bar.md): when a PR may merge):
 nothing merges past a red gate without a disposition, and reproduce only the
 failing gate locally rather than re-running everything. After a rebase, a gate can be
 red on the new base itself. Reproduce it on the bare base before you attribute

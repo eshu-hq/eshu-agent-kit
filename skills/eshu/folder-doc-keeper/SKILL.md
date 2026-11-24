@@ -5,7 +5,7 @@ description: Use when a Go package's doc.go, README.md, or scoped AGENTS.md is m
 
 # Folder doc keeper
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Keep the affected package's documentation aligned with the code. Every changed
 package under `go/internal` or `go/cmd` needs `README.md`, `doc.go`, and
@@ -24,7 +24,8 @@ package source to support each claim; keep discovery within that directory
 (`rg --max-depth 1`) so subpackages do not contaminate its documented surface.
 Rewrite only affected sections and preserve human-authored content elsewhere.
 Use `publish` for the prose pass. Reduce unsupported claims rather than
-inventing facts; take an unresolved decision to an arbiter model.
+inventing facts; take an unresolved decision to the coordinator with an
+arbiter-eshu ruling request.
 
 Read [workflows](references/workflows.md) for stale-marker processing or new
 package scaffolding. Read [templates](references/templates.md) when creating

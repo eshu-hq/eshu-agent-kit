@@ -5,7 +5,7 @@ description: "Use when cutting an Eshu release: bumping deploy/helm/eshu/Chart.y
 
 # Eshu Release And Deployment Pipeline
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Use this skill for release work that belongs in the open-source Eshu repository
 and its public artifacts. Do not put non-public registry URLs, repository
@@ -31,9 +31,12 @@ Treat releases as a chain of evidence:
 3. Update `deploy/helm/eshu/Chart.yaml` intentionally:
    - `version` for Helm chart package changes.
    - `appVersion` for the Eshu application version, usually `vX.Y.Z`.
-4. Run the smallest validation that proves the touched surface.
-5. Push a branch and open a PR.
-6. Merge through the normal review path.
+4. Run the smallest validation that proves the touched surface. Record it in
+   [release-checklist.md](references/release-checklist.md) (prerequisites,
+   artifacts, monitoring).
+5. Push a branch and open a PR with a `publish`-shaped body.
+6. Merge through the normal review path: a `code-review` verdict of
+   P0=0, P1=0, P2-blocking=0 plus green CI on the pushed head.
 7. Tag the intended commit with `vX.Y.Z` only after the release commit is known.
 8. Verify GitHub Actions produced the intended image, chart, and binaries.
 9. Validate any public rollout evidence that belongs in the repository.
@@ -67,16 +70,20 @@ helm lint deploy/helm/eshu
 git diff --check
 ```
 
-Commit and publish a PR:
+Commit and publish a PR with a body written via `publish` (Refs line, lead,
+glance table), checked with `bash ../publish/scripts/check-shape.sh --pr`
+before capture:
 
 ```bash
 git add deploy/helm/eshu/Chart.yaml
 git commit -m "chore(release): prepare vX.Y.Z"
 git push origin chore/release-vX.Y.Z
-gh pr create --title "chore(release): prepare vX.Y.Z"
+gh pr create --title "chore(release): prepare vX.Y.Z" --body release-body.md
 ```
 
-After merge, tag the exact release commit:
+After merge, a maintainer tags the exact release commit — root tags are as
+permanent as SDK tags, so an executor states these commands for a maintainer
+to run rather than pushing tags itself:
 
 ```bash
 git fetch origin

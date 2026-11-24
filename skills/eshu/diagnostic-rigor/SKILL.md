@@ -5,7 +5,7 @@ description: "Use when the cause of an Eshu failure is unknown: a queue stall, b
 
 # Diagnostic Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling resolve in the consuming repo checkout (see `skills/registry.md`).
 
 This skill owns causal diagnosis and observability. Use
 [performance-rigor](../performance-rigor/SKILL.md) for optimization,
@@ -54,7 +54,11 @@ secrets into logs or tracked evidence.
 
 Use Go, Postgres, Cypher, concurrency, or correlation skills for those changed
 surfaces. Worker/lease/claim rewrites require independent concurrency proof;
-row-set equivalence does not establish lock or lease safety.
+row-set equivalence does not establish lock or lease safety. Transport-cause
+diagnosis has one owner: this skill's cause ladder
+(references/api-mcp-validation.md for MCP failures). `mcp-call-rigor` owns
+call shape;
+point there for envelope and route-mount rules instead of duplicating them.
 
 ## Record The Result
 

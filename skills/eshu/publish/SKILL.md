@@ -5,7 +5,7 @@ description: Write or rewrite Eshu issues, PRs, commits, review comments, decisi
 
 # Publish
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` names, and eshu repo tooling (`scripts/dev/`, `make`, `ci-gates`, `specs/`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with this skill under `scripts/`.
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/dev/`, `make`, `ci-gates`, `specs/`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with this skill under `scripts/`.
 
 Start with what matters, then give the context and evidence a teammate needs.
 Use the repository `[fill-in: communication standard — this repo's writing-for-agents doc]`
@@ -125,8 +125,9 @@ breaks them first.
    fails a PR body without a local or qualified `Refs` first line, a bold lead,
    or the glance table, and any prose paragraph over 800 bytes. Fix every `FAIL` line. Skip
    the check for an issue made from an issue form, for a revert, and for an edit
-   that changes no text. `AGENTS.md` owns this rule. A body under 600 characters
-   with no heading may omit the glance table.
+   that changes no text. `AGENTS.md` owns this rule. The glance-table
+   exemption lives in [pr-templates.md](references/pr-templates.md): a body
+   under 600 characters with no heading may omit it.
 
 Run the shape check this skill ships with, from this skill's directory:
 

@@ -13,7 +13,7 @@ This applies to generators and their data registries, templates, tests, and CI
 checks, including generators written outside shell.
 
 Keep rendering code separate from substantial data or templates when that makes
-changes clearer. Every file remains under the repo's 500-line cap; a tiny
+changes clearer. A tiny
 generator does not need empty library fragments to satisfy a prescribed layout.
 Provide a test mirror that runs without Postgres, NornicDB, or a Go build.
 
@@ -50,6 +50,6 @@ mirror. For shell generators that render substantial template bodies, read
 mechanism. It records the Homebrew/Linuxbrew heredoc hang and the template-file
 workaround; retain bounded watchdog tests for that failure mode.
 
-Use `LC_ALL=C` and stable ordering where output depends on locale. Validate JSON
-with the repo's `jq` convention. Reference generated JSON in MkDocs prose when
-it is not a documentation page; do not add a broken page link.
+Reference generated JSON in MkDocs prose when
+it is not a documentation page; do not add a broken page link. Locale and
+`jq` conventions live in [shell portability](references/shell-portability.md).

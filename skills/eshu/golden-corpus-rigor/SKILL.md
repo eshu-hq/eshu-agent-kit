@@ -5,7 +5,7 @@ description: Use when collector fact emission, reducer/projector graph writes, o
 
 # Golden Corpus Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 The B-7 golden-corpus gate is Eshu's golden standard: it replays fixed inputs
 through the real pipeline (`sync -> discover -> parse -> collect -> reduce ->
@@ -56,7 +56,9 @@ fixture.
 - **Live-collector edges** (anything replayed from the collectors listed in
   `collector_specs` in `scripts/verify-golden-corpus-gate.sh`: cloud, k8s, vault,
   OCI, package, terraform-state, prometheus, and the rest) come from **cassettes**.
-  Change the recorded facts in `testdata/cassettes/<collector>/`.
+  Change the recorded facts in `testdata/cassettes/<collector>/`, after
+  confirming the collector is still listed in `collector_specs` there; if it
+  is not, add fixture coverage instead.
 - **Static-parse edges** (code, gitlab, atlantis, terragrunt, kustomize, ...)
   come from **fixture repos** under `tests/fixtures/ecosystems/`. Add/adjust the
   fixture file; there is no cassette for these.
@@ -91,13 +93,10 @@ fixture.
 - **Calibrate count ranges to the real deterministic corpus**, not aspirations:
   floors that catch a major projection drop (e.g. #4019), ceilings wide for
   parser growth. Tolerances are asserted as **required** in full mode
-  (`-graph-required-only=false`); an advisory tier is never actually validated.
-- **MCP query shapes** are asserted live: the gate unwraps the MCP truth envelope
-  `{data, truth, error}` and checks the payload under `data`. A tool whose route
-  is not mounted on the MCP server returns `isError`/`HTTP 404` even though it is
-  advertised — mount the route (mirror `go/cmd/api/wiring.go` in
-  `go/cmd/mcp-server/wiring.go`), do not drop the shape. See
-  `mcp-call-rigor`.
+  (`-graph-required-only=false`); advisory-tier entries assert nothing —
+  promote one to required or delete it.
+- **MCP query shapes** are asserted live over the MCP truth envelope; see
+  `mcp-call-rigor` for the envelope and route-mount rules.
 - **Governance-gated families assert `max: 0`.** The SecretsIAM graph projection
   is OFF by default (`ESHU_REDUCER_SECRETS_IAM_GRAPH_PROJECTION_ENABLED`, ADR
   #1314); never enable a governed feature just to satisfy a count.

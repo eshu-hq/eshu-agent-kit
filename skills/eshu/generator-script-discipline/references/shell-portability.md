@@ -43,3 +43,8 @@ emit or capture it.** Use one of:
 A generator that still uses a heredoc for a small (well under 512
 bytes), fixed, non-data body — a one-line usage message, for example
 — is fine; the hang only bites past the pipe-buffer threshold.
+
+## Locale and JSON conventions
+
+- Use `LC_ALL=C` and stable ordering where output depends on locale.
+- Validate JSON with the repo's `jq` convention.

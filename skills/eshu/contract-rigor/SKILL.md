@@ -5,7 +5,7 @@ description: Use when a fact kind, payload shape, sdk/go/factschema, sdk/go/coll
 
 # Contract Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Contract System v1 makes the fact payload, not just the envelope, a versioned
 contract between collectors and the reducer. See
@@ -25,7 +25,9 @@ touch it.
   snapshot — when snapshots or cassettes are also touched, add
   `golden-corpus-rigor` alongside this skill.
 
-If yes to any, the rules below apply before the change is done.
+If yes to any, the rules below apply before the change is done. If the
+cited `scripts/`/`specs/` paths do not exist in the checkout, stop and report
+which gate you could not run — do not declare conformance by inspection.
 
 ## The one rule
 

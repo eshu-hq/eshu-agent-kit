@@ -18,8 +18,8 @@ This is the close-out step: it calls the GitHub GraphQL `resolveReviewThread`
 mutation for threads whose underlying code is now fixed, or whose finding is a
 derivable-figure P3 (`p3-no-action`), and leaves threads
 open when the fix is missing, partial, or unclear. It does not author reply
-text (`resolve-review` or `post-merge:resolve-review` do that) and it does not
-drive a PR to merge (`issue-driver` does).
+text (write replies by hand following `publish` references/replies.md) and it
+does not drive a PR to merge (`issue-driver` does).
 
 Classify every thread by reading the comment body and the cited `file:line` —
 never trust the bot label alone. See
@@ -75,7 +75,8 @@ Stop and report if any prerequisite fails — do not guess.
    Use `p3-no-action` only when all four hold. The comment cites a figure that a
    file-reading command computes. The thread carries the reply "P3, no action"
    with the correct value. The verdict's P3 list for the current head names the
-   same figure. No keep-grade item in merge-bar.md applies to the figure: a
+   same figure. No item in merge-bar.md's `These keep their grade` list
+   (merge-bar.md:125) applies to the figure: a
    completeness claim, a contract, a limit, a run result, a test or gate
    statement, a fixture outcome, or a pinned or generated value. If one applies,
    classify it as `unchanged` or `ambiguous`. Check `p3-no-action` before
@@ -119,8 +120,9 @@ Stop and report if any prerequisite fails — do not guess.
 
 ## Related skills
 
-- `resolve-review` (global) and `post-merge:resolve-review` (plugin) — reply-text
-  authoring, not resolution.
+- Reply-text authoring (not resolution) follows `publish`
+  references/replies.md; write replies by hand and never treat resolution
+  as a reply.
 - `code-review` — produces the verdict this skill acts after, never before.
 - `issue-driver` — drives the PR to merged; this skill is one step inside
   that drive, not a substitute for it.

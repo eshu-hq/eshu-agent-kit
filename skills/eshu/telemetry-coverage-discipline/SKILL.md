@@ -13,7 +13,7 @@ the repository root.
 | Artifact | Contract |
 | --- | --- |
 | Coverage doc | `docs/public/observability/telemetry-coverage.md`: each stage names a real signal or a justified marker. |
-| Verifier | `scripts/verify-telemetry-coverage.sh` and its test mirror compare docs, registrations, and added stage-owner files. |
+| Verifier | `scripts/verify-telemetry-coverage.sh` and its test mirror compare docs, registrations, and added stage-owner files (a Go file adding a pipeline stage needs its own coverage row naming the owning dispatcher). |
 | CI gate | `telemetry-coverage` (blocking, `specs/ci-gates.v1.yaml`), job "Verify telemetry coverage gate" in `.github/workflows/static-contract-gates.yml`, enforces the verifier. |
 | Dashboard | `docs/public/observability/dashboards/eshu-operator-overview.json` and its generator expose operator-facing signals, gated by the separate blocking `operator-dashboard` id in the same workflow. |
 
