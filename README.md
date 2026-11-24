@@ -80,8 +80,10 @@ for, and [Reference](docs/reference/README.md) counts what you get.
 ## Related repos
 
 Product repos under `eshu-hq` use this kit through their overlay pin.
-Eshu core is where most `skills/eshu/` procedures apply, and it's still
-the source for the vendored docs under `docs/eshu/`.
+[Eshu core](https://github.com/eshu-hq/eshu) is where most
+`skills/eshu/` procedures apply, and it's still the source for the
+vendored docs under `docs/eshu/`. See the 31-repo
+[Repository Map](https://github.com/eshu-hq/eshu/blob/main/REPOSITORIES.md) for every repo in the org.
 
 ## Development
 
