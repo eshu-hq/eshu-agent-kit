@@ -3,7 +3,7 @@
 This document covers tagging `sdk/go/collector` and `sdk/go/factschema` — the
 two public Go subdirectory modules external collector authors pin. For the
 core Eshu release (`vX.Y.Z` at the repository root: Docker image, Helm chart,
-CLI binaries), use the `eshu-release` skill instead; that flow is unrelated to
+CLI binaries), use the `release` skill instead; that flow is unrelated to
 the SDK module tags described here.
 
 Both SDK modules are Go

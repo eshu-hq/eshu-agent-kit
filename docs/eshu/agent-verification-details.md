@@ -6,7 +6,7 @@ short under "Verification Defaults". The source of truth for gates stays
 
 ## What `make pre-push` runs
 
-After focused local proof and a preliminary full `eshu-code-review` with zero
+After focused local proof and a preliminary full `code-review` with zero
 P0/P1/P2-blocking findings, run `make pre-push` once, immediately before the
 intended push or PR update. It is the fast local floor: changed-package
 `go test` and `go test -race`, the file cap, changed-package gofumpt/lint/build/vet,
@@ -21,7 +21,7 @@ reducer projection/materialization, or a package move (prefer `pre-pr-full`
 for moves — build tags can hide files from `./...`, so only its whole-module
 race lane exercises them). Verify the preliminary review receipt against the
 exact post-`pre-push` inputs before push. If verification fails, run a new
-full `eshu-code-review`. CI stays authoritative. When `make pre-push` prints
+full `code-review`. CI stays authoritative. When `make pre-push` prints
 `DEFER-CI` for a blocking gate on the surface you changed, run that gate
 (`make pre-pr`, or the gate's `local.command` from the registry) before pushing
 so CI is not its first run.

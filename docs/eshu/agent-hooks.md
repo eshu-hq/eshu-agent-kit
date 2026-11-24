@@ -25,7 +25,7 @@ rebuilding the whole snapshot, which only works for a hook that needs no path.
 | `skill-nudge.sh` | Claude | PreToolUse on edits | **blocking** | Refuses an edit until the governing skill is loaded |
 | `skill-loaded.sh` | Claude | PostToolUse on `Skill` | side effect | Records which skills were loaded this session |
 | `guard-live-gate.sh` | Claude | PreToolUse on Bash | **blocking** | Blocks a second live gate on the default ports |
-| `on-compact.sh` | Claude | SessionStart, compact or resume | advisory | Points a re-grounded session at `eshu-session-lifecycle` |
+| `on-compact.sh` | Claude | SessionStart, compact or resume | advisory | Points a re-grounded session at `session-lifecycle` |
 | `goal-continue.sh` | Claude | Stop | **blocking** | Refuses to end the turn while this session's goal file (`.claude/active-goal.<session_id>`, else the shared `.claude/active-goal`) names unfinished work, and hands the goal back. |
 | `goal-continue.sh` | Codex | Stop | **blocking** | Applies the same active-goal rule; includes only an allowlisted capacity, policy, or error category. |
 | `goal-refresh.sh` | Claude | UserPromptSubmit | side effect | Sets a goal from `/goal <text>`, and re-injects the active goal into context on every prompt so it cannot go stale. |

@@ -24,17 +24,17 @@ For runtime work, the order is fixed:
 
 Use the project skill that matches the touched surface, and follow [Naming](naming.md) for everything you create:
 
-- `eshu-correlation-truth` for materialization, deployment tracing, or query
+- `correlation-truth` for materialization, deployment tracing, or query
   truth
-- `eshu-diagnostic-rigor` for diagnosing unexplained runtime, backend, or queue
-  behavior; `eshu-performance-rigor` for measured performance claims
-- `eshu-postgres-rigor` for Postgres SQL, schema, indexes, queues, locks,
+- `diagnostic-rigor` for diagnosing unexplained runtime, backend, or queue
+  behavior; `performance-rigor` for measured performance claims
+- `postgres-rigor` for Postgres SQL, schema, indexes, queues, locks,
   transactions, or relational performance diagnostics
 - `cypher-query-rigor` for graph query/write/index or backend dialect work
 - `concurrency-deadlock-rigor` for workers, leases, retries, queues, or shared
   writes
 - `golang-engineering` for Go code edits and Go tests
-- `eshu-folder-doc-keeper` for package `README.md`, `doc.go`, or scoped
+- `folder-doc-keeper` for package `README.md`, `doc.go`, or scoped
   `AGENTS.md` changes
 
 ## Ownership Boundaries
@@ -477,7 +477,7 @@ Every changed Go package under `go/internal` or `go/cmd` must carry `doc.go`,
 - `AGENTS.md` is harness-loaded scoped instruction for agents working in that
   directory tree.
 
-Use `eshu-folder-doc-keeper` when code moves and package docs drift. The package
+Use `folder-doc-keeper` when code moves and package docs drift. The package
 docs gate is:
 
 ```bash

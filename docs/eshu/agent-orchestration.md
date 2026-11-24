@@ -62,16 +62,15 @@ opencode roster is:
 | **Scanner** (`scan-eshu`) | pinned `fast` tier | read-only | Gather bounded evidence and return a cited handoff. |
 | **Executor** (`develop-eshu`) | pinned `workhorse` tier | full write, **one surface at a time** | Implement one scoped task and run focused proof; the coordinator owns promotion and publication. |
 | **Debugger** (`debug-eshu`) | pinned `workhorse` tier | **read, no write** | Diagnose to root cause from available observations; request command results from the coordinator when the harness blocks shell execution. |
-| **Performance engineer** (`perf-eshu`) | pinned `workhorse` tier | **read, no write** | Analyze measurements through `eshu-performance-rigor`; route proven code changes to the executor. Loads [`performance-map.md`](https://github.com/eshu-hq/eshu/blob/main/docs/internal/performance-map.md). |
-| **Reviewer** (`review-eshu`) | pinned `workhorse` tier | **read, no write** | Run `eshu-code-review` against final diffs and PR evidence. Keeps judgment separate from authorship. |
+| **Performance engineer** (`perf-eshu`) | pinned `workhorse` tier | **read, no write** | Analyze measurements through `performance-rigor`; route proven code changes to the executor. Loads [`performance-map.md`](https://github.com/eshu-hq/eshu/blob/main/docs/internal/performance-map.md). |
+| **Reviewer** (`review-eshu`) | pinned `workhorse` tier | **read, no write** | Run `code-review` against final diffs and PR evidence. Keeps judgment separate from authorship. |
 
 `debug-eshu-deep`, `perf-eshu-deep`, `develop-eshu-deep` and
 `review-eshu-deep` inherit their base role's method and access but use the deep
 tier. `arbiter-eshu` is read-only and runs on its own arbiter tier: it decides a
 design fork, a disputed finding, a waiver, or an irreversible act, and returns
 a ruling that starts with `RULING:` as its final message; the coordinator
-records it. The manifest is the only place to change
-their model choices or shared role instructions.
+records it. The manifest is the only place to change their model choices or shared role instructions.
 
 Concurrency is a conditional method, not a separate job: the debugger,
 performance agent, developer, or reviewer loads `concurrency-deadlock-rigor`
@@ -79,8 +78,7 @@ when the surface involves races, leases, queues, or shared-state ordering.
 
 `ask-eshu` (read-only Q&A) is intentionally **deferred**: it overlaps
 opencode's built-in `explore`/`plan` agents and its name collides with Eshu's
-own Ask product surface (`POST /api/v0/ask`). Add it only when a distinct need
-appears.
+own Ask product surface (`POST /api/v0/ask`). Add it only when a distinct need appears.
 
 OpenCode role files bind their tier model from `.agents/roles.json`
 `models.opencode`, the same way the codex, claude, and muse bindings do.
@@ -154,12 +152,14 @@ a proved fix, and `review-eshu` for an independent final diff. It does not
 assign the entire goal to the first matching role.
 
 Skill names describe methods, not automatic model switches. For example,
-`eshu-issue-driver` stays with the coordinator, `eshu-diagnostic-rigor` helps
+`issue-driver` stays with the coordinator, `diagnostic-rigor` helps
 identify a diagnosis phase, and `concurrency-deadlock-rigor` refines the worker
 handling a race or lease. The coordinator preserves explicit phase ordering,
 ownership, and model choices in the goal. Small coupled work can stay in the
 main session; its selected model remains unchanged. Model savings come from
-bounded child work routed to the manifest tier.
+bounded child work routed to the manifest tier. `eshu-<name>` in a goal or
+older doc means the canonical name in the map below (`eshu-agent-kit:<name>`
+through the plugin): resolve it, never report a missing skill.
 OpenCode roles bind the same manifest tiers through their frontmatter model
 reference.
 
@@ -170,27 +170,27 @@ Use this lookup for ordinary tasks as well as goal phases. The skill body in
 
 | Task | Skill |
 | --- | --- |
-| Diagnose unexplained runtime, backend, or queue behavior | `eshu-diagnostic-rigor` |
-| Benchmark, optimize, or validate a performance claim | `eshu-performance-rigor` |
-| Postgres SQL, schema, transactions, locks, or queue claims | `eshu-postgres-rigor` |
+| Diagnose unexplained runtime, backend, or queue behavior | `diagnostic-rigor` |
+| Benchmark, optimize, or validate a performance claim | `performance-rigor` |
+| Postgres SQL, schema, transactions, locks, or queue claims | `postgres-rigor` |
 | Go code or tests | `golang-engineering` |
 | Cypher, graph queries/writes/indexes, backend dialect | `cypher-query-rigor` |
 | Workers, leases, retries, shared state, queue ordering | `concurrency-deadlock-rigor` |
-| Correlation, materialization, deployment tracing, query truth | `eshu-correlation-truth` |
-| Eshu MCP/API calls or bounded tool contracts | `eshu-mcp-call-rigor` |
-| Facts, projected truth, query shapes asserted by B-7; cassettes or B-12 snapshot | `eshu-golden-corpus-rigor` |
-| Fact kinds, payload schemas, SDK contracts, registry or fixture packs | `eshu-contract-rigor` |
-| Release, version, image, Helm, or GitHub Release | `eshu-release` |
-| Package README, doc.go, scoped AGENTS.md | `eshu-folder-doc-keeper` |
+| Correlation, materialization, deployment tracing, query truth | `correlation-truth` |
+| Eshu MCP/API calls or bounded tool contracts | `mcp-call-rigor` |
+| Facts, projected truth, query shapes asserted by B-7; cassettes or B-12 snapshot | `golden-corpus-rigor` |
+| Fact kinds, payload schemas, SDK contracts, registry or fixture packs | `contract-rigor` |
+| Release, version, image, Helm, or GitHub Release | `release` |
+| Package README, doc.go, scoped AGENTS.md | `folder-doc-keeper` |
 | Telemetry contracts, coverage, dashboards, missing signals | `telemetry-coverage-discipline` |
 | Generators and committed outputs | `generator-script-discipline` |
-| Security-scan workflow or scanner failures | `eshu-security-scan-gates` |
-| Issue/epic work explicitly requested through closure | `eshu-issue-driver` |
-| Final diff, pre-push review, merge-readiness | `eshu-code-review` |
+| Security-scan workflow or scanner failures | `security-scan-gates` |
+| Issue/epic work explicitly requested through closure | `issue-driver` |
+| Final diff, pre-push review, merge-readiness | `code-review` |
 | Resolve review threads after verified fixes | `resolve-review-threads` |
-| Resume, handoff, PR monitoring, liveness, worktree cleanup, rebase and re-verify | `eshu-session-lifecycle` |
-| Executor self-check before a branch goes to a reviewer | `eshu-executor-preflight` |
-| Write or polish a PR, issue, review reply, doc, or owner report | `eshu-publish` |
+| Resume, handoff, PR monitoring, liveness, worktree cleanup, rebase and re-verify | `session-lifecycle` |
+| Executor self-check before a branch goes to a reviewer | `executor-preflight` |
+| Write or polish a PR, issue, review reply, doc, or owner report | `publish` |
 
 ### Where the model binds
 
@@ -279,7 +279,7 @@ The reviewer uses the same skill in all five:
 [`.opencode/agent/review-eshu.md`](../../.opencode/agent/review-eshu.md),
 [`.cursor/agents/review-eshu.md`](../../.cursor/agents/review-eshu.md),
 [`.codex/agents/review-eshu.toml`](../../.codex/agents/review-eshu.toml), and
-[`.agents/agents/review-eshu.md`](../../agents/review-eshu.md) — tracked bindings running the same `eshu-code-review` skill;
+[`.agents/agents/review-eshu.md`](../../agents/review-eshu.md) — tracked bindings running the same `code-review` skill;
 Muse loads that skill through workspace discovery when the launcher passes `--trust-workspace`.
 
 Codex discovers a role file from each config layer's `<config_folder>/agents/`
@@ -340,10 +340,10 @@ Every implementation handoff MUST contain:
    seconds, minimum worthwhile win, measured resource envelope, reference
    profile, and absolute-target applicability.
 7. **Head line** — the branch name and `HEAD=<sha> BASE=<sha> RE:<request-id>`, as
-   [eshu-session-lifecycle](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/session-lifecycle/SKILL.md#messages-name-their-head)
+   [session-lifecycle](https://github.com/eshu-hq/eshu-agent-kit/blob/main/skills/eshu/session-lifecycle/SKILL.md#messages-name-their-head)
    defines it, so a receiver can tell a stale request from a live one.
 
-The raw material already exists in the project skills and `eshu-issue-driver`.
+The raw material already exists in the project skills and `issue-driver`.
 Render that spec format on every handoff before dispatching implementation.
 
 ## Dispatch
@@ -418,7 +418,7 @@ CI is the mechanical backstop, not proof that an implementation is
 architecturally or semantically correct. `verify-agent-hygiene.yml` now blocks
 root-canon drift, AI attribution, missing shared-skill discovery links, and
 OpenCode Git-policy contradictions. The mandatory independent
-`eshu-code-review` remains the judgment gate for final diffs.
+`code-review` remains the judgment gate for final diffs.
 
 ## Where rules live
 
@@ -450,7 +450,7 @@ Use focused local proof for discovery and reserve the expensive promotion gate
 for a branch that has already survived design review. The order is:
 
 1. Executor completes TDD implementation and focused local proof.
-2. Run a preliminary full `eshu-code-review` on the final rebased diff. A rebase
+2. Run a preliminary full `code-review` on the final rebased diff. A rebase
    may follow the Rebase Waiver table in that skill instead. Fix every
    P0, P1, and blocking P2 finding and repeat until the verdict is
    `P0=0, P1=0, P2-blocking=0`, with every deferred P2 tracked in a linked
@@ -462,7 +462,7 @@ for a branch that has already survived design review. The order is:
 5. Verify the receipt against the exact post-preflight inputs. A match replaces
    a duplicate full semantic review. Any changed base, diff, worktree, claims,
    packet, or verdict invalidates it. A rebase follows the Rebase Waiver table in
-   `eshu-code-review`. Any other change restarts the affected proof and review.
+   `code-review`. Any other change restarts the affected proof and review.
    A deferred P2 is already tracked and a P3 is cosmetic; neither does.
 6. Push the reviewed diff, open or update the PR, then use CI and external
    reviews as authoritative post-push gates. No edit may occur between the final

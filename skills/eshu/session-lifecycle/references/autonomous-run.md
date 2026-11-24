@@ -97,7 +97,7 @@ Contents: [Steps](#steps), [Reply](#reply),
    That golden-standard entry is not a pre-merge/post-merge distinction, and it
    is the one exception worth understanding rather than memorising. The safety
    story for solo work is "a wrong design gets caught by the gates". But
-   `eshu-golden-corpus-rigor` requires the cassettes and snapshot to move in
+   `golden-corpus-rigor` requires the cassettes and snapshot to move in
    lockstep with projected truth, so an agent confidently building the wrong
    thing will also update the artifacts that would have caught it. After that
    the gate floor defends the wrong design and every check is green. The

@@ -307,7 +307,7 @@ root); gate/spec lockstep in the same PR.
   `scripts/verify-ci-gates-registry.sh`; `--registry` is required);
   telemetry-coverage row check passes.
 - No dirgate action for a shrink; growth needs a `Dirgate-Growth:` trailer (see restack rule below).
-- `eshu-code-review` P0=P1=P2-blocking=0 on both sides of the promotion
+- `code-review` P0=P1=P2-blocking=0 on both sides of the promotion
   preflight; only the coordinator runs `make pre-pr`, once per push.
 
 ## Proof bar evidence: compat-consolidation PR (decision 2a)
