@@ -15,7 +15,7 @@ index files.
 | Path-scoped rules | 12 | `rules/` | `install.sh --rules` (Claude Code) |
 | Process docs | 16 | `docs/eshu/` | Linked from the skills that cite them |
 
-All 21 skills live in `skills/eshu/` today, written for Eshu-family
+All 22 skills live in `skills/eshu/` today, written for Eshu-family
 repos. `skills/core/` exists but is empty. A skill only moves there
 after it passes the portability tests in
 [skills/registry.md](../../skills/registry.md), which is also the

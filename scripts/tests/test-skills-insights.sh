@@ -134,9 +134,10 @@ fix="${work}/fix.jsonl"
 cat >"${fix}" <<'EOF'
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"code-review"}}
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:01:00+00:00","type":"nudge-block","detail":{"skills":["code-review"]}}
-{"harness":"claude","session":"s1","ts":"2026-11-20T10:05:00+00:00","type":"goal-continued","detail":{"progress":2,"remaining":2}}
+{"harness":"claude","session":"s1","ts":"2026-11-20T10:05:00+00:00","type":"goal-continued","detail":{"progress":2,"remaining":2,"turn":"t1"}}
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:09:00+00:00","type":"goal-done","detail":{}}
 {"harness":"muse","session":"s2","ts":"2026-11-21T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
+{"harness":"muse","session":"s2","ts":"2026-11-21T10:02:00+00:00","type":"model-failure","detail":{"category":"server_error"}}
 {"harness":"muse","session":"s2","ts":"2026-11-21T10:06:00+00:00","type":"goal-released","detail":{"stops":3}}
 EOF
 rep="$(bash "${REPORT}" --log "${fix}")"
@@ -179,6 +180,101 @@ printf '{"harness":"muse","session":"dflt","ts":"2026-11-24T10:00:00+00:00","typ
 out="$(bash "${REPORT}")"
 rg -q "publish \| 1 load" <<<"${out}" &&
 	ok "default log path aggregates without --log" || no "default log path aggregates without --log"
+rm -f "${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl"
+
+# 11. A dead turn logs its category, never its details.
+out="$(printf '{"hook_event_name":"StopFailure","session_id":"deadsess01","cwd":"%s","failure_category":"server_error","failure_details":"sekret-payload-text"}' "${work}" |
+	bash "${HOOKS}/stop-failure.sh" 2>/dev/null)"
+[ "$?" -eq 0 ] && rg -q '"type": "model-failure"' "${LOG}" &&
+	rg -q '"category": "server_error"' "${LOG}" &&
+	! rg -q "sekret-payload-text" "${LOG}" &&
+	ok "dead turn logs category, never details" || no "dead turn logs category, never details"
+
+# 12. Timelines, wins, friction, and JSON validate end to end.
+rep="$(bash "${REPORT}" --log "${fix}")"
+rg -q "did:load[+]publish . broke:model-failure[(]server_error[)] . end:released" <<<"${rep}" &&
+	rg -q "wins . sessions that reached DONE" <<<"${rep}" &&
+	rg -q "friction . stalled sessions" <<<"${rep}" &&
+	rg -q "model failures by category" <<<"${rep}" &&
+	ok "text prints timelines, wins, friction" || no "text prints timelines, wins, friction"
+bash "${REPORT}" --log "${fix}" --format json >"${work}/rep.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/rep.json" <<'PYEOF' && ok "JSON validates with timelines" || no "JSON validates with timelines"
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["meta"]["sessions"] == 2, d["meta"]
+s2 = next(s for s in d["sessions"] if s["session"] == "s2")
+assert s2["timeline"] == ["did:load+publish", "broke:model-failure(server_error)", "end:released"], s2
+s1 = next(s for s in d["sessions"] if s["session"] == "s1")
+assert s1["timeline"][-1] == "solved:done", s1
+assert d["friction"]["model_failures"] == {"server_error": 1}, d["friction"]
+s1turns = next(s for s in d["sessions"] if s["session"] == "s1")["turns"]
+assert s1turns == [{"turn": "t1", "progress": 2, "stops": 1}], s1turns
+PYEOF
+
+# 13. Transcript miners attribute tools, errors, prompts (counts only).
+troot="${work}/tlogs"
+mkdir -p "${troot}/claude" "${troot}/muse/sess1"
+cat >"${troot}/claude/claude-fix-1.jsonl" <<'EOF'
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"do the thing"}]},"timestamp":"2026-11-20T10:00:00.000Z","sessionId":"claude-fix-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{}}]},"timestamp":"2026-11-20T10:00:05.000Z","sessionId":"claude-fix-1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","is_error":true,"content":"boom"}]},"timestamp":"2026-11-20T10:00:06.000Z","sessionId":"claude-fix-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"fixed"}]},"timestamp":"2026-11-20T10:00:10.000Z","sessionId":"claude-fix-1"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"thanks"}]},"timestamp":"2026-11-20T10:00:40.000Z","sessionId":"claude-fix-1"}
+EOF
+cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000000000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000001000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c1","tool_name":"Bash"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000002000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c1","outcome":{"kind":"failed"}}}}
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000003000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c2","tool_name":"read_skill"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000004000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c2","outcome":{"kind":"completed"}}}}
+{"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000005000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
+EOF
+python3 - "${troot}" <<'PYEOF' && ok "miners attribute tools, errors, prompts" || no "miners attribute tools, errors, prompts"
+import json, subprocess, sys
+troot = sys.argv[1]
+out = subprocess.run([sys.executable,
+                      "scripts/lib/skills-insights-miners.py",
+                      "--root", troot + "/claude", "--root", troot + "/muse"],
+                     capture_output=True, text=True)
+assert out.returncode == 0, out.stderr
+d = json.loads(out.stdout)
+assert len(d["sessions"]) == 2, d
+cf = next(s for s in d["sessions"] if s["id"] == "claude-fix-1")
+assert cf["prompts"] == 2 and cf["tools"] == {"Bash": 1}, cf
+assert cf["errors"] == {"Bash": 1}, cf
+assert len(cf["response_gaps"]) == 1, cf
+mu = next(s for s in d["sessions"] if s["id"] == "muse-fix-1")
+assert mu["prompts"] == 2 and mu["tools"] == {"Bash": 1, "read_skill": 1}, mu
+assert mu["errors"] == {"Bash": 1}, mu
+PYEOF
+
+# 14. Git history counts merges and reverts; unknown paths stay green.
+grepo="${work}/grepo"
+(
+	cd "${work}" >/dev/null 2>&1 || exit 1
+	git init -qb main grepo >/dev/null 2>&1 || exit 1
+	cd grepo >/dev/null 2>&1 || exit 1
+	export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t
+	export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+	echo a >f.txt && git add f.txt && git commit -qm "one" || exit 1
+	echo b >>f.txt && git commit -qam "two" || exit 1
+	git revert --no-edit HEAD >/dev/null 2>&1 || exit 1
+	git checkout -qb feat >/dev/null 2>&1 || exit 1
+	echo c >>f.txt && git commit -qam "feat" || exit 1
+	git checkout -q main >/dev/null 2>&1 || exit 1
+	git merge -q --no-ff feat -m "Merge feat" >/dev/null 2>&1 || exit 1
+) || no "git fixture setup failed"
+bash "${REPORT}" --log "${fix}" --repo "${grepo}" --repo "${work}/not-a-repo" --format json >"${work}/grepo.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/grepo.json" "${grepo}" <<'PYEOF' && ok "git history counts merges and reverts" || no "git history counts merges and reverts"
+import json, sys
+d = json.load(open(sys.argv[1]))
+repos = {r["path"]: r for r in d["meta"]["repos"]}
+mine = repos[sys.argv[2]]
+assert mine["merges"] == 1 and mine["reverts"] == 1, mine
+assert mine["commits"] == 5, mine
+bad = [r for r in d["meta"]["repos"] if r.get("unreadable")]
+assert len(bad) == 1, d["meta"]["repos"]
+PYEOF
 
 printf '\nskills-insights: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
