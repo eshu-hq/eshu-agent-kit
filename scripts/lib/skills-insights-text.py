@@ -65,8 +65,8 @@ def render_text(data, ctx):
     print("harnesses observed: %s" % (", ".join(data["meta"]["harnesses"]) or "?"))
     if data["meta"].get("project"):
         print("transcript scope: %s (skill table and outcomes stay global)" % data["meta"]["project"])
-    print("skill-load events exist on Claude+Muse only; Codex/OpenCode are")
-    print("labeled exclusions, never ranked.")
+    print("hook skill-load events exist on Claude+Muse only (agy skill loads are")
+    print("mined from transcripts; Codex/OpenCode are labeled exclusions, never ranked).")
     print()
     print("skill | loads | forced | sessions | done-with | released-with | no-progress-session share")
     for row in data["skills"]:
@@ -107,8 +107,12 @@ def render_text(data, ctx):
         print()
     if mined["sessions"]:
         print("session activity (transcript mining, counts only — never message text):")
-        print("  %s across %s" % (_n(mined["sessions"], "mined session"),
-                                  _n(mined["prompts"], "prompt")))
+        h_part = ""
+        if mined.get("harnesses"):
+            h_part = " (" + ", ".join(
+                "%s %d" % (h, c) for h, c in sorted(mined["harnesses"].items())) + ")"
+        print("  %s%s across %s" % (_n(mined["sessions"], "mined session"),
+                                    h_part, _n(mined["prompts"], "prompt")))
         top_tools = Counter(mined["tools"]).most_common(8)
         if top_tools:
             print("  top tools: " + ", ".join(
@@ -120,10 +124,10 @@ def render_text(data, ctx):
             print("  projects: " + ", ".join(
                 "%s %d" % (p, c) for p, c in Counter(mined["projects"]).most_common(8)))
         if mined["median_response_gap_s"] is not None:
-            print("  median response gap: %ds over %s (Claude sessions only)" % (
+            print("  median response gap: %ds over %s (Claude/agy sessions)" % (
                 int(mined["median_response_gap_s"]), _n(mined["response_gaps_n"], "gap")))
         else:
-            print("  response gaps: unobserved (needs Claude assistant→user pairs)")
+            print("  response gaps: unobserved (needs Claude or agy assistant→user pairs)")
         if mined["byte_capped"]:
             print("  WARNING: transcript byte cap hit — activity is partial")
         if mined["skill_loads"]:

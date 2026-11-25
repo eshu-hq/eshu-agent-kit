@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Transcript and git-history collectors for the skills debrief.
 
-Reads local Claude transcripts (~/.claude/projects/*/*.jsonl) and Muse
-session logs (session.jsonl) and emits per-session COUNT aggregates as JSON.
-Never extracts message text, file contents, prompts, or error bodies: tool
-names, error flags, timestamps, and structural ids only.
+Reads local Claude transcripts (~/.claude/projects/*/*.jsonl), Muse session
+logs (session.jsonl), and Antigravity (agy) transcripts
+(~/.gemini/antigravity{-cli,,-ide}/brain/*/.system_generated/logs/transcript.jsonl)
+and emits per-session COUNT aggregates as JSON. Never extracts message text,
+file contents, prompts, or error bodies: tool names, error flags, timestamps,
+and structural ids only.
 
 Usage: miners.py [--root PATH]... [--since YYYY-MM-DD] [--cap-bytes N]
   [--project SUB]
-  Defaults roots: ~/.claude/projects and $XDG_DATA_HOME/muse/sessions
-  (fallback ~/.local/share). Skips files older than --since by mtime and
-  stops adding files past --cap-bytes (default 512 MiB), reporting both.
+  Defaults roots: ~/.claude/projects, $XDG_DATA_HOME/muse/sessions (fallback
+  ~/.local/share), and ~/.gemini/antigravity{-cli,,-ide}/brain. Skips files
+  older than --since by mtime and stops adding files past --cap-bytes
+  (default 512 MiB), reporting both.
   --project keeps only sessions whose project contains SUB: the Claude
-  transcripts dir slug, or the Muse workspace_root. Muse files with no
-  workspace_root in the peek window stay in (fail-open).
+  transcripts dir slug, Muse workspace_root, or agy workspace_uris path.
+  Muse and agy files with no project metadata stay in (fail-open).
 
 Claude record shapes (observed live, fail open on anything else):
   type=user|assistant with message.role and message.content[]; tool_use
@@ -26,13 +29,34 @@ Muse record shapes:
   no arguments, but runtime.session event.tool_calls entries do: only
   read_skill's name arg is ever parsed (skill identifiers, same class as
   tool names). General args and rendered_skills content are never touched.
+Antigravity (agy) record shapes live in skills-insights-miners-agy.py.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
 import sys
 from collections import Counter
+
+
+def _load_agy():
+    """Load the sibling agy miner (fail-open to None when absent)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "skills-insights-miners-agy.py")
+    if not os.path.isfile(path):
+        return None
+    try:
+        sys.dont_write_bytecode = True
+        spec = importlib.util.spec_from_file_location("skills_insights_miners_agy", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:
+        return None
+
+
+AGY = _load_agy()
 
 
 def _load_json_lines(path, budget):
@@ -264,17 +288,19 @@ def _mtime_ok(path, since):
         return False
 
 
-def _project_ok(path, want):
-    """Substring match on the Claude dir slug or Muse workspace_root.
+def _project_ok(path, want, agy_cache=None):
+    """Substring match on Claude dir slug, Muse workspace_root, or agy workspace_uris.
 
     The workspace_root must come from a runtime.session.metadata record —
     the same signal mine_muse attributes — never from a raw string match,
-    which misfires on paths quoted inside other records. Muse files with
-    no metadata record in the peek window stay in (fail-open): absence
-    of signal is not evidence of another project.
+    which misfires on paths quoted inside other records. Muse and agy files
+    with no project metadata stay in (fail-open): absence of signal is not
+    evidence of another project.
     """
     if not want:
         return True
+    if AGY and AGY.is_agy_transcript(path):
+        return AGY.project_ok(path, want, agy_cache if agy_cache is not None else {})
     if os.path.basename(path) != "session.jsonl":
         return want in os.path.basename(os.path.dirname(path))
     try:
@@ -317,14 +343,15 @@ def main(argv):
                                               "unreadable": True})
         sys.stdout.write(json.dumps({"repos": repos}, sort_keys=True))
         return
-    roots = args.root or [
+    roots = args.root or ([
         os.path.expanduser("~/.claude/projects"),
         os.path.join(os.environ.get("XDG_DATA_HOME",
                                     os.path.expanduser("~/.local/share")),
                      "muse", "sessions"),
-    ]
+    ] + (AGY.default_roots() if AGY else []))
     budget = [args.cap_bytes]
     want = args.project.strip()
+    agy_cache = {}
     sessions = []
     skipped_old = 0
     capped = False
@@ -332,22 +359,34 @@ def main(argv):
     for root in roots:
         if not os.path.isdir(root):
             continue
-        for dirpath, _dirnames, filenames in os.walk(root):
+        agy_root = bool(AGY and AGY.is_agy_root(root))
+        for dirpath, dirnames, filenames in os.walk(root):
+            if agy_root:
+                dirnames[:] = [d for d in dirnames
+                               if d not in ("scratch", "chunks", "steps", "messages")]
             for name in filenames:
                 if not name.endswith(".jsonl"):
                     continue
                 path = os.path.join(dirpath, name)
+                if AGY and AGY.is_skipped_path(path, root):
+                    continue
                 if not _mtime_ok(path, args.since):
                     skipped_old += 1
                     continue
-                if not _project_ok(path, want):
+                if not _project_ok(path, want, agy_cache):
                     continue
                 try:
                     candidates.append((os.path.getmtime(path), path))
                 except OSError:
                     continue
     candidates.sort(key=lambda p: p[0], reverse=True)
+    seen_agy_ids = set()
     for _, path in candidates:
+        is_agy = bool(AGY and AGY.is_agy_transcript(path))
+        if is_agy:
+            cid = AGY.conversation_id(path)
+            if cid in seen_agy_ids:
+                continue
         try:
             size = os.path.getsize(path)
         except OSError:
@@ -356,25 +395,29 @@ def main(argv):
             capped = True
             continue
         budget[0] -= size
-        try:
-            if os.path.basename(path) == "session.jsonl":
-                probe = None
-                with open(path, encoding="utf-8",
-                          errors="replace") as fh:
-                    for _ in range(5):
-                        line = fh.readline()
-                        if '"payload_type"' in line:
-                            probe = "muse"
-                            break
-                        if '"sessionId"' in line:
-                            probe = "claude"
-                            break
-                miner = mine_muse if probe != "claude" else mine_claude
-            else:
-                miner = mine_claude
-        except OSError:
-            continue
-        rec = miner(path, budget)
+        if is_agy:
+            seen_agy_ids.add(cid)
+            rec = AGY.mine_agy(path, budget, _load_json_lines, agy_cache)
+        else:
+            try:
+                if os.path.basename(path) == "session.jsonl":
+                    probe = None
+                    with open(path, encoding="utf-8",
+                              errors="replace") as fh:
+                        for _ in range(5):
+                            line = fh.readline()
+                            if '"payload_type"' in line:
+                                probe = "muse"
+                                break
+                            if '"sessionId"' in line:
+                                probe = "claude"
+                                break
+                    miner = mine_muse if probe != "claude" else mine_claude
+                else:
+                    miner = mine_claude
+            except OSError:
+                continue
+            rec = miner(path, budget)
         rec["path"] = path
         sessions.append(rec)
     sys.stdout.write(json.dumps({"sessions": sessions,

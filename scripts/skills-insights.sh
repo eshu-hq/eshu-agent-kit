@@ -11,17 +11,19 @@
 #   [--format text|json] [--repo PATH]... [--transcript-root PATH]...
 #   [--project SUB] [--no-mine]
 #   --project scopes transcript mining to sessions whose project contains
-#   SUB (Claude transcripts dir slug, or Muse workspace_root).
+#   SUB (Claude transcripts dir slug, Muse workspace_root, or agy
+#   workspace_uris path).
 #   Defaults to $XDG_DATA_HOME/eshu-agent-kit/skills-usage.jsonl.
-#   Skill-load events exist on Claude+Muse only (no Codex/OpenCode load
-#   signal); those harnesses are labeled exclusions, never ranked.
+#   Hook skill-load events exist on Claude+Muse only (agy skill loads are
+#   mined from transcripts; Codex/OpenCode have no load signal and are
+#   labeled exclusions, never ranked).
 #   --format json emits the machine-readable aggregate (sessions with ordered
 #   did → broke → solved timelines) for the debrief synthesis step.
 #   Transcript mining (tool mix, errors, timings — counts only, never
-#   message text) runs by default over the known Claude/Muse log roots
-#   within --since; --no-mine skips it. --repo adds git history
-#   (commits, merges, reverts, lines) per repo, defaulting to 90 days
-#   without --since.
+#   message text) runs by default over the known Claude/Muse/Antigravity
+#   (agy) log roots within --since; --no-mine skips it. --repo adds git
+#   history (commits, merges, reverts, lines) per repo, defaulting to 90
+#   days without --since.
 #
 # Attribution ceiling, stated in the output too: aggregates show correlation
 # ("sessions loading X merge cleaner"), never causation. Do not build a
