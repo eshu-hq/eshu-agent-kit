@@ -5,7 +5,7 @@ description: Use when writing or reviewing Eshu Cypher reads, graph writes, inde
 
 # Cypher Query Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 For a covered query family, follow `[fill-in: query engineering — this repo's covered query-family contract]`.
 Update its executable contract and run the linked production evidence runner.
@@ -24,57 +24,41 @@ scaled replay, or before/after latency or throughput claim.
 
 Before designing or merging a Cypher statement that lives in a hot path
 (canonical writer, reducer projection, query handler, materialization job),
-answer both of these explicitly:
+answer all three of these explicitly (paths are consuming-repo-relative):
 
 1. **Research first.** Read the relevant backend behavior in source before
    writing the query — see
-   [Cypher Performance: Research The Pinned Backend](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#1-research-the-pinned-backend)
+   Cypher Performance: Research The Pinned Backend (`docs/public/reference/cypher-performance.md#1-research-the-pinned-backend`)
    for Neo4j and NornicDB source locations, and always check
-   [NornicDB Pitfalls](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/nornicdb-pitfalls.md) for
+   NornicDB Pitfalls (`docs/public/reference/nornicdb-pitfalls.md`) for
    known traps. If your query uses a pattern you haven't validated against the
    pinned binary, that's research debt — close it with a focused test or
    `curl`-against-Bolt-HTTP probe in an isolated, uniquely-named Compose stack.
 
 2. **Benchmark first.** Capture a baseline before and an after measurement
    against the pinned backend binary on the same inputs, per
-   [Cypher Performance: Measure The Same Shape](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#2-measure-the-same-shape-before-and-after).
+   Cypher Performance: Measure The Same Shape (`docs/public/reference/cypher-performance.md#2-measure-the-same-shape-before-and-after`).
    Unmeasured Cypher in a hot path is a regression-shaped surprise. Pure
    correctness fixes can trade a full bench for a "no measurable regression"
    check on the same input shape, but must state that decision explicitly in
    the PR.
 
-3. **Prove setup before query blame.** For remote or Compose NornicDB proof,
-   record the Eshu commit, NornicDB commit or image tag, effective container
-   environment, schema/bootstrap state, embeddings state, pprof state, worker
-   knobs, clean-volume state, and terminal queue counts before deciding a
-   Cypher shape is the bottleneck.
+3. **Prove setup before query blame.** Work through the setup checklist in
+   [backend-notes.md](references/backend-notes.md), adding the Eshu commit
+   and the NornicDB commit or image tag, before deciding a Cypher shape is
+   the bottleneck.
 
-CI enforces this for the repo. Any PR that changes hot-path Cypher, graph
-writer code, schema, reducer/projector graph work, or a new collector package
-that contains Cypher-like query text must pass:
-
-```bash
-scripts/test-verify-performance-evidence.sh
-scripts/verify-performance-evidence.sh
-```
-
-The gate is **content-based, not only path-based** (a file that *contains*
-`MATCH`/`MERGE`/`UNWIND` is flagged even for a comment-only diff), diffs
-`HEAD~1` locally but `origin/$GITHUB_BASE_REF` in CI, and requires a tracked
-docs/ADR/package note (not PR text) with one benchmark marker
-(`Performance Evidence:`, `Benchmark Evidence:`, or `No-Regression Evidence:`)
-plus one observability marker (`Observability Evidence:` or
-`No-Observability-Change:`) naming the exact query shape, backend, input
-cardinality, index/constraint state, and before/after timing. Reproduce the CI
-diff window locally before pushing:
+CI enforces this for the repo: any PR touching hot-path Cypher or graph-write
+code must pass the content-based gate (a file that *contains*
+`MATCH`/`MERGE`/`UNWIND` is flagged even for a comment-only diff) with
+benchmark plus observability markers in a tracked docs/ADR/package note.
+Gate mechanics, fixture contract, and worked evidence text:
+Cypher Performance: CI Evidence Gate (`docs/public/reference/cypher-performance.md#ci-evidence-gate`).
+Reproduce the CI diff window locally before pushing:
 
 ```bash
 ESHU_PERFORMANCE_EVIDENCE_BASE=origin/main scripts/verify-performance-evidence.sh
 ```
-
-Full detail on the gate, the query-plan-regression fixture contract, and
-worked good/bad evidence text is in
-[Cypher Performance: CI Evidence Gate](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/cypher-performance.md#ci-evidence-gate).
 
 ## Workflow
 
@@ -116,8 +100,8 @@ worked good/bad evidence text is in
 - Split `MERGE` identity from `SET` mutable properties.
 - Batch rows with `UNWIND $rows AS row`; keep batch size tied to transaction and lock behavior.
 - Watch chunk duration slope as the graph grows. Stable batch size with rising duration often means lookup or relationship-existence checks are scanning despite an indexed-looking Cypher shape.
-- Make retries safe through idempotent keys and deterministic relationship identity — see root
-  [Serialization Is Not A Fix](../../../AGENTS.md#serialization-is-not-a-fix)
+- Make retries safe through idempotent keys and deterministic relationship identity — see
+  `docs/eshu/agent-guide.md`, Live-Gate Serialization And Contention
   before reaching for fewer workers or smaller batches.
 - Avoid writing from a broad read result unless the read side is bounded and measured.
 - Verify duplicate input rows do not create duplicate relationships or excess writes.

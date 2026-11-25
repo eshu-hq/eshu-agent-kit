@@ -33,6 +33,7 @@ query($owner:String!,$repo:String!,$num:Int!) {
   repository(owner:$owner,name:$repo) {
     pullRequest(number:$num) {
       reviewThreads(first:100) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           isResolved
@@ -52,7 +53,8 @@ query($owner:String!,$repo:String!,$num:Int!) {
 
 Run with `gh api graphql -F owner=... -F repo=... -F num=... -f query='...'`.
 If the PR has more than 100 review threads, paginate with `pageInfo` before
-classifying anything — a partial classification is worse than leaving the PR
+classifying anything — pass `(after: $cursor)` with the last `endCursor` while
+`hasNextPage` is true. A partial classification is worse than leaving the PR
 alone.
 
 ## Classification Examples

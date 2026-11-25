@@ -163,7 +163,7 @@ END {
   if (infence) warn("fence", "a code fence was never closed; the text after it was not checked")
   if (indet) warn("details", "a <details> block was never closed; the text after it was not checked")
   if (mode == "pr" &&
-      firstreal !~ /^(Refs|Fixes|Closes|Resolves|Partial-closes) #[0-9]+/ &&
+      firstreal !~ /^(Refs|Fixes) #[0-9]+/ &&
       firstreal !~ /^Refs [A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+#[0-9]+\./)
     fail("ref", "the first line must start with Refs #N., Fixes #N., or Refs owner/repo#N.")
   if (!started) fail("empty", "the draft is empty")

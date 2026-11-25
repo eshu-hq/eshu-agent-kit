@@ -5,7 +5,7 @@ description: Use when writing or reviewing Eshu Postgres SQL, schema DDL, transa
 
 # Postgres Rigor
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Use this skill for Eshu's relational truth: facts, queues, leases, status,
 content, recovery, decisions, and schema. Postgres evidence must explain the
@@ -43,8 +43,9 @@ Capture only public-safe snippets when reporting outside the private session.
 - schema and existing indexes for every table in the predicate or join
 - relation size, live/dead tuple estimates, seq/idx scan counters, vacuum state
 - `EXPLAIN (ANALYZE, BUFFERS)` for read-only or safe bounded statements
-- for mutating statements, use a fixture database or `BEGIN`/`ROLLBACK` only
-  when side effects are fully understood
+- for mutating statements, use a fixture database; use `BEGIN`/`ROLLBACK`
+  only for single-statement, trigger-free writes whose triggers and rules
+  you have already read
 
 If `pg_stat_statements` is unavailable, say so and use logs, focused timing, or
 instrumentation instead of guessing.
@@ -62,6 +63,8 @@ shape can use it.
 - Avoid indexes on low-cardinality status/boolean columns alone.
 - Avoid broad JSONB indexes without an operator, selectivity, and row-count case.
 - Do not use an index to fix wrong lifecycle semantics or retry behavior.
+- See [index-patterns.md](references/index-patterns.md) for good and bad
+  shapes before inventing one.
 
 ## Queue And Recovery SQL
 
@@ -73,8 +76,8 @@ For `fact_work_items`, reducer/shared projection queues, and liveness queries:
 - distinguish source-local projection completion from downstream shared backlog
 - prevent recovery loops from consuming attempt budgets while a recovery row is
   already pending, claimed, running, retrying, or successfully completed
-- never serialize workers or reduce batch size as the fix; see root
-  [Serialization Is Not A Fix](../../../AGENTS.md#serialization-is-not-a-fix)
+- never serialize workers or reduce batch size as the fix; see
+  `docs/eshu/agent-guide.md`, Live-Gate Serialization And Contention
   for the only accepted exceptions and their proof bar
 
 ## Postgres Versus Graph Time
@@ -108,10 +111,8 @@ is a Postgres read, claim, lock, or completion statement.
   by hand-copying — a hand-frozen copy drifts and goes false-green. Add a hermetic
   prefix guard asserting the derived string is a byte-prefix of production.
 - Run affected `go/internal/storage/postgres` tests and `git diff --check`.
-- For hot paths, include `Performance Evidence:` or `No-Regression Evidence:`
-  and `Observability Evidence:` or `No-Observability-Change:` in durable docs,
-  then run `scripts/test-verify-performance-evidence.sh` and
-  `scripts/verify-performance-evidence.sh`.
+- Evidence markers and gates: `performance-rigor` owns the marker format and
+  the verify scripts; follow it for hot-path evidence.
 
 Done means the report states the exact slow or wrong layer, the evidence used,
 the rejected hypotheses, and why any SQL/index/transaction change is justified.

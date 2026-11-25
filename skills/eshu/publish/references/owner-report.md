@@ -21,7 +21,8 @@ communication standard. The chat message stays short and points to it.
    skill or external writing linter is required.
 4. Open the file. Use `open <file>` on macOS, or open it in a browser. The page
    fetches Mermaid from jsdelivr when it opens online. Offline, the diagram
-   source stays readable.
+   source stays readable. Headless (no browser at all): paste the diagram
+   source as a fenced mermaid block in chat instead of the file.
 5. Write 2 to 4 lines in chat: the state, and the file name.
 
 ## Page order

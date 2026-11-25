@@ -32,7 +32,8 @@ Paths in backticks are repository-relative.
    `scripts/lib/operator-dashboard-metrics.sh` (registering the metric
    variable and, if it is a template token, adding its name to the
    `OPERATOR_DASHBOARD_METRIC_VARS` allowlist), update the panel body in
-   `scripts/lib/operator-dashboard-panels-{1,2}.json.tmpl` as needed, and
+   `scripts/lib/operator-dashboard-panels-*.json.tmpl` (glob for the current
+   names) as needed, and
    re-run `scripts/generate-operator-dashboard.sh` to update the
    committed artifact.
 

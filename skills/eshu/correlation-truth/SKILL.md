@@ -5,7 +5,7 @@ description: Use when reducer, projector, or query changes turn evidence into gr
 
 # Correlation Truth
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/`, `specs/`, `make`, `ci-gates`) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 ## Overview
 
@@ -35,32 +35,20 @@ Do not use this skill for ordinary CRUD or isolated UI work.
 
 ## Mandatory Proof Matrix
 
-Every non-trivial correlation change covers all of these:
-
-- Positive case: the intended service or deployment story materializes.
-- Negative case: provenance-only or utility evidence stays non-materialized.
-- Ambiguous case: mixed signals do not over-admit or invent truth.
-- Graph proof: inspect the canonical nodes and edges directly.
-- Query proof: confirm repo, service, and deployment surfaces agree with the
-  graph.
-
-Minimum repo families to think through:
-
-- Service repo with strong deployment evidence
-- Deployment or controller repo that must stay utility or provenance-only
-- Controller-backed service repo such as Jenkins or GitHub Actions plus image
-- Ambiguous multi-unit or multi-Dockerfile repo
-- Repo with namespace-like strings that are not real environments
+Cover every row in [proof-matrix.md](references/proof-matrix.md) on a non-trivial change.
 
 ## Workflow
 
 ### 1. Read the local docs first
 
-Read:
+Read, pulling the extraction target named per doc:
 
-- `docs/public/reference/local-testing.md`
-- `docs/public/run-locally/docker-compose.md` when compose is involved
-- `docs/public/reference/telemetry/index.md` when runtime observability changes
+- `docs/public/reference/local-testing.md` → the pre-push floor and the
+  fresh-compose rule for fixture changes
+- `docs/public/run-locally/docker-compose.md` → the compose rebuild/restart
+  sequence that makes a verification fresh
+- `docs/public/reference/telemetry/index.md` → which span/metric/log proves
+  the runtime behavior changed
 
 ### 2. Write the failing proof first
 
@@ -90,12 +78,9 @@ Required layers:
 - Fresh compose rebuild/restart verification when fixture truth changed
 - Direct graph check of canonical nodes and edges
 - API/query checks for repo context, service context, and deployment trace
-- Performance and observability markers when the change touches hot-path graph,
-  reducer, queue, or materialization code. Run
-  `scripts/verify-performance-evidence.sh` and include
-  `Performance Evidence:`, `Benchmark Evidence:`, or
-  `No-Regression Evidence:` plus `Observability Evidence:` or
-  `No-Observability-Change:` in a tracked repo file.
+- Markers and gates: `performance-rigor` owns the evidence-marker format
+  and the verify scripts; follow it for hot-path graph, reducer, queue, or
+  materialization changes.
 
 ### 5. Reconcile disagreements
 

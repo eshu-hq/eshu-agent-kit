@@ -169,6 +169,19 @@ at their discretion or the next time they touch the file. The owner set this on
 two-file conflict fix as P2. The writing standard governs how we write; a
 reviewer's taste is not a merge authority.
 
+P3 is decided by consequence, not by file type. "It is markdown" is not a
+severity. Documentation in this repo is the control plane: `AGENTS.md`, the
+skills under `.agents/skills/`, and the hook docs are read and followed by
+agents, so text that misdirects one is as expensive as code that misbehaves.
+Prose stays at P2 or above whenever it is an instruction an agent follows, a
+diagnostic procedure, an evidence table or claim a reviewer relies on, or
+anywhere the documentation contradicts the code — that last one is already a
+blocking condition and does not become weaker for being written in English.
+A derivable figure is the exception (see
+[Derivable figures](#derivable-figures)): an evidence table that
+miscounts one is P3, unless the correct figure changes a decision the table
+supports.
+
 Prose **correctness** keeps its grade everywhere: a wrong fact or claim, a lost
 or duplicated entry, a broken reference to a real target, syntax a renderer or
 gate rejects, and any text a gate reads (environment names, the Markdown cap,

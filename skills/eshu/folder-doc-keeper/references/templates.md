@@ -51,6 +51,9 @@ See `doc.go` for the full godoc contract.
 package <name>
 ```
 
+Examples below were pinned to live Eshu identifiers when written; `rg` the
+package for current names before trusting one.
+
 ## Worked example 1 — go/internal/runtime
 
 `runtime` is a shared-process utility package. The README focuses on which

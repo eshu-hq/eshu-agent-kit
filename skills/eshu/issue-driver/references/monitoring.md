@@ -65,8 +65,10 @@ Keep outward-facing comments and review requests within user authorization.
   bot label. Address each; resolve a thread only after the referenced code is
   fixed in HEAD (classify each unresolved thread `fixed` / `p3-no-action` /
   `unchanged` / `ambiguous`; resolve only `fixed` and `p3-no-action` threads
-  through the review-thread API; the `p3-no-action` conditions are in
-  `resolve-review-threads`). Duplicate findings across bots: fix the code once, resolve
+  through the review-thread API (classify per `resolve-review-threads`:
+  `fixed` / `p3-no-action` / `unchanged` / `ambiguous`; that skill owns the
+  4-label table and the p3 conditions). Duplicate findings across bots: fix
+  the code once, resolve
   both threads. When bots disagree, trust the code and the project rules.
 - **Never request a GitHub Copilot review.** Do not run
   `gh pr edit --add-reviewer @copilot`, do not wait for Copilot, and do not
@@ -74,15 +76,15 @@ Keep outward-facing comments and review requests within user authorization.
   owner and anyone from the community who chooses to review. If Copilot (or
   any unrequested bot) comments anyway, handle that comment like any other
   present reviewer's — read it, disposition it, resolve when fixed.
-- **A reviewer that does not answer is not a reason for another review.** A
-  quota message is NOT a review and NOT a retryable failure — re-requesting it
-  only burns polls. Recognise the shape rather than the exact wording, e.g.
-  `chatgpt-codex-connector[bot]` posts "reached your Codex usage limits". When
-  no hosted reviewer answers, the independent review that ran before the push
-  and the green CI wave on the pushed head stand as the review of record. Do
-  not dispatch a second full review of a PR that already exists (owner
-  direction 2026-11-22). Say in the PR which reviewers were unavailable, and
-  never claim a review that did not happen.
+- **A reviewer that does not answer is not a reason for another review.**
+  The rule lives in [issue-driver](../SKILL.md) steps 7–8: the pre-push
+  independent review plus the green CI wave stand as the record; name
+  unavailable reviewers in the PR and never claim a review that did not
+  happen. Recognise the quota-message shape rather than the exact wording,
+  e.g. `chatgpt-codex-connector[bot]` posts "reached your Codex usage
+  limits" — a quota message is NOT a review and NOT a retryable failure, so
+  do not re-request it and do not dispatch a second full review (owner
+  direction 2026-11-22).
 - Check GHA on every PR. Enumerate **every** check's state, not just the green
   rollup; on red, root-cause (no symptom patch), fix, rerun. While checks are
   pending, poll the PR about every 60 seconds for merge conflicts and new review
@@ -98,3 +100,8 @@ Keep outward-facing comments and review requests within user authorization.
   carry is a check on a documented advisory allowlist (state it explicitly, e.g.
   the Docker `verify-reproducibility` build-determinism job); treat every other
   red as blocking.
+- `scripts/dev/pre-enqueue-check.sh` checks merge-tree against `origin/main`;
+  its merge-queue arm passes with "queue empty" because `main` has no merge
+  queue (#8288). A clean merge-tree against main can still conflict with a
+  sibling PR that merges first: #7298 collided with #7295 on a generated
+  `ci-gates.md` row.

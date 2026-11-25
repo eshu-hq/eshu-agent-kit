@@ -5,7 +5,7 @@ description: Session mechanics for Eshu work — resume a branch/handoff, pause 
 
 # Session Lifecycle
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names that have not moved yet, and tooling (`make`, `ci-gates`, `scripts/`) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths and tooling (`make`, `ci-gates`, `scripts/`) resolve in the consuming repo checkout (all `eshu-*` names per `skills/registry.md` are already canonical; resolve old prefixes via the rename map).
 
 ## Evidence at handoff
 
@@ -27,7 +27,8 @@ push order; see Rebase Waiver in `code-review` for a rebase), `make pre-pr`/
 the owner asks, and `review-attest verify` must match the reviewed inputs
 before push. A rebase or amend invalidates prior review
 receipts. Once pushed, CI decides the merge (`[fill-in: merge rule — this repo's merge bar: when a PR may merge]`).
-See [local testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md).
+See the consuming repo's local-testing doc (Eshu:
+`docs/public/reference/local-testing.md`).
 
 ## Routing
 
@@ -98,3 +99,5 @@ state it describes is gone. This applies across every playbook.
   it, they do not replace it.
 - `publish` is the last pass over any status update, resume note, or PR
   reply these playbooks produce.
+- `resolve-review-threads` owns thread resolution that babysit-prs events
+  hand off to.

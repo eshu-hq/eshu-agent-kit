@@ -5,7 +5,7 @@ description: "Use when writing or changing Go code or tests under go/: package a
 
 # Go engineering in Eshu
 
-Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, not-yet-moved `eshu-*` skill names, and eshu repo tooling (`go/`, `scripts/`, `Makefile`, CI gates) resolve in the consuming repo checkout (see `skills/registry.md`).
+Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` skill names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`go/`, `scripts/`, `Makefile`, CI gates) resolve in the consuming repo checkout (see `skills/registry.md`).
 
 Use owning-package guidance to resolve ownership and behavior before changing
 its contract. Read the relevant entrypoint or dispatcher when the change crosses
@@ -94,9 +94,11 @@ build-constraint name across `.github/workflows`, `Makefile`, and `scripts/`.
 
 ## Local verification and docs
 
-Use `gofumpt` on changed Go files; it includes `gofmt` formatting. Run focused
+Use the repo's formatter on changed Go files (`gofumpt` where the repo
+requires it, else `gofmt`). Run focused
 proof, then broader checks when callers or shared contracts are affected. Use
-[local testing](https://github.com/eshu-hq/eshu/blob/main/docs/public/reference/local-testing.md) as the gate
+the consuming repo's local-testing doc (`docs/public/reference/local-testing.md`
+in Eshu) as the gate
 source of truth.
 
 `make pre-push` is the fast local floor, run once per PR on the push that opens

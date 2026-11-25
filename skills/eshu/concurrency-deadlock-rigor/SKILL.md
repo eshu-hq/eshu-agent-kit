@@ -10,7 +10,7 @@ Scope: this is the `eshu` layer of the kit. Root `AGENTS.md` section links resol
 Use this skill when correctness depends on ordering, isolation, coordination, or
 shared-state access. Do not change concurrent behavior from intuition. A
 queue/lease/claim change is in scope for root
-[Prove-The-Theory-First](../../../AGENTS.md#mandatory-prove-the-theory-first):
+`docs/eshu/agent-guide.md`, Prove The Theory First:
 prove the theory with the cheapest shim before implementing or dispatching it.
 
 Add `performance-rigor` when changing concurrency to improve throughput,
@@ -50,7 +50,7 @@ Before proposing or implementing a non-trivial change, MUST identify:
    timeouts, and more retries are diagnostics or temporary mitigations, never a
    shipped fix for a non-idempotent write, `MERGE` race, or uniqueness
    conflict — see root
-   [Serialization Is Not A Fix](../../../AGENTS.md#serialization-is-not-a-fix)
+   `docs/eshu/agent-guide.md`, Live-Gate Serialization And Contention
    for the accepted exceptions and their proof bar.
 
 ## Replay And Retry Matrix
@@ -123,7 +123,9 @@ The PR must include a tracked evidence note with one of `Performance Evidence:`,
 `Observability Evidence:` or `No-Observability-Change:`. The note must name the
 conflict domain, worker/lease settings, before/after queue or row counts, and
 the metric/span/log/status signal that shows progress, blocking, retries, and
-failure class.
+failure class. If the cited scripts do not exist in the checkout, stop and
+report which gate you could not run — do not declare conformance by
+inspection.
 
 ## Done Criteria
 
