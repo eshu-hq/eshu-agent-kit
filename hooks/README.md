@@ -227,6 +227,12 @@ content, no file contents, no file paths, no identifiers beyond the
 truncated session id. Every failure path is silent and non-blocking;
 `ESHU_SKILLS_TELEMETRY_OFF=1` disables all of it.
 
+**Manual probes.** Firing an installed hook by hand (or any live-fire check
+outside the suites) writes to the real log under your actual `$HOME`, and
+fixture session ids then pollute every later debrief. Export
+`ESHU_SKILLS_TELEMETRY_OFF=1` for such runs; the suites already run hermetic
+and need no change.
+
 **Coverage.** Skill-load events exist on Claude and Muse only — neither
 Codex nor OpenCode exposes a skill-load event, so reports label them
 exclusions and never rank them. Multi-machine: each machine writes its own

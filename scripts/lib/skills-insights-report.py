@@ -68,6 +68,18 @@ for path in logs:
     except OSError:
         continue
 
+# Test-fixture sessions never describe real work. The hook suites run
+# hermetic, but hand-fired probes and live-fire checks have written fixture
+# ids into real logs (abcdefghijkl from test-global-claude-hooks.sh, ses9
+# from the opencode bridge tests). Real harness ids are UUIDs, so these
+# cannot collide; drop them before any aggregation counts them.
+FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
+fixture_dropped = sum(1 for e in events
+                      if str(e.get("session", "")) in FIXTURE_SESSIONS)
+if fixture_dropped:
+    events = [e for e in events
+              if str(e.get("session", "")) not in FIXTURE_SESSIONS]
+
 sessions = {str(e.get("session", "")) for e in events if e.get("session")}
 harnesses = sorted({str(e.get("harness", "")) for e in events if e.get("harness")})
 tss = sorted(t for t in (str(e.get("ts", "")) for e in events) if TS_RE.match(t))
@@ -378,7 +390,9 @@ data = {
         "sessions that never progressed — it may be unrelated to the stall.",
         "Skill-load events exist on Claude+Muse only; Codex/OpenCode are "
         "labeled exclusions, never ranked.",
-    ] + (["--project scopes transcript mining only: the skill table, "
+    ] + (["%d test-fixture event(s) excluded (hook-probe session ids, "
+          "never real work)." % fixture_dropped] if fixture_dropped else []
+    ) + (["--project scopes transcript mining only: the skill table, "
            "outcomes, and session list stay global (event logs carry no "
            "repo signal)."] if ARGS.project.strip() else []),
 }

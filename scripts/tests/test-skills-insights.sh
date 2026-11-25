@@ -374,5 +374,25 @@ bad = [r for r in d["meta"]["repos"] if r.get("unreadable")]
 assert len(bad) == 1, d["meta"]["repos"]
 PYEOF
 
+# 15. Test-fixture sessions never pollute the aggregate.
+cat >"${work}/fix3.jsonl" <<'EOF'
+{"harness":"claude","session":"abcdefghijkl","ts":"2026-11-20T10:00:00+00:00","type":"nudge-block","detail":{"skills":["golang-engineering"]}}
+{"harness":"claude","session":"ses9","ts":"2026-11-20T10:00:00+00:00","type":"model-failure","detail":{"category":"UnknownError"}}
+{"harness":"claude","session":"ses9","ts":"2026-11-20T10:01:00+00:00","type":"model-failure","detail":{"category":429}}
+{"harness":"muse","session":"realsess","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
+EOF
+bash "${REPORT}" --log "${work}/fix3.jsonl" --no-mine --format json >"${work}/fix3.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/fix3.json" <<'PYEOF' && ok "fixture sessions excluded from aggregate" || no "fixture sessions excluded from aggregate"
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["meta"]["events"] == 1, d["meta"]
+assert d["meta"]["sessions"] == 1, d["meta"]
+assert [s["session"] for s in d["sessions"]] == ["realsess"], d["sessions"]
+assert d["friction"]["nudge_blocked"] == {}, d["friction"]
+assert d["friction"]["model_failures"] == {}, d["friction"]
+assert d["friction"]["repeat_blocked_sessions"] == [], d["friction"]
+assert any("fixture" in n for n in d["notes"]), d["notes"]
+PYEOF
+
 printf '\nskills-insights: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
