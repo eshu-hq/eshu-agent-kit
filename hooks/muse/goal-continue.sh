@@ -36,4 +36,6 @@ print(json.dumps(d))
 kit_muse_prepare "goal-continue.sh" "${payload}"
 [ $? -eq 3 ] && exit 0
 [ -x "${CLAUDE_HOOK}" ] || exit 0
+# Telemetry from the shared sibling attributes to muse through this.
+export KIT_HARNESS=muse
 printf '%s' "${translated}" | exec "${CLAUDE_HOOK}"

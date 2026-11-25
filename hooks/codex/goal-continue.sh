@@ -6,6 +6,8 @@ set -uo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 core_hook="${repo_root}/.claude/hooks/goal-continue.sh"
 [ -x "${core_hook}" ] || exit 0
+# Telemetry from the shared sibling attributes to codex through this.
+export KIT_HARNESS=codex
 command -v python3 >/dev/null 2>&1 || exit 0
 
 payload="$(cat)"
