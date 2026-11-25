@@ -149,6 +149,19 @@ rg -q "code-review \| 1 load \| 1 [(]100%[)] \| 1 session \| 1 \| 0 \| 0%" <<<"$
 rg -q "publish \| 1 load" <<<"$(bash "${REPORT}" --log "${fix}" --since 2026-11-21)" &&
 	! rg -q "code-review \|" <<<"$(bash "${REPORT}" --log "${fix}" --since 2026-11-21)" &&
 	ok "--since filters by date" || no "--since filters by date"
+before="$(rg -c '"type": "goal-done"' "${LOG}" || true)"
+out="$(printf '{"hook_event_name":"Stop","session_id":"nogoal-session","prompt_id":"t9","cwd":"%s"}' "${work}" |
+	bash "${HOOKS}/goal-continue.sh" 2>/dev/null)"
+[ "$(rg -c '"type": "goal-done"' "${LOG}" || true)" = "${before}" ] &&
+	ok "goalless stop emits no goal-done" || no "goalless stop emits no goal-done"
+mkdir -p "${work}/.claude"
+printf 'DONE\nFinished.\n' >"${work}/.claude/active-goal.retiredsess"
+before="$(rg -c '"type": "goal-done"' "${LOG}" || true)"
+printf '{"hook_event_name":"Stop","session_id":"retiredsess","prompt_id":"t9","cwd":"%s"}' "${work}" |
+	bash "${HOOKS}/goal-continue.sh" >/dev/null 2>&1
+[ "$(rg -c '"type": "goal-done"' "${LOG}" || true)" = "$((before + 1))" ] &&
+	ok "retired tombstone still logs goal-done" || no "retired tombstone still logs goal-done"
+rm -rf "${work}/.claude"
 printf '{"harness":"codex","session":"s9","ts":"2026-11-22T10:00:00+00:00","type":"goal-done","detail":{}}' >"${work}/fix2.jsonl"
 out="$(bash "${REPORT}" --log "${fix}" --log "${work}/fix2.jsonl")"
 rg -q "3 sessions" <<<"${out}" && rg -q "harnesses observed: claude, codex, muse" <<<"${out}" &&
@@ -156,6 +169,16 @@ rg -q "3 sessions" <<<"${out}" && rg -q "harnesses observed: claude, codex, muse
 out="$(bash "${REPORT}" --log "${work}/missing.jsonl")"
 rg -q "no events yet" <<<"${out}" &&
 	ok "missing log reports empty, stays green" || no "missing log reports empty, stays green"
+printf '{"type":"skill-load","detail":{"skill":"ghost"}}' >"${work}/hostile.jsonl"
+out="$(bash "${REPORT}" --log "${work}/hostile.jsonl")" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && ! rg -q "ghost|Traceback" <<<"${out}" &&
+	ok "session-less line is skipped, not fatal" || no "session-less line is skipped, not fatal"
+mkdir -p "${XDG_DATA_HOME}/eshu-agent-kit"
+printf '{"harness":"muse","session":"dflt","ts":"2026-11-24T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}\n' \
+	>"${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl"
+out="$(bash "${REPORT}")"
+rg -q "publish \| 1 load" <<<"${out}" &&
+	ok "default log path aggregates without --log" || no "default log path aggregates without --log"
 
 printf '\nskills-insights: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

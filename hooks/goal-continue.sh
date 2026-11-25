@@ -141,8 +141,14 @@ done
 # Nothing active. If this session's own goal was just retired, the DONE check on
 # its issue ledger still has to run: the lookup above skips retired files.
 [ -n "${goal_file}" ] || {
-	gi_done_gate "$(gi_retired_goal_file "${session_id}" "${cwd}")" "${cwd}" "${session_id}" "${transcript:-}"
-	command -v si_event >/dev/null 2>&1 && si_event "goal-done" "${session_id}"
+	# No active goal file: only a retired tombstone counts as done. A stop
+	# with no goal at all emits nothing — logging it as goal-done would
+	# inflate the report's done column for sessions that never had a goal.
+	retired_goal="$(gi_retired_goal_file "${session_id}" "${cwd}")"
+	gi_done_gate "${retired_goal}" "${cwd}" "${session_id}" "${transcript:-}"
+	if [ -n "${retired_goal}" ]; then
+		command -v si_event >/dev/null 2>&1 && si_event "goal-done" "${session_id}"
+	fi
 	exit 0
 }
 
@@ -300,7 +306,7 @@ BLOCKED:* | blocked:*)
 			dead_watcher="${watch_pid}"
 		else
 			printf 'goal-continue: stop allowed, BLOCKED: %s\n' "${blocked_reason}" >&2
-			command -v si_event >/dev/null 2>&1 && si_event "goal-blocked-watcher" "${session_id}" "watcher=${watch_pid}"
+			command -v si_event >/dev/null 2>&1 && si_event "goal-blocked-watcher" "${session_id}"
 			exit 0
 		fi
 	fi

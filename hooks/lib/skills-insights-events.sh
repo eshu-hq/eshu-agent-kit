@@ -12,8 +12,11 @@
 # si_event <type> <session_id> [key=value ...]
 #   type:         skill-load | nudge-block | goal-done | goal-released |
 #                 goal-blocked-watcher | goal-continued
-#   session_id:   any session string; sanitized and truncated to the same
-#                 12 chars the skill-loaded markers use, so events join.
+#   session_id:   any session string; sanitized then truncated to 12 chars.
+#                 Events join with each other on that form, which matches the
+#                 skill-loaded markers for ordinary ids (markers truncate the
+#                 raw id; hostile ids sanitize differently, so treat those as
+#                 distinct).
 #   key=value:    detail fields. Keys must look like identifiers; values may
 #                 hold spaces (the known list key `skills` splits on them).
 #                 Numbers become JSON numbers. Anything else is dropped
@@ -33,9 +36,9 @@ si_event() { # type session_id [key=value ...]
 	command -v python3 >/dev/null 2>&1 || return 0
 	[ -n "${ev_type}" ] && [ -n "${raw_sid}" ] || return 0
 	SI_TYPE="${ev_type}" SI_SID="${raw_sid}" SI_DETAIL="$(printf '%s\n' "$@")" \
-		SI_HARNESS="${KIT_HARNESS:-claude}" \
-		SI_HOME="${XDG_DATA_HOME:-${HOME:-}/.local/share}" \
-		SI_MAX="${SI_MAX_BYTES}" python3 -c '
+	SI_HARNESS="${KIT_HARNESS:-claude}" \
+	SI_HOME="${XDG_DATA_HOME:-${HOME:-}/.local/share}" \
+	SI_MAX="${SI_MAX_BYTES}" python3 -c '
 import datetime
 import json
 import os

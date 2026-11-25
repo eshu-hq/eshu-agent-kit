@@ -22,12 +22,18 @@ SINCE=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--log)
-		[ $# -ge 2 ] || { echo "skills-insights: --log needs a path" >&2; exit 1; }
+		[ $# -ge 2 ] || {
+			echo "skills-insights: --log needs a path" >&2
+			exit 1
+		}
 		LOGS+=("$2")
 		shift 2
 		;;
 	--since)
-		[ $# -ge 2 ] || { echo "skills-insights: --since needs YYYY-MM-DD" >&2; exit 1; }
+		[ $# -ge 2 ] || {
+			echo "skills-insights: --since needs YYYY-MM-DD" >&2
+			exit 1
+		}
 		SINCE="$2"
 		shift 2
 		;;
@@ -95,9 +101,10 @@ tss = sorted(t for t in (str(e.get("ts", "")) for e in events) if TS_RE.match(t)
 def _n(n, singular):
     return "%d %s%s" % (n, singular, "" if n == 1 else "s")
 
-loads = [(str(e["session"]), str(e["detail"].get("skill", "")))
+loads = [(str(e.get("session", "")), str(e["detail"].get("skill", "")))
          for e in events
-         if e.get("type") == "skill-load" and isinstance(e.get("detail"), dict)
+         if e.get("type") == "skill-load" and e.get("session")
+         and isinstance(e.get("detail"), dict)
          and e["detail"].get("skill")]
 blocked = defaultdict(set)
 for e in events:
