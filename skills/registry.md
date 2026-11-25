@@ -37,5 +37,6 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | eshu-security-scan-gates | security-scan-gates | eshu | moved |
 | eshu-folder-doc-keeper | folder-doc-keeper | eshu | moved |
 | telemetry-coverage-discipline | telemetry-coverage-discipline | eshu | moved |
+| skills-debrief | debrief | eshu | renamed |
 
 Rename rule: name reflects intended consumer vocabulary (drop the `eshu-` prefix when the skill is meant to be called generically). Directory reflects the layer rule above — a portably-named skill still lives in `skills/eshu/` until it passes T1–T3.

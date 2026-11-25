@@ -1,5 +1,5 @@
 ---
-name: skills-debrief
+name: debrief
 description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or what skill usage says about how we work. Reads scripts/skills-insights.sh --format json plus transcript evidence and writes a single self-contained HTML debrief: wins, friction with examples, actionable fixes, horizon ideas."
 ---
 
@@ -25,9 +25,18 @@ this repo".
 
 ## Inputs
 
-1. Run `bash scripts/skills-insights.sh --format json` (add `--log` paths
-   for other machines, `--repo` paths for git history, `--since` to bound
-   the window). This JSON is the skeleton: per-skill aggregates, per-session
+1. Resolve the kit checkout first: the script lives in the kit, not in the
+   working repo. Take the path of the SKILL.md you are reading this from,
+   follow symlinks (`readlink -f`), and go up three levels from the skill
+   directory (`skills/eshu/debrief` → kit root, which holds `scripts/`).
+   If this file is a copy with no symlink behind it (alias wrapper),
+   resolve the same skill name under your harness user skills directory
+   instead; if that fails too, ask the user for the kit checkout path
+   rather than searching the working repo. Then run
+   `bash "$KIT/scripts/skills-insights.sh" --format json` (add `--log`
+   paths for other machines, `--repo` paths for git history — the working
+   repo is a good `--repo` value — `--since` to bound the window).
+   This JSON is the skeleton: per-skill aggregates, per-session
    timelines, wins, friction, mined activity, git history.
 2. Read session timelines in did → broke → solved order before judging any
    skill: `did:load+X` and `did:progress=N` (what the agent did),
