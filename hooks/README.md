@@ -241,7 +241,7 @@ known Claude/Muse log roots within `--since`; `--no-mine` skips it.
 `--format json` emits sessions with ordered did → broke → solved timelines
 plus per-turn progress groups for the debrief step.
 
-**Debrief.** The `skills-debrief` skill reads the JSON aggregate and writes
+**Debrief.** The `debrief` skill reads the JSON aggregate and writes
 the full narrative report (single self-contained HTML file): wins, friction
 with session ids, actionable fixes, horizon ideas. Solved stays a judgment
 over a complete evidence chain, never a single event.
