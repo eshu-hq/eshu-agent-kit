@@ -9,7 +9,9 @@
 #
 # Usage: bash scripts/skills-insights.sh [--log PATH]... [--since YYYY-MM-DD]
 #   [--format text|json] [--repo PATH]... [--transcript-root PATH]...
-#   [--no-mine]
+#   [--project SUB] [--no-mine]
+#   --project scopes transcript mining to sessions whose project contains
+#   SUB (Claude transcripts dir slug, or Muse workspace_root).
 #   Defaults to $XDG_DATA_HOME/eshu-agent-kit/skills-usage.jsonl.
 #   Skill-load events exist on Claude+Muse only (no Codex/OpenCode load
 #   signal); those harnesses are labeled exclusions, never ranked.
@@ -72,6 +74,14 @@ while [ $# -gt 0 ]; do
 "
 		shift 2
 		;;
+	--project)
+		[ $# -ge 2 ] || {
+			echo "skills-insights: --project needs a substring" >&2
+			exit 1
+		}
+		PROJECT="$2"
+		shift 2
+		;;
 	--no-mine)
 		NOMINE=1
 		shift
@@ -108,6 +118,7 @@ for l in "${LOGS[@]}"; do ARGS+=(--log "$l"); done
 ARGS+=(--format "${FORMAT:-text}")
 while IFS= read -r r; do [ -n "$r" ] && ARGS+=(--repo "$r"); done <<<"${REPOS:-}"
 while IFS= read -r r; do [ -n "$r" ] && ARGS+=(--transcript-root "$r"); done <<<"${TROOTS:-}"
+[ -n "${PROJECT:-}" ] && ARGS+=(--project "${PROJECT}")
 [ -n "${NOMINE:-}" ] && ARGS+=(--no-mine)
 if [ "${#ARGS[@]}" -gt 0 ]; then
 	exec python3 "${REPORT_LIB}" "${ARGS[@]}"

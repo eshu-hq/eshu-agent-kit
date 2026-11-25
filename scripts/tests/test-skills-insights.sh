@@ -235,6 +235,7 @@ cat >"${troot}/muse2/parent-sess/subagent/child-1/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000011000000,"stream":{"id":"child-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c9","outcome":{"kind":"completed"}}}}
 EOF
 cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"runtime.session.metadata","recorded_at":1794999999000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"workspace_root":"/repo/alpha"}}}
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000000000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000001000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c1","tool_name":"Bash"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000002000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c1","outcome":{"kind":"failed"}}}}
@@ -277,6 +278,44 @@ assert child.returncode == 0, child.stderr
 kid = json.loads(child.stdout)["sessions"]
 assert len(kid) == 1 and kid[0]["parent_session"] == "parent-sess", kid
 PYEOF
+# 13b. Sessions carry a project (Claude dir slug, Muse workspace_root);
+# --project scopes mining to one repo, fail-open on anything else.
+python3 - "${troot}" <<'PYEOF' && ok "sessions carry project, --project scopes" || no "sessions carry project, --project scopes"
+import json, subprocess, sys
+troot = sys.argv[1]
+base = [sys.executable, "scripts/lib/skills-insights-miners.py",
+        "--root", troot + "/claude", "--root", troot + "/muse"]
+d = json.loads(subprocess.run(base, capture_output=True, text=True).stdout)
+by_id = {s["id"]: s for s in d["sessions"]}
+assert by_id["claude-fix-1"]["project"] == "claude", by_id["claude-fix-1"]
+assert by_id["muse-fix-1"]["project"] == "/repo/alpha", by_id["muse-fix-1"]
+scoped = json.loads(subprocess.run(
+    base + ["--project", "alpha"], capture_output=True, text=True).stdout)
+assert [s["id"] for s in scoped["sessions"]] == ["muse-fix-1"], scoped
+scoped2 = json.loads(subprocess.run(
+    base + ["--project", "claude"], capture_output=True, text=True).stdout)
+assert [s["id"] for s in scoped2["sessions"]] == ["claude-fix-1"], scoped2
+PYEOF
+bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" \
+	--transcript-root "${troot}/muse" --format json >"${work}/proj.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/proj.json" <<'PYEOF' && ok "report scopes and breaks down by project" || no "report scopes and breaks down by project"
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["mined"]["projects"] == {"claude": 1, "/repo/alpha": 1}, d["mined"]
+PYEOF
+bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" \
+	--transcript-root "${troot}/muse" --project alpha --format json >"${work}/proj1.json" &&
+	python3 -c 'import json,sys; d = json.load(open(sys.argv[1])); assert d["mined"]["sessions"] == 1, d["mined"]; assert d["meta"]["project"] == "alpha", d["meta"]' "${work}/proj1.json" &&
+	ok "report --project filters to one repo" || no "report --project filters to one repo"
+rg -q "project scope: alpha" <<<"$(bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/muse" --project alpha)" &&
+	ok "text names the project scope" || no "text names the project scope"
+txt="$(bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" --transcript-root "${troot}/muse")"
+rg -q "top tools: Bash 2" <<<"${txt}" &&
+	rg -q "tool errors: Bash 2" <<<"${txt}" &&
+	rg -q "projects: .*claude 1" <<<"${txt}" &&
+	rg -q "projects: .*/repo/alpha 1" <<<"${txt}" &&
+	rg -q "subagents spawned: 2" <<<"${txt}" &&
+	ok "split renderer keeps mined text sections" || no "split renderer keeps mined text sections"
 capdir="${troot}/cap"
 mkdir -p "${capdir}"
 printf '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"old"}]},"timestamp":"2026-11-20T10:00:00.000Z","sessionId":"old-sess"}\n' >"${capdir}/old.jsonl"

@@ -89,6 +89,7 @@ state it describes is gone. This applies across every playbook.
 | `git stash` to park work | The stash stack is shared across all worktrees; concurrent agents corrupt each other |
 | Editing in the main checkout because the worktree "was just for the last task" | Main must stay a clean fast-forward of `origin/main` |
 | Reading one `pending == 0` and calling CI green | Large check sets register in waves |
+| Retrying a failed exact-match edit with a longer block from memory | The failure already names the closest match — re-read those lines and retry with the shortest unique match; long blocks drift |
 | Deleting a worktree that looked idle | Uncommitted work is unrecoverable; the tree may be in active use |
 
 ## Related skills
