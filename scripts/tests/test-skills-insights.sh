@@ -134,9 +134,10 @@ fix="${work}/fix.jsonl"
 cat >"${fix}" <<'EOF'
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"code-review"}}
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:01:00+00:00","type":"nudge-block","detail":{"skills":["code-review"]}}
-{"harness":"claude","session":"s1","ts":"2026-11-20T10:05:00+00:00","type":"goal-continued","detail":{"progress":2,"remaining":2}}
+{"harness":"claude","session":"s1","ts":"2026-11-20T10:05:00+00:00","type":"goal-continued","detail":{"progress":2,"remaining":2,"turn":"t1"}}
 {"harness":"claude","session":"s1","ts":"2026-11-20T10:09:00+00:00","type":"goal-done","detail":{}}
 {"harness":"muse","session":"s2","ts":"2026-11-21T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
+{"harness":"muse","session":"s2","ts":"2026-11-21T10:02:00+00:00","type":"model-failure","detail":{"category":"server_error"}}
 {"harness":"muse","session":"s2","ts":"2026-11-21T10:06:00+00:00","type":"goal-released","detail":{"stops":3}}
 EOF
 rep="$(bash "${REPORT}" --log "${fix}")"
@@ -179,6 +180,36 @@ printf '{"harness":"muse","session":"dflt","ts":"2026-11-24T10:00:00+00:00","typ
 out="$(bash "${REPORT}")"
 rg -q "publish \| 1 load" <<<"${out}" &&
 	ok "default log path aggregates without --log" || no "default log path aggregates without --log"
+rm -f "${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl"
+
+# 11. A dead turn logs its category, never its details.
+out="$(printf '{"hook_event_name":"StopFailure","session_id":"deadsess01","cwd":"%s","failure_category":"server_error","failure_details":"sekret-payload-text"}' "${work}" |
+	bash "${HOOKS}/stop-failure.sh" 2>/dev/null)"
+[ "$?" -eq 0 ] && rg -q '"type": "model-failure"' "${LOG}" &&
+	rg -q '"category": "server_error"' "${LOG}" &&
+	! rg -q "sekret-payload-text" "${LOG}" &&
+	ok "dead turn logs category, never details" || no "dead turn logs category, never details"
+
+# 12. Timelines, wins, friction, and JSON validate end to end.
+rep="$(bash "${REPORT}" --log "${fix}")"
+rg -q "did:load[+]publish . broke:model-failure[(]server_error[)] . end:released" <<<"${rep}" &&
+	rg -q "wins . sessions that reached DONE" <<<"${rep}" &&
+	rg -q "friction . stalled sessions" <<<"${rep}" &&
+	rg -q "model failures by category" <<<"${rep}" &&
+	ok "text prints timelines, wins, friction" || no "text prints timelines, wins, friction"
+bash "${REPORT}" --log "${fix}" --format json >"${work}/rep.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/rep.json" <<'PYEOF' && ok "JSON validates with timelines" || no "JSON validates with timelines"
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["meta"]["sessions"] == 2, d["meta"]
+s2 = next(s for s in d["sessions"] if s["session"] == "s2")
+assert s2["timeline"] == ["did:load+publish", "broke:model-failure(server_error)", "end:released"], s2
+s1 = next(s for s in d["sessions"] if s["session"] == "s1")
+assert s1["timeline"][-1] == "solved:done", s1
+assert d["friction"]["model_failures"] == {"server_error": 1}, d["friction"]
+s1turns = next(s for s in d["sessions"] if s["session"] == "s1")["turns"]
+assert s1turns == [{"turn": "t1", "progress": 2, "stops": 1}], s1turns
+PYEOF
 
 printf '\nskills-insights: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

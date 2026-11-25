@@ -85,4 +85,13 @@ tmp="${note}.tmp.$$"
 if printf '%s\n' "${text}" >"${tmp}" 2>/dev/null; then
 	mv "${tmp}" "${note}" 2>/dev/null || rm -f "${tmp}" 2>/dev/null
 fi
+# Telemetry: the dead turn itself, category only — never details. The note
+# above carries the human-readable record; this event carries the countable
+# one for the debrief's broke column.
+# shellcheck source=hooks/lib/skills-insights-events.sh
+# shellcheck disable=SC1091
+. "$(dirname "${BASH_SOURCE[0]}")/lib/skills-insights-events.sh" 2>/dev/null || true
+si_category="${category:-unknown}"
+si_category="${si_category// /_}"
+command -v si_event >/dev/null 2>&1 && si_event "model-failure" "${session_id}" "category=${si_category}"
 exit 0
