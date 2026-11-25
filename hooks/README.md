@@ -233,19 +233,24 @@ fixture session ids then pollute every later debrief. Export
 `ESHU_SKILLS_TELEMETRY_OFF=1` for such runs; the suites already run hermetic
 and need no change.
 
-**Coverage.** Skill-load events exist on Claude and Muse only — neither
-Codex nor OpenCode exposes a skill-load event, so reports label them
-exclusions and never rank them. Multi-machine: each machine writes its own
-log; `scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
+**Coverage.** Hook telemetry (`skills-usage.jsonl`) exists on Claude and
+Muse only — `agy` hooks are not wired yet, and neither Codex nor OpenCode
+exposes a skill-load event. Transcript mining covers Claude, Muse, and
+Antigravity (`agy`), including `agy` skill loads (`read_file`/`view_file`
+reads of `SKILL.md`), tool mix, errors, response gaps, subagents, models,
+and workspace projects; Codex and OpenCode remain labeled exclusions, never
+ranked. Multi-machine: each machine writes its own log;
+`scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
 
 **Report surface.** `scripts/skills-insights.sh [--log PATH]...
 [--since DATE] [--format text|json] [--repo PATH]... [--transcript-root
-PATH]... [--no-mine]`. Transcript mining (tool mix, errors, response gaps,
-prompt counts — counts only, never message text) runs by default over the
-known Claude/Muse log roots within `--since`; `--no-mine` skips it.
-`--repo` adds git history (commits, merges, reverts, lines) per repo.
-`--format json` emits sessions with ordered did → broke → solved timelines
-plus per-turn progress groups for the debrief step.
+PATH]... [--project SUB] [--no-mine]`. Transcript mining (tool mix,
+errors, response gaps, prompt counts, skill loads, subagents — counts
+only, never message text) runs by default over the known
+Claude/Muse/Antigravity (`agy`) log roots within `--since`; `--no-mine`
+skips it. `--repo` adds git history (commits, merges, reverts, lines) per
+repo. `--format json` emits sessions with ordered did → broke → solved
+timelines plus per-turn progress groups for the debrief step.
 
 **Debrief.** The `debrief` skill reads the JSON aggregate and writes
 the full narrative report (single self-contained HTML file): wins, friction

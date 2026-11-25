@@ -13,15 +13,18 @@ Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and
 hook events resolve per `skills/registry.md`. Relative `docs/` paths resolve
 in the consuming repo checkout.
 
-Non-kit projects: when the aggregate carries no kit signals (no skill
-events, no nudge blocks, no goal turns), do not force kit language.
-Write the project-aware subset instead — header stats, activity, wins,
-friction, fixes as tooling or workflow changes — and say the page is
-shorter because the data is thinner, not because nothing happened.
-Scope transcript activity to one repo with `--project` (the skill table,
-outcomes, and session list stay global — event logs carry no repo
-signal); the default unified run answers "how do we work", not "how is
-this repo".
+Non-kit projects and transcript-only harnesses: when the aggregate carries
+no hook signals (no `skill-load` events, no nudge blocks, no goal turns —
+including `agy`-only runs where kit hooks are not wired yet), do not force
+hook-only language. Write the subset the data supports — header stats,
+activity, `mined.skill_loads` (from Claude `Skill`, Muse `read_skill`, and
+`agy` `read_file`/`view_file` reads of `SKILL.md`), `unloaded` candidates,
+wins, friction, fixes as tooling or workflow changes — and say which
+sections are absent because hooks were unobserved, not because nothing
+happened. Scope transcript activity to one repo with `--project` (the
+hook skill table, outcomes, and session list stay global — event logs
+carry no repo signal); the default unified run answers "how do we work",
+not "how is this repo".
 
 ## Inputs
 
@@ -67,9 +70,11 @@ Write every section the data supports; omit and name any the data cannot:
 - Session activity: prompts, tool mix, errors by tool, response gaps (label
   harness gaps where unobserved). Error counts mix hook blocks with
   genuine tool failures: on Claude transcripts most edit errors are
-  skill-nudge blocks (the guard working, not the tool failing), while
-  Muse failures are near-verbatim misses the agent retries out of.
-  Sample the sessions before judging a tool.
+  skill-nudge blocks (the guard working, not the tool failing), Muse
+  failures are near-verbatim misses the agent retries out of, and `agy`
+  runs without kit hooks today so errors are direct tool failures (missing
+  paths, edit misses, non-zero commands, or MCP errors). Sample the
+  sessions before judging a tool.
 - Narrative plus key insight: how the sessions actually ran, in second
   person, then the one finding that matters most.
 - Wins: DONE sessions with the chain that proves each.
@@ -88,10 +93,12 @@ alternative explanations the data cannot exclude.
 
 Name these exclusions instead of working around them: per-hook firing
 counts (volume without signal — first-fire witnesses plus transcript
-joins already cover compliance), Codex/OpenCode skill loads (no load
-signal exists; labeled exclusions, never ranked), publish
-non-conversion and repeat-stall rules (no trigger data yet; parked
-until outcomes accrue).
+joins already cover compliance), `agy` hook telemetry (no kit hooks are
+wired on `agy` yet — `agy` skill loads, tools, errors, response gaps, and
+subagents come from transcript mining, not `skills-usage.jsonl`),
+Codex/OpenCode skill loads (no load signal exists; labeled exclusions,
+never ranked), publish non-conversion and repeat-stall rules (no trigger
+data yet; parked until outcomes accrue).
 
 ## Output
 

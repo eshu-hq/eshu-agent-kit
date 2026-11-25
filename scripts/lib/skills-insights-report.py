@@ -24,6 +24,7 @@ except (ImportError, OSError, ValueError):
 def _load_text():
     """Load the sibling text renderer (dashed filename needs importlib)."""
     import importlib.util
+    sys.dont_write_bytecode = True
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "skills-insights-text.py")
     spec = importlib.util.spec_from_file_location("skills_insights_text", path)
@@ -259,9 +260,22 @@ for ms in mined_sessions:
 repos = _git_repos_stats([r for r in ARGS.repo], since) if any(
     r.strip() for r in ARGS.repo) else []
 
+def _mined_ts_date(val):
+    if isinstance(val, str) and TS_RE.match(val):
+        return val[:10]
+    if isinstance(val, int) and val > 0:
+        try:
+            return datetime.datetime.fromtimestamp(
+                val / 1_000_000, tz=datetime.timezone.utc).isoformat()[:10]
+        except (OSError, OverflowError, ValueError):
+            return None
+    return None
+
+
 mined_tools = Counter()
 mined_errors = Counter()
 mined_projects = Counter()
+mined_harnesses = Counter()
 mined_skill_loads = Counter()
 mined_sub_roles = Counter()
 mined_sub_models = Counter()
@@ -272,7 +286,14 @@ mined_subagents = 0
 mined_max_depth = 0
 mined_child_sessions = 0
 gap_seconds = []
+mined_dates = []
 for ms in mined_sessions:
+    if ms.get("harness"):
+        mined_harnesses[str(ms["harness"])] += 1
+    for tk in ("first_ts", "last_ts"):
+        d_str = _mined_ts_date(ms.get(tk))
+        if d_str:
+            mined_dates.append(d_str)
     mined_prompts += ms.get("prompts", 0) or 0
     for sk in ms.get("skill_loads") or []:
         if isinstance(sk, str) and sk:
@@ -309,12 +330,19 @@ joined_mined_ids = {str((mined_by_prefix.get(s) or {}).get("id", ""))
                     for s in sorted(sessions)} - {""}
 
 
+harnesses = sorted(set(harnesses) | set(mined_harnesses))
+if not tss and mined_dates:
+    tss = sorted(mined_dates)
+
+
 def _mined_summary(ms):
     tools = ms.get("tools") or {}
     return {"session": str(ms.get("id", "")),
             "harness": str(ms.get("harness", "")),
+            "project": str(ms.get("project") or ""),
             "prompts": ms.get("prompts", 0) or 0,
             "tool_calls": sum(tools.values()),
+            "skill_loads": list(ms.get("skill_loads") or []),
             "errors": dict(ms.get("errors") or {})}
 
 
@@ -382,6 +410,7 @@ data = {
     },
     "mined": {
         "sessions": len(mined_sessions),
+        "harnesses": dict(mined_harnesses),
         "prompts": mined_prompts,
         "tool_calls": mined_calls,
         "tools": dict(mined_tools.most_common(15)),
@@ -404,8 +433,8 @@ data = {
         "Correlation only, never causation: do not rank people or harnesses on this.",
         "no-progress share is an approximation: the skill coincided with "
         "sessions that never progressed — it may be unrelated to the stall.",
-        "Skill-load events exist on Claude+Muse only; Codex/OpenCode are "
-        "labeled exclusions, never ranked.",
+        "Hook skill-load events exist on Claude+Muse only (agy skill loads are "
+        "mined from transcripts; Codex/OpenCode are labeled exclusions, never ranked).",
     ] + (["%d test-fixture event(s) excluded (hook-probe session ids, "
           "never real work)." % fixture_dropped] if fixture_dropped else []
     ) + (["--project scopes transcript mining only: the skill table, "
