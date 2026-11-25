@@ -30,14 +30,9 @@ from collections import Counter
 
 
 def _load_json_lines(path, budget):
-    """Yield parsed records, deducting file size from budget[0]."""
-    try:
-        size = os.path.getsize(path)
-    except OSError:
-        return
-    if size > budget[0]:
-        return
-    budget[0] -= size
+    """Yield parsed records. Callers gate on budget[0] first; files that
+    do not fit are skipped before this runs, so skipped files never
+    produce phantom zero-sessions."""
     try:
         fh = open(path, encoding="utf-8", errors="replace")
     except OSError:
@@ -141,7 +136,7 @@ def mine_muse(path, budget):
     errors = Counter()
     subagents = 0
     subagent_roles = Counter()
-    subagent_models = Counter()
+    session_models = Counter()
     max_depth = 0
     started = {}
     first_ts = None
@@ -171,10 +166,13 @@ def mine_muse(path, budget):
                 if depth > max_depth:
                     max_depth = depth
         elif pt == "run.model.configured":
+            # Session-level only: command ids live in a different space from
+            # spawn command ids, so these models cannot be attributed to a
+            # specific child. Never merge into subagent_models.
             inner = (rec.get("payload") or {}).get("record") or {}
             if isinstance(inner, dict) and isinstance(inner.get("model_id"), str):
                 if inner["model_id"]:
-                    subagent_models[inner["model_id"][:60]] += 1
+                    session_models[inner["model_id"][:60]] += 1
         elif pt == "tool_batch.effect.started":
             inner = (rec.get("payload") or {}).get("record") or {}
             if isinstance(inner, dict) and inner.get("call_id"):
@@ -199,7 +197,7 @@ def mine_muse(path, budget):
             "assistant_messages": None, "tools": dict(tools),
             "errors": dict(errors), "response_gaps": [],
             "subagents": subagents, "subagent_roles": dict(subagent_roles),
-            "subagent_models": dict(subagent_models), "max_depth": max_depth,
+            "session_models": dict(session_models), "max_depth": max_depth,
             "parent_session": parent,
             "first_ts": first_ts, "last_ts": last_ts}
 
@@ -220,7 +218,16 @@ def main(argv):
     ap.add_argument("--root", action="append", default=[])
     ap.add_argument("--since", default="")
     ap.add_argument("--cap-bytes", type=int, default=512 * 1024 * 1024)
+    ap.add_argument("--git", action="append", default=[])
     args = ap.parse_args(argv)
+    if args.git:
+        repos = []
+        for repo in args.git:
+            stats = collect_git_stats(repo.strip(), args.since)
+            repos.append(stats if stats else {"path": repo.strip(),
+                                              "unreadable": True})
+        sys.stdout.write(json.dumps({"repos": repos}, sort_keys=True))
+        return
     roots = args.root or [
         os.path.expanduser("~/.claude/projects"),
         os.path.join(os.environ.get("XDG_DATA_HOME",
@@ -249,9 +256,14 @@ def main(argv):
                     continue
     candidates.sort(key=lambda p: p[0], reverse=True)
     for _, path in candidates:
-        if budget[0] <= 0:
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        if size > budget[0]:
             capped = True
-            break
+            continue
+        budget[0] -= size
         try:
             if os.path.basename(path) == "session.jsonl":
                 probe = None
