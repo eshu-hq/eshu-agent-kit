@@ -219,6 +219,7 @@ cat >"${troot}/claude/claude-fix-1.jsonl" <<'EOF'
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{}}]},"timestamp":"2026-11-20T10:00:05.000Z","sessionId":"claude-fix-1"}
 {"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","is_error":true,"content":"boom"}]},"timestamp":"2026-11-20T10:00:06.000Z","sessionId":"claude-fix-1"}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"fixed"}]},"timestamp":"2026-11-20T10:00:10.000Z","sessionId":"claude-fix-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Agent","input":{"description":"scan it","subagent_type":"scan-eshu","model":"sonnet"}}]},"timestamp":"2026-11-20T10:00:12.000Z","sessionId":"claude-fix-1"}
 {"type":"user","message":{"role":"user","content":[{"type":"text","text":"thanks"}]},"timestamp":"2026-11-20T10:00:40.000Z","sessionId":"claude-fix-1"}
 EOF
 cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
@@ -228,6 +229,8 @@ cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000003000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c2","tool_name":"read_skill"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000004000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c2","outcome":{"kind":"completed"}}}}
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000005000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
+{"record_type":"event","payload_type":"subagent.control.spawn_accepted","recorded_at":1795000006000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"spawn_accepted","subagent_id":"child-1","task_id":"task-1","role":"develop-eshu","depth":1}}}
+{"record_type":"event","payload_type":"run.model.configured","recorded_at":1795000007000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"configured","command_id":"cmd-1","model_id":"muse-spark-1.3"}}}
 EOF
 python3 - "${troot}" <<'PYEOF' && ok "miners attribute tools, errors, prompts" || no "miners attribute tools, errors, prompts"
 import json, subprocess, sys
@@ -240,12 +243,16 @@ assert out.returncode == 0, out.stderr
 d = json.loads(out.stdout)
 assert len(d["sessions"]) == 2, d
 cf = next(s for s in d["sessions"] if s["id"] == "claude-fix-1")
-assert cf["prompts"] == 2 and cf["tools"] == {"Bash": 1}, cf
+assert cf["prompts"] == 2 and cf["tools"] == {"Bash": 1, "Agent": 1}, cf
 assert cf["errors"] == {"Bash": 1}, cf
 assert len(cf["response_gaps"]) == 1, cf
 mu = next(s for s in d["sessions"] if s["id"] == "muse-fix-1")
 assert mu["prompts"] == 2 and mu["tools"] == {"Bash": 1, "read_skill": 1}, mu
 assert mu["errors"] == {"Bash": 1}, mu
+assert mu["subagents"] == 1 and mu["subagent_roles"] == {"develop-eshu": 1}, mu
+assert mu["subagent_models"] == {"muse-spark-1.3": 1} and mu["max_depth"] == 1, mu
+assert cf["subagents"] == 1 and cf["subagent_roles"] == {"scan-eshu": 1}, cf
+assert cf["subagent_models"] == {"sonnet": 1}, cf
 PYEOF
 
 # 14. Git history counts merges and reverts; unknown paths stay green.

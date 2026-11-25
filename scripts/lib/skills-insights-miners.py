@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript miners for the skills debrief.
+"""Transcript and git-history collectors for the skills debrief.
 
 Reads local Claude transcripts (~/.claude/projects/*/*.jsonl) and Muse
 session logs (session.jsonl) and emits per-session COUNT aggregates as JSON.
@@ -24,6 +24,7 @@ Muse record shapes:
 import argparse
 import json
 import os
+import re
 import sys
 from collections import Counter
 
@@ -61,6 +62,10 @@ def mine_claude(path, budget):
     assistants = 0
     tools = Counter()
     errors = Counter()
+    skill_loads = []
+    subagents = 0
+    subagent_roles = Counter()
+    subagent_models = Counter()
     use_id_to_tool = {}
     last_assistant_ts = None
     gaps = []
@@ -87,6 +92,21 @@ def mine_claude(path, budget):
                     tools[str(block["name"])] += 1
                     if block.get("id"):
                         use_id_to_tool[str(block["id"])] = str(block["name"])
+                    if block.get("name") == "Agent":
+                        subagents += 1
+                        inp = block.get("input") or {}
+                        if isinstance(inp, dict):
+                            if isinstance(inp.get("subagent_type"), str) and inp["subagent_type"]:
+                                subagent_roles[inp["subagent_type"][:80]] += 1
+                            if isinstance(inp.get("model"), str) and inp["model"]:
+                                subagent_models[inp["model"][:60]] += 1
+                    if block.get("name") == "Skill":
+                        raw = ((block.get("input") or {}).get("skill", "")
+                               if isinstance(block.get("input"), dict) else "")
+                        bare = str(raw).strip().split(":")[-1]
+                        bare = re.sub(r"[^A-Za-z0-9._-]", "", bare)[:40]
+                        if bare:
+                            skill_loads.append(bare)
         elif rec.get("type") == "user":
             msg = rec.get("message") or {}
             if not isinstance(msg, dict):
@@ -107,6 +127,9 @@ def mine_claude(path, budget):
     return {"id": sess, "harness": "claude", "prompts": prompts,
             "assistant_messages": assistants, "tools": dict(tools),
             "errors": dict(errors), "response_gaps": gaps,
+            "skill_loads": sorted(set(skill_loads)),
+            "subagents": subagents, "subagent_roles": dict(subagent_roles),
+            "subagent_models": dict(subagent_models),
             "first_ts": first_ts, "last_ts": last_ts}
 
 
@@ -117,6 +140,9 @@ def mine_muse(path, budget):
     tools = Counter()
     errors = Counter()
     subagents = 0
+    subagent_roles = Counter()
+    subagent_models = Counter()
+    max_depth = 0
     started = {}
     first_ts = None
     last_ts = None
@@ -134,6 +160,21 @@ def mine_muse(path, budget):
             prompts += 1
         elif pt == "subagent.control.spawn_accepted":
             subagents += 1
+            inner = (rec.get("payload") or {}).get("record") or {}
+            if isinstance(inner, dict):
+                if isinstance(inner.get("role"), str) and inner["role"]:
+                    subagent_roles[inner["role"][:80]] += 1
+                try:
+                    depth = int(inner.get("depth", 0) or 0)
+                except (TypeError, ValueError):
+                    depth = 0
+                if depth > max_depth:
+                    max_depth = depth
+        elif pt == "run.model.configured":
+            inner = (rec.get("payload") or {}).get("record") or {}
+            if isinstance(inner, dict) and isinstance(inner.get("model_id"), str):
+                if inner["model_id"]:
+                    subagent_models[inner["model_id"][:60]] += 1
         elif pt == "tool_batch.effect.started":
             inner = (rec.get("payload") or {}).get("record") or {}
             if isinstance(inner, dict) and inner.get("call_id"):
@@ -150,10 +191,17 @@ def mine_muse(path, budget):
                 errors[tool] += 1
     if sess is None:
         sess = os.path.basename(os.path.dirname(path)) or path
+    parent = None
+    parts = path.split(os.sep)
+    if len(parts) >= 4 and parts[-2] != "sessions" and parts[-3] == "subagent":
+        parent = parts[-4] or None
     return {"id": str(sess), "harness": "muse", "prompts": prompts,
             "assistant_messages": None, "tools": dict(tools),
             "errors": dict(errors), "response_gaps": [],
-            "subagents": subagents, "first_ts": first_ts, "last_ts": last_ts}
+            "subagents": subagents, "subagent_roles": dict(subagent_roles),
+            "subagent_models": dict(subagent_models), "max_depth": max_depth,
+            "parent_session": parent,
+            "first_ts": first_ts, "last_ts": last_ts}
 
 
 def _mtime_ok(path, since):
@@ -183,11 +231,12 @@ def main(argv):
     sessions = []
     skipped_old = 0
     capped = False
+    candidates = []
     for root in roots:
         if not os.path.isdir(root):
             continue
         for dirpath, _dirnames, filenames in os.walk(root):
-            for name in sorted(filenames):
+            for name in filenames:
                 if not name.endswith(".jsonl"):
                     continue
                 path = os.path.join(dirpath, name)
@@ -195,34 +244,84 @@ def main(argv):
                     skipped_old += 1
                     continue
                 try:
-                    if name == "session.jsonl" or "muse" in root:
-                        probe = None
-                        with open(path, encoding="utf-8",
-                                  errors="replace") as fh:
-                            for _ in range(5):
-                                line = fh.readline()
-                                if '"payload_type"' in line:
-                                    probe = "muse"
-                                    break
-                                if '"sessionId"' in line:
-                                    probe = "claude"
-                                    break
-                        miner = mine_muse if probe != "claude" else mine_claude
-                    else:
-                        miner = mine_claude
+                    candidates.append((os.path.getmtime(path), path))
                 except OSError:
                     continue
-                if budget[0] <= 0:
-                    capped = True
-                    break
-                rec = miner(path, budget)
-                rec["path"] = path
-                sessions.append(rec)
-            if capped:
-                break
+    candidates.sort(key=lambda p: p[0], reverse=True)
+    for _, path in candidates:
+        if budget[0] <= 0:
+            capped = True
+            break
+        try:
+            if os.path.basename(path) == "session.jsonl":
+                probe = None
+                with open(path, encoding="utf-8",
+                          errors="replace") as fh:
+                    for _ in range(5):
+                        line = fh.readline()
+                        if '"payload_type"' in line:
+                            probe = "muse"
+                            break
+                        if '"sessionId"' in line:
+                            probe = "claude"
+                            break
+                miner = mine_muse if probe != "claude" else mine_claude
+            else:
+                miner = mine_claude
+        except OSError:
+            continue
+        rec = miner(path, budget)
+        rec["path"] = path
+        sessions.append(rec)
     sys.stdout.write(json.dumps({"sessions": sessions,
                                  "skipped_old": skipped_old,
                                  "byte_capped": capped}, sort_keys=True))
+
+
+def collect_git_stats(path, since):
+    """Deterministic git history rollup; {} when not a repo or git fails."""
+    import datetime
+    import subprocess
+    if not os.path.isdir(os.path.join(path, ".git")):
+        return {}
+    window = since or ""
+    if not window:
+        try:
+            window = (datetime.date.today() -
+                      datetime.timedelta(days=90)).isoformat()
+        except ValueError:
+            window = ""
+    cmd = ["git", "-C", path, "log", "--pretty=%H %P %s", "--numstat"]
+    if window:
+        cmd += ["--since=" + window]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except (OSError, ValueError):
+        return {}
+    if out.returncode != 0:
+        return {}
+    commits = merges = reverts = files = added = deleted = 0
+    for line in out.stdout.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        if (len(parts) == 3 and parts[0].strip().isdigit()
+                and parts[1].strip().isdigit()):
+            added += int(parts[0].strip())
+            deleted += int(parts[1].strip())
+            files += 1
+        elif line and not line[0].isspace():
+            m = re.match(r"^[0-9a-f]{40}((?: [0-9a-f]{40})*) (.*)$", line)
+            if not m:
+                continue
+            commits += 1
+            if len(m.group(1).split()) >= 2:
+                merges += 1
+            if m.group(2).lower().startswith("revert"):
+                reverts += 1
+    return {"path": path, "commits": commits, "merges": merges,
+            "reverts": reverts, "files": files,
+            "added": added, "deleted": deleted}
 
 
 if __name__ == "__main__":
