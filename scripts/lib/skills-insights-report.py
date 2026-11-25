@@ -33,8 +33,6 @@ def _args(argv):
 
 
 ARGS = _args(sys.argv[1:])
-MINERS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                      "skills-insights-miners.py")
 
 logs = [p for p in ARGS.log if p]
 since = ARGS.since or ""
@@ -57,11 +55,6 @@ for path in logs:
                 events.append(ev)
     except OSError:
         continue
-
-if not events:
-    print("skills-insights: no events yet (logs: " + ", ".join(logs) + ")")
-    print("Load a skill in a session with the kit hooks installed, then re-run.")
-    raise SystemExit(0)
 
 sessions = {str(e.get("session", "")) for e in events if e.get("session")}
 harnesses = sorted({str(e.get("harness", "")) for e in events if e.get("harness")})
@@ -176,22 +169,16 @@ def _parse_ts(s):
         return None
 
 
-def _mine_transcripts():
-    """Run the miners lib; returns its dict or {} on any failure."""
+def _run_miners(argv, timeout=300):
+    """Run miners.py; parsed dict or {} on any failure (fail-open)."""
     import subprocess
-    if ARGS.no_mine:
-        return {}
-    miner = MINERS
+    miner = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "skills-insights-miners.py")
     if not os.path.isfile(miner):
         return {}
-    cmd = [sys.executable, miner]
-    for root in ARGS.transcript_root:
-        if root.strip():
-            cmd += ["--root", root.strip()]
-    if since:
-        cmd += ["--since", since]
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        out = subprocess.run([sys.executable, miner] + argv,
+                             capture_output=True, text=True, timeout=timeout)
     except (OSError, ValueError):
         return {}
     if out.returncode != 0:
@@ -203,54 +190,32 @@ def _mine_transcripts():
     return data if isinstance(data, dict) else {}
 
 
-def _git_repo_stats(path, since):
-    """Deterministic git history rollup; {} when not a repo or git fails."""
-    import subprocess
-    if not os.path.isdir(os.path.join(path, ".git")):
+def _mine_transcripts():
+    """Transcript sessions dict; {} when skipped or unreadable."""
+    if ARGS.no_mine:
         return {}
-    window = since or ""
-    if not window:
-        try:
-            import datetime as _dt
-            window = (_dt.date.today() - _dt.timedelta(days=90)).isoformat()
-        except ValueError:
-            window = ""
-    cmd = ["git", "-C", path, "log", "--pretty=%H %P %s", "--numstat"]
-    if window:
-        cmd += ["--since=" + window]
-    try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-    except (OSError, ValueError):
-        return {}
-    if out.returncode != 0:
-        return {}
-    commits = merges = reverts = files = added = deleted = 0
-    for line in out.stdout.splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("\t")
-        if len(parts) == 3 and parts[0].strip().isdigit():
-            try:
-                added += int(parts[0].strip())
-            except ValueError:
-                pass
-            try:
-                deleted += int(parts[1].strip())
-            except ValueError:
-                pass
-            files += 1
-        elif line and not line[0].isspace():
-            m = re.match(r"^[0-9a-f]{40}((?: [0-9a-f]{40})*) (.*)$", line)
-            if not m:
-                continue
-            commits += 1
-            if len(m.group(1).split()) >= 2:
-                merges += 1
-            if m.group(2).lower().startswith("revert"):
-                reverts += 1
-    return {"path": path, "commits": commits, "merges": merges,
-            "reverts": reverts, "files": files,
-            "added": added, "deleted": deleted}
+    cmd = []
+    for root in ARGS.transcript_root:
+        if root.strip():
+            cmd += ["--root", root.strip()]
+    if since:
+        cmd += ["--since", since]
+    return _run_miners(cmd)
+
+
+def _git_repos_stats(paths, since):
+    """One miners call for all repos; unreadable repos come back flagged."""
+    cmd = []
+    for path in paths:
+        if path.strip():
+            cmd += ["--git", path.strip()]
+    if since:
+        cmd += ["--since", since]
+    data = _run_miners(cmd, timeout=180)
+    repos = data.get("repos")
+    if isinstance(repos, list):
+        return [r for r in repos if isinstance(r, dict)]
+    return []
 
 
 def _sess_turns(sess):
@@ -272,27 +237,51 @@ def _sess_turns(sess):
 
 mined = _mine_transcripts()
 mined_sessions = mined.get("sessions", []) if isinstance(mined, dict) else []
+if not events and not mined_sessions:
+    print("skills-insights: no events yet (logs: " + ", ".join(logs) + ")")
+    print("Load a skill in a session with the kit hooks installed, then re-run.")
+    raise SystemExit(0)
 mined_by_prefix = {}
 for ms in mined_sessions:
     mid = str(ms.get("id", ""))
     if mid:
         mined_by_prefix.setdefault(mid[:12], ms)
         mined_by_prefix.setdefault(mid, ms)
-repos = []
-for repo in ARGS.repo:
-    repo = repo.strip()
-    if not repo:
-        continue
-    stats = _git_repo_stats(repo, since)
-    repos.append(stats if stats else {"path": repo, "unreadable": True})
+repos = _git_repos_stats([r for r in ARGS.repo], since) if any(
+    r.strip() for r in ARGS.repo) else []
 
 mined_tools = Counter()
 mined_errors = Counter()
+mined_skill_loads = Counter()
+mined_sub_roles = Counter()
+mined_sub_models = Counter()
+mined_session_models = Counter()
 mined_prompts = 0
 mined_calls = 0
+mined_subagents = 0
+mined_max_depth = 0
+mined_child_sessions = 0
 gap_seconds = []
 for ms in mined_sessions:
     mined_prompts += ms.get("prompts", 0) or 0
+    for sk in ms.get("skill_loads") or []:
+        if isinstance(sk, str) and sk:
+            mined_skill_loads[sk] += 1
+    mined_subagents += ms.get("subagents", 0) or 0
+    for role, c in (ms.get("subagent_roles") or {}).items():
+        mined_sub_roles[str(role)] += c
+    for key, counter in (("subagent_models", mined_sub_models),
+                         ("session_models", mined_session_models)):
+        for model, c in (ms.get(key) or {}).items():
+            counter[str(model)] += c
+    try:
+        depth = int(ms.get("max_depth", 0) or 0)
+    except (TypeError, ValueError):
+        depth = 0
+    if depth > mined_max_depth:
+        mined_max_depth = depth
+    if ms.get("parent_session"):
+        mined_child_sessions += 1
     for tool, c in (ms.get("tools") or {}).items():
         mined_tools[str(tool)] += c
         mined_calls += c
@@ -305,14 +294,8 @@ for ms in mined_sessions:
                 gap_seconds.append((b - a).total_seconds())
 median_gap = _median(gap_seconds)
 
-joined_mined_ids = set()
-
-
-for sess in sorted(sessions):
-    ms = mined_by_prefix.get(sess)
-    if ms:
-        ms["_joined"] = True
-        joined_mined_ids.add(str(ms.get("id", "")))
+joined_mined_ids = {str((mined_by_prefix.get(s) or {}).get("id", ""))
+                    for s in sorted(sessions)} - {""}
 
 
 def _mined_summary(ms):
@@ -375,6 +358,13 @@ data = {
         "tool_calls": mined_calls,
         "tools": dict(mined_tools.most_common(15)),
         "errors": dict(mined_errors.most_common(15)),
+        "skill_loads": dict(mined_skill_loads.most_common(25)),
+        "subagents": mined_subagents,
+        "subagent_roles": dict(mined_sub_roles.most_common(15)),
+        "subagent_models": dict(mined_sub_models.most_common(15)),
+        "session_models": dict(mined_session_models.most_common(15)),
+        "max_depth": mined_max_depth,
+        "child_sessions": mined_child_sessions,
         "median_response_gap_s": median_gap,
         "response_gaps_n": len(gap_seconds),
         "byte_capped": bool(mined.get("byte_capped")),
@@ -444,6 +434,28 @@ if mined_sessions:
         print("  response gaps: unobserved (needs Claude assistant→user pairs)")
     if mined.get("byte_capped"):
         print("  WARNING: transcript byte cap hit — activity is partial")
+    if mined_skill_loads:
+        print("  transcript skill loads (backfill: every load the transcripts "
+              "show, including sessions predating telemetry):")
+        for sk, c in mined_skill_loads.most_common(15):
+            print("  %s: %s" % (sk, _n(c, "load")))
+    if mined_tools.get("read_skill"):
+        print("  read_skill calls (Muse): %d — the harness does not record "
+              "which skill, so these count but do not attribute" % mined_tools["read_skill"])
+    if mined_subagents:
+        print("  subagents spawned: %d across %s (%s child sessions logged separately)" % (
+            mined_subagents, _n(len(mined_sessions), "mined session"), mined_child_sessions))
+        if mined_sub_roles:
+            print("  roles: " + ", ".join(
+                "%s %d" % (r, c) for r, c in mined_sub_roles.most_common(8)))
+        if mined_sub_models:
+            print("  models: " + ", ".join(
+                "%s %d" % (m, c) for m, c in mined_sub_models.most_common(8)))
+        if mined_session_models:
+            print("  session models (harness-level, not per-subagent): " + ", ".join(
+                "%s %d" % (m, c) for m, c in mined_session_models.most_common(8)))
+        if mined_max_depth:
+            print("  deepest delegation chain: %d" % mined_max_depth)
     print()
 if repos:
     print("git history (--repo):")

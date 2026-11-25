@@ -13,7 +13,7 @@ HOOKS="${KIT_DIR}/hooks"
 REPORT="${KIT_DIR}/scripts/skills-insights.sh"
 
 work="$(mktemp -d)"
-trap 'rm -rf "${work}"' EXIT
+trap '[ -f "${work}/miners-away.py" ] && mv "${work}/miners-away.py" "${KIT_DIR}/scripts/lib/skills-insights-miners.py"; rm -rf "${work}"' EXIT
 export XDG_DATA_HOME="${work}/xdg"
 export HOME="${work}/home"
 export TMPDIR="${work}/tmp"
@@ -181,6 +181,12 @@ out="$(bash "${REPORT}")"
 rg -q "publish \| 1 load" <<<"${out}" &&
 	ok "default log path aggregates without --log" || no "default log path aggregates without --log"
 rm -f "${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl"
+mv "${KIT_DIR}/scripts/lib/skills-insights-miners.py" "${work}/miners-away.py"
+out="$(bash "${REPORT}" --log "${fix}" --no-mine --repo "${work}/not-a-repo" 2>&1)" && rc=0 || rc=1
+mv "${work}/miners-away.py" "${KIT_DIR}/scripts/lib/skills-insights-miners.py"
+[ "${rc}" -eq 0 ] && rg -q "code-review \| 1 load" <<<"${out}" &&
+	! rg -q "Traceback" <<<"${out}" &&
+	ok "missing miners file degrades, never crashes" || no "missing miners file degrades, never crashes"
 
 # 11. A dead turn logs its category, never its details.
 out="$(printf '{"hook_event_name":"StopFailure","session_id":"deadsess01","cwd":"%s","failure_category":"server_error","failure_details":"sekret-payload-text"}' "${work}" |
@@ -219,7 +225,14 @@ cat >"${troot}/claude/claude-fix-1.jsonl" <<'EOF'
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{}}]},"timestamp":"2026-11-20T10:00:05.000Z","sessionId":"claude-fix-1"}
 {"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","is_error":true,"content":"boom"}]},"timestamp":"2026-11-20T10:00:06.000Z","sessionId":"claude-fix-1"}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"fixed"}]},"timestamp":"2026-11-20T10:00:10.000Z","sessionId":"claude-fix-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Agent","input":{"description":"scan it","subagent_type":"scan-eshu","model":"sonnet"}}]},"timestamp":"2026-11-20T10:00:12.000Z","sessionId":"claude-fix-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu3","name":"Skill","input":{"skill":"eshu-agent-kit:code-review"}}]},"timestamp":"2026-11-20T10:00:13.000Z","sessionId":"claude-fix-1"}
 {"type":"user","message":{"role":"user","content":[{"type":"text","text":"thanks"}]},"timestamp":"2026-11-20T10:00:40.000Z","sessionId":"claude-fix-1"}
+EOF
+mkdir -p "${troot}/muse2/parent-sess/subagent/child-1"
+cat >"${troot}/muse2/parent-sess/subagent/child-1/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000010000000,"stream":{"id":"child-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c9","tool_name":"Bash"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000011000000,"stream":{"id":"child-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c9","outcome":{"kind":"completed"}}}}
 EOF
 cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000000000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
@@ -228,6 +241,9 @@ cat >"${troot}/muse/sess1/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795000003000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c2","tool_name":"read_skill"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795000004000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c2","outcome":{"kind":"completed"}}}}
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000005000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{}}
+{"record_type":"event","payload_type":"subagent.control.spawn_accepted","recorded_at":1795000006000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"spawn_accepted","subagent_id":"child-1","task_id":"task-1","role":"develop-eshu","depth":1}}}
+{"record_type":"event","payload_type":"run.model.configured","recorded_at":1795000007000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"configured","command_id":"cmd-1","model_id":"muse-spark-1.3"}}}
+{"record_type":"event","payload_type":"run.model.configured","recorded_at":1795000008000000,"stream":{"id":"muse-fix-1","kind":"x"},"payload":{"record":{"kind":"configured","command_id":"cmd-9","model_id":"muse-ember-1.0"}}}
 EOF
 python3 - "${troot}" <<'PYEOF' && ok "miners attribute tools, errors, prompts" || no "miners attribute tools, errors, prompts"
 import json, subprocess, sys
@@ -240,13 +256,37 @@ assert out.returncode == 0, out.stderr
 d = json.loads(out.stdout)
 assert len(d["sessions"]) == 2, d
 cf = next(s for s in d["sessions"] if s["id"] == "claude-fix-1")
-assert cf["prompts"] == 2 and cf["tools"] == {"Bash": 1}, cf
+assert cf["prompts"] == 2 and cf["tools"] == {"Bash": 1, "Agent": 1, "Skill": 1}, cf
 assert cf["errors"] == {"Bash": 1}, cf
 assert len(cf["response_gaps"]) == 1, cf
+assert cf["skill_loads"] == ["code-review"], cf
 mu = next(s for s in d["sessions"] if s["id"] == "muse-fix-1")
 assert mu["prompts"] == 2 and mu["tools"] == {"Bash": 1, "read_skill": 1}, mu
 assert mu["errors"] == {"Bash": 1}, mu
+assert mu["subagents"] == 1 and mu["subagent_roles"] == {"develop-eshu": 1}, mu
+assert mu.get("subagent_models", {}) == {}, mu
+assert mu["session_models"] == {"muse-spark-1.3": 1, "muse-ember-1.0": 1}, mu
+assert mu["max_depth"] == 1, mu
+assert cf["subagents"] == 1 and cf["subagent_roles"] == {"scan-eshu": 1}, cf
+assert cf["subagent_models"] == {"sonnet": 1}, cf
+child = subprocess.run([sys.executable,
+                        "scripts/lib/skills-insights-miners.py",
+                        "--root", troot + "/muse2"],
+                       capture_output=True, text=True)
+assert child.returncode == 0, child.stderr
+kid = json.loads(child.stdout)["sessions"]
+assert len(kid) == 1 and kid[0]["parent_session"] == "parent-sess", kid
 PYEOF
+capdir="${troot}/cap"
+mkdir -p "${capdir}"
+printf '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"old"}]},"timestamp":"2026-11-20T10:00:00.000Z","sessionId":"old-sess"}\n' >"${capdir}/old.jsonl"
+printf '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"new"}]},"timestamp":"2026-11-20T10:00:00.000Z","sessionId":"new-sess"}\n' >"${capdir}/new.jsonl"
+touch -d "2020-01-01 00:00" "${capdir}/old.jsonl"
+touch -d "2026-11-20 10:00" "${capdir}/new.jsonl"
+capped="$(python3 scripts/lib/skills-insights-miners.py --root "${capdir}" --cap-bytes 250)"
+capped_ids="$(printf '%s' "${capped}" | python3 -c 'import json,sys; print(" ".join(s["id"] for s in json.load(sys.stdin)["sessions"]))')"
+[ "${capped_ids}" = "new" ] &&
+	ok "byte cap keeps newest sessions first" || no "byte cap keeps newest sessions first (got: ${capped_ids})"
 
 # 14. Git history counts merges and reverts; unknown paths stay green.
 grepo="${work}/grepo"
