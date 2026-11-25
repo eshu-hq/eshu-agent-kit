@@ -321,6 +321,15 @@ def _mined_summary(ms):
 unjoined = [_mined_summary(ms) for ms in mined_sessions
             if str(ms.get("id", "")) not in joined_mined_ids]
 
+# Unloaded work: progress the hooks saw with no skill loaded, plus mined
+# sessions whose transcripts show prompts but no consulted skill. Counts
+# only — whether a missing skill explains any of it is a debrief judgment
+# over sampled transcripts, never a claim this aggregate makes.
+loaded_sessions = {sess for sess, _ in loads}
+unloaded_hook = sorted(s for s in progress_sessions if s not in loaded_sessions)
+unloaded_mined = [ms for ms in mined_sessions
+                  if (ms.get("prompts") or 0) > 0 and not (ms.get("skill_loads") or [])]
+
 data = {
     "meta": {
         "events": len(events),
@@ -363,6 +372,13 @@ data = {
         "model_failures": dict(failures),
         "repeat_blocked_sessions": sorted(
             s for s, c in block_event_counts.items() if c >= 3),
+    },
+    "unloaded": {
+        "sessions": unloaded_hook,
+        "mined_sessions": len(unloaded_mined),
+        "mined_prompts": sum(ms.get("prompts", 0) or 0 for ms in unloaded_mined),
+        "mined_joined": sum(1 for ms in unloaded_mined
+                            if str(ms.get("id", "")) in joined_mined_ids),
     },
     "mined": {
         "sessions": len(mined_sessions),

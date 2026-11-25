@@ -314,6 +314,47 @@ scoped3 = json.loads(subprocess.run(
     base + ["--project", "beta"], capture_output=True, text=True).stdout)
 assert [s["id"] for s in scoped3["sessions"]] == ["sess2"], scoped3
 PYEOF
+# 13c. Muse read_skill args mine into named loads (snapshot repeats dedupe).
+mkdir -p "${troot}/muse3/rs-sess"
+cat >"${troot}/muse3/rs-sess/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"runtime.session.metadata","recorded_at":1795000020000000,"stream":{"id":"rs-1","kind":"x"},"payload":{"record":{"workspace_root":"/repo/gamma"}}}
+{"record_type":"event","payload_type":"runtime.session","recorded_at":1795000021000000,"stream":{"id":"rs-1","kind":"x"},"payload":{"event":{"tool_calls":[{"call_id":"c1","id":"t1","name":"read_skill","args":"{\"name\":\"issue-driver\"}"},{"call_id":"c2","id":"t2","name":"bash","args":"{\"command\":\"true\"}"}]}}}
+{"record_type":"event","payload_type":"runtime.session","recorded_at":1795000022000000,"stream":{"id":"rs-1","kind":"x"},"payload":{"event":{"tool_calls":[{"call_id":"c1","id":"t1","name":"read_skill","args":"{\"name\":\"issue-driver\"}"},{"call_id":"c3","id":"t3","name":"read_skill","args":"{\"name\":\"eshu-agent-kit:publish\"}"},{"call_id":"c4","id":"t4","name":"read_skill","args":"not-json"},{"call_id":"c5","id":"t5","name":"read_skill","args":"{\"name\":\"/home/u/.claude/skills/eshu-code-review/SKILL.md\"}"}]}}}
+EOF
+python3 - "${troot}" <<'PYEOF' && ok "read_skill args mine into named loads" || no "read_skill args mine into named loads"
+import json, subprocess, sys
+troot = sys.argv[1]
+out = subprocess.run([sys.executable, "scripts/lib/skills-insights-miners.py",
+                      "--root", troot + "/muse3"],
+                     capture_output=True, text=True)
+assert out.returncode == 0, out.stderr
+d = json.loads(out.stdout)
+assert len(d["sessions"]) == 1, d
+rs = d["sessions"][0]
+assert rs["id"] == "rs-1", rs
+assert rs["skill_loads"] == ["eshu-code-review", "issue-driver", "publish"], rs
+PYEOF
+# 16. Unloaded work: progress with no skill loaded, hook and mined sides.
+cat >"${work}/fix4.jsonl" <<'EOF'
+{"harness":"muse","session":"loaded1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
+{"harness":"muse","session":"loaded1","ts":"2026-11-20T10:01:00+00:00","type":"goal-continued","detail":{"progress":1,"remaining":1,"turn":"t1"}}
+{"harness":"muse","session":"bare1","ts":"2026-11-20T10:00:00+00:00","type":"goal-continued","detail":{"progress":2,"remaining":0,"turn":"t1"}}
+EOF
+mkdir -p "${troot}/muse4/plain-sess"
+cat >"${troot}/muse4/plain-sess/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"runtime.session.metadata","recorded_at":1795000030000000,"stream":{"id":"plain-1","kind":"x"},"payload":{"record":{"workspace_root":"/repo/delta"}}}
+{"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795000031000000,"stream":{"id":"plain-1","kind":"x"},"payload":{}}
+EOF
+bash "${REPORT}" --log "${work}/fix4.jsonl" --transcript-root "${troot}/muse4" --format json >"${work}/fix4.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/fix4.json" <<'PYEOF' && ok "unloaded work has a denominator" || no "unloaded work has a denominator"
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["unloaded"]["sessions"] == ["bare1"], d["unloaded"]
+assert d["unloaded"]["mined_sessions"] == 1, d["unloaded"]
+assert d["unloaded"]["mined_prompts"] == 1, d["unloaded"]
+PYEOF
+rg -q "unloaded work" <<<"$(bash "${REPORT}" --log "${work}/fix4.jsonl" --transcript-root "${troot}/muse4")" &&
+	ok "text names unloaded work" || no "text names unloaded work"
 bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" \
 	--transcript-root "${troot}/muse" --format json >"${work}/proj.json" && rc=0 || rc=1
 [ "${rc}" -eq 0 ] && python3 - "${work}/proj.json" <<'PYEOF' && ok "report scopes and breaks down by project" || no "report scopes and breaks down by project"

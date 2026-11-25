@@ -22,8 +22,10 @@ Claude record shapes (observed live, fail open on anything else):
 Muse record shapes:
   tool_batch.effect.started carries tool_name+call_id; .terminal carries
   call_id plus outcome.kind (completed vs failed). user_intent.accepted
-  records count prompts. recorded_at is microseconds. Skill names are NOT
-  in effect records, so read_skill loads count without names.
+  records count prompts. recorded_at is microseconds. Effect records carry
+  no arguments, but runtime.session event.tool_calls entries do: only
+  read_skill's name arg is ever parsed (skill identifiers, same class as
+  tool names). General args and rendered_skills content are never touched.
 """
 import argparse
 import json
@@ -144,6 +146,8 @@ def mine_muse(path, budget):
     session_models = Counter()
     max_depth = 0
     started = {}
+    skill_loads = []
+    read_seen = set()
     project = ""
     first_ts = None
     last_ts = None
@@ -197,6 +201,42 @@ def mine_muse(path, budget):
             kind = outcome.get("kind") if isinstance(outcome, dict) else outcome
             if kind != "completed":
                 errors[tool] += 1
+        # Standalone scan (not part of the chain above): runtime.session
+        # event.tool_calls entries carry read_skill name args. Only that
+        # field is ever parsed; general args stay untouched.
+        pay = rec.get("payload")
+        if isinstance(pay, dict):
+            ev = pay.get("event")
+            tcs = ev.get("tool_calls") if isinstance(ev, dict) else None
+            if isinstance(tcs, list):
+                for tc in tcs:
+                    if not isinstance(tc, dict) or tc.get("name") != "read_skill":
+                        continue
+                    cid = str(tc.get("call_id") or "")
+                    if cid:
+                        if cid in read_seen:
+                            continue
+                        read_seen.add(cid)
+                    raw = tc.get("args")
+                    name = ""
+                    if isinstance(raw, str):
+                        try:
+                            dec = json.loads(raw)
+                        except ValueError:
+                            dec = {}
+                        if isinstance(dec, dict) and isinstance(dec.get("name"), str):
+                            name = dec["name"]
+                    # A path identifies its skill by parent directory
+                    # (~/.claude/skills/eshu-code-review/SKILL.md ->
+                    # eshu-code-review); stripping punctuation instead
+                    # would fuse it into unreadable mush.
+                    parts = name.strip().rstrip("/").split("/")
+                    if len(parts) >= 2:
+                        name = parts[-2]
+                    bare = name.strip().split(":")[-1]
+                    bare = re.sub(r"[^A-Za-z0-9._-]", "", bare)[:40]
+                    if bare:
+                        skill_loads.append(bare)
     if sess is None:
         sess = os.path.basename(os.path.dirname(path)) or path
     parent = None
@@ -206,6 +246,7 @@ def mine_muse(path, budget):
     return {"id": str(sess), "harness": "muse", "prompts": prompts,
             "assistant_messages": None, "tools": dict(tools),
             "errors": dict(errors), "response_gaps": [],
+            "skill_loads": sorted(set(skill_loads)),
             "subagents": subagents, "subagent_roles": dict(subagent_roles),
             "session_models": dict(session_models), "max_depth": max_depth,
             "parent_session": parent, "project": project,
