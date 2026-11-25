@@ -122,9 +122,15 @@ nudge_ids_for "/$REL"
 [ -z "$IDS" ] && exit 0
 
 # Which required skills are not loaded in THIS context window?
+# Accept either the harness alias (`eshu-<name>`) or the canonical kit name
+# (`<name>`) so loading the canonical skill satisfies an alias arm without a
+# forced double-load.
 MISSING=""
 for id in $IDS; do
+	canon="${id#eshu-}"
 	[ -f "/tmp/claude-skill-loaded-${SID}-${id}" ] && continue
+	[ -f "/tmp/claude-skill-loaded-${SID}-${canon}" ] && continue
+	[ -f "/tmp/claude-skill-loaded-${SID}-eshu-${canon}" ] && continue
 	MISSING="${MISSING}${MISSING:+ }${id}"
 done
 [ -z "$MISSING" ] && exit 0

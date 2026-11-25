@@ -86,7 +86,23 @@ harnesses = sorted({str(e.get("harness", "")) for e in events if e.get("harness"
 tss = sorted(t for t in (str(e.get("ts", "")) for e in events) if TS_RE.match(t))
 
 
-loads = [(str(e.get("session", "")), str(e["detail"].get("skill", "")))
+def _load_aliases():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "..", "templates", "repo-overlay", "eshu-aliases.tsv")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return {p[0].strip(): p[1].strip() for line in fh
+                    if line.strip() and not line.lstrip().startswith("#")
+                    for p in [line.split("\t")] if len(p) >= 2 and p[0].strip() and p[1].strip()}
+    except OSError:
+        return {}
+
+
+ALIASES = _load_aliases()
+_canon = lambda s: ALIASES.get(s, s)
+
+
+loads = [(str(e.get("session", "")), _canon(str(e["detail"].get("skill", ""))))
          for e in events
          if e.get("type") == "skill-load" and e.get("session")
          and isinstance(e.get("detail"), dict)
@@ -96,7 +112,7 @@ for e in events:
     if e.get("type") == "nudge-block" and isinstance(e.get("detail"), dict):
         for s in e["detail"].get("skills", []) or []:
             if isinstance(s, str) and s:
-                blocked[str(e.get("session", ""))].add(s)
+                blocked[str(e.get("session", ""))].add(_canon(s))
 outcomes = {}
 for e in events:
     t = e.get("type")
@@ -106,6 +122,10 @@ progress_sessions = {str(e.get("session", "")) for e in events
                      if e.get("type") == "goal-continued"
                      and isinstance(e.get("detail"), dict)
                      and e["detail"].get("progress", 0) not in (0, "0", "")}
+goal_sessions = set(outcomes) | {
+    str(e.get("session", "")) for e in events
+    if e.get("type") == "goal-continued" and e.get("session")
+}
 
 by_skill_sessions = defaultdict(set)
 for sess, skill in loads:
@@ -118,14 +138,17 @@ for sess, skill in loads:
 done_counts = Counter()
 released_counts = Counter()
 stalled_counts = Counter()
+goal_skill_counts = Counter()
 for skill, sessset in by_skill_sessions.items():
     for sess in sessset:
-        if outcomes.get(sess) == "goal-done":
-            done_counts[skill] += 1
-        if outcomes.get(sess) == "goal-released":
-            released_counts[skill] += 1
-        if sess not in progress_sessions and outcomes.get(sess) != "goal-done":
-            stalled_counts[skill] += 1
+        if sess in goal_sessions:
+            goal_skill_counts[skill] += 1
+            if outcomes.get(sess) == "goal-done":
+                done_counts[skill] += 1
+            if outcomes.get(sess) == "goal-released":
+                released_counts[skill] += 1
+            if sess not in progress_sessions and outcomes.get(sess) != "goal-done":
+                stalled_counts[skill] += 1
 
 block_counts = Counter()
 for sess, skills in blocked.items():
@@ -297,7 +320,7 @@ for ms in mined_sessions:
     mined_prompts += ms.get("prompts", 0) or 0
     for sk in ms.get("skill_loads") or []:
         if isinstance(sk, str) and sk:
-            mined_skill_loads[sk] += 1
+            mined_skill_loads[_canon(sk)] += 1
     mined_subagents += ms.get("subagents", 0) or 0
     for role, c in (ms.get("subagent_roles") or {}).items():
         mined_sub_roles[str(role)] += c
@@ -377,10 +400,12 @@ data = {
          "loads": load_counts[skill],
          "forced": forced_counts.get(skill, 0),
          "sessions": len(by_skill_sessions[skill]),
+         "goal_sessions": goal_skill_counts.get(skill, 0),
          "done_with": done_counts.get(skill, 0),
          "released_with": released_counts.get(skill, 0),
-         "no_progress_share_pct": (100 * stalled_counts.get(skill, 0)
-                                   // len(by_skill_sessions[skill]))}
+         "no_progress_share_pct": (
+             100 * stalled_counts.get(skill, 0) // goal_skill_counts[skill]
+             if goal_skill_counts.get(skill, 0) else None)}
         for skill in sorted(by_skill_sessions, key=lambda s: (-load_counts[s], s))
     ],
     "sessions": [
@@ -431,8 +456,8 @@ data = {
     },
     "notes": [
         "Correlation only, never causation: do not rank people or harnesses on this.",
-        "no-progress share is an approximation: the skill coincided with "
-        "sessions that never progressed — it may be unrelated to the stall.",
+        "no-progress share is computed over goal sessions only (null when none ran): "
+        "the skill coincided with goal sessions that never progressed — it may be unrelated to the stall.",
         "Hook skill-load events exist on Claude+Muse only (agy skill loads are "
         "mined from transcripts; Codex/OpenCode are labeled exclusions, never ranked).",
     ] + (["%d test-fixture event(s) excluded (hook-probe session ids, "
@@ -450,16 +475,17 @@ if T is None:
     print("skills-insights: text renderer unavailable — degraded skill "
           "summary only (--format json still works)")
     for row in data["skills"][:15]:
+        np = "n/a" if row["no_progress_share_pct"] is None else "%d%%" % row["no_progress_share_pct"]
         print("- %s: %d %s (%d forced), done-with %d, released-with %d, "
-              "no-progress share %d%%" % (
+              "no-progress share %s" % (
                   row["skill"], row["loads"],
                   "load" if row["loads"] == 1 else "loads", row["forced"],
-                  row["done_with"], row["released_with"],
-                  row["no_progress_share_pct"]))
+                  row["done_with"], row["released_with"], np))
     raise SystemExit(0)
 T.render_text(data, {
     "events": events, "sessions": sessions, "loads": loads,
     "outcomes": outcomes, "progress_sessions": progress_sessions,
-    "block_counts": block_counts, "failures": failures,
+    "goal_sessions": goal_sessions, "block_counts": block_counts,
+    "failures": failures,
 })
 raise SystemExit(0)
