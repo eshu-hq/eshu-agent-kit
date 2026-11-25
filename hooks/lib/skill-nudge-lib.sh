@@ -52,8 +52,9 @@ for skill_id in ids:
     pattern = r"(?<![A-Za-z0-9_-])" + re.escape(skill_id) + r"(?![A-Za-z0-9_-])"
     if not re.search(pattern, goal):
         continue
-    marker = "/tmp/claude-skill-loaded-%s-%s" % (sid, skill_id)
-    if os.path.exists(marker):
+    canon = skill_id[5:] if skill_id.startswith("eshu-") else skill_id
+    if any(os.path.exists("/tmp/claude-skill-loaded-%s-%s" % (sid, n))
+           for n in (skill_id, canon, "eshu-" + canon)):
         continue
     missing.append(skill_id)
 print(" ".join(missing))

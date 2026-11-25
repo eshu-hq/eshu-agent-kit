@@ -75,9 +75,17 @@ state it describes is gone. This applies across every playbook.
 - Name the branch in the same message. `HEAD` is `git rev-parse HEAD` in that
   branch's worktree. `BASE` is `git merge-base HEAD origin/main`. A prefix of
   10 or more characters matches.
+- Include the verified absolute worktree path from
+  `git worktree list --porcelain` in every subagent or review brief about a
+  branch; never pass a guessed `.worktrees/<branch>` path without verifying it
+  exists on disk. Done when the brief names a path present in
+  `git worktree list --porcelain`.
 - The sender chooses a short request id. The reply copies it.
 - If a request names a `HEAD` that is not the current tip of that branch,
-  reply `STALE` with the current tip. Do not start the work.
+  reply `STALE` with the current tip. Do not start the work. If the named
+  worktree path does not exist on disk, check `git worktree list --porcelain`
+  (or reply `STALE` when read-only without shell access) instead of probing
+  guessed paths.
 
 ## Common mistakes
 
@@ -88,6 +96,7 @@ state it describes is gone. This applies across every playbook.
 | Pausing by pushing or opening a PR "so it's saved" | An irreversible action taken for a reversible reason |
 | `git stash` to park work | The stash stack is shared across all worktrees; concurrent agents corrupt each other |
 | Editing in the main checkout because the worktree "was just for the last task" | Main must stay a clean fast-forward of `origin/main` |
+| Passing a guessed `.worktrees/<branch>` path in a subagent brief | Subagents burn dozens of `read_file` errors on missing paths instead of reading the live sibling worktree |
 | Reading one `pending == 0` and calling CI green | Large check sets register in waves |
 | Retrying a failed exact-match edit with a longer block from memory | The failure already names the closest match — re-read those lines and retry with the shortest unique match; long blocks drift |
 | Deleting a worktree that looked idle | Uncommitted work is unrecoverable; the tree may be in active use |

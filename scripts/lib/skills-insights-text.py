@@ -13,6 +13,10 @@ def _n(n, singular):
     return "%d %s%s" % (n, singular, "" if n == 1 else "s")
 
 
+def _pct(val):
+    return "n/a" if val is None else "%d%%" % val
+
+
 def _timeline(sess, events):
     rows = []
     for e in sorted((x for x in events if str(x.get("session", "")) == sess),
@@ -70,14 +74,14 @@ def render_text(data, ctx):
     print()
     print("skill | loads | forced | sessions | done-with | released-with | no-progress-session share")
     for row in data["skills"]:
-        print("%s | %s | %d (%d%%) | %s | %d | %d | %d%%" % (
+        print("%s | %s | %d (%d%%) | %s | %d | %d | %s" % (
             row["skill"], _n(row["loads"], "load"),
             row["forced"], (100 * row["forced"] // row["loads"]),
             _n(row["sessions"], "session"), row["done_with"], row["released_with"],
-            row["no_progress_share_pct"]))
+            _pct(row["no_progress_share_pct"])))
     print()
-    print("no-progress-session share is an approximation: the skill coincided")
-    print("with sessions that never progressed — it may be unrelated to the stall.")
+    print("no-progress-session share is computed over goal sessions only (n/a when")
+    print("none ran) — the skill coincided with goal sessions that never progressed.")
     print()
     if block_counts:
         print("nudge-blocked skills (forced-load demand):")
@@ -165,9 +169,11 @@ def render_text(data, ctx):
                     _n(r.get("merges", 0), "merge"), _n(r.get("reverts", 0), "revert"),
                     _n(r.get("files", 0), "file"), r.get("added", 0), r.get("deleted", 0)))
         print()
+    goal_sessions = ctx.get("goal_sessions", set(outcomes) | progress_sessions)
     stalled = [s for s in sorted(sessions)
                if outcomes.get(s) == "goal-released"
-               or (s not in progress_sessions and outcomes.get(s) != "goal-done"
+               or (s in goal_sessions and s not in progress_sessions
+                   and outcomes.get(s) != "goal-done"
                    and any(ss == s for ss, _ in loads))]
     if stalled:
         print("friction — stalled sessions (did → broke, never solved):")
@@ -189,7 +195,7 @@ def render_text(data, ctx):
         print()
     print("--- paste into chat for the fix-list synthesis ---")
     for row in data["skills"][:15]:
-        print("- %s: %s (%d forced), done-with %d, released-with %d, no-progress share %d%%" % (
+        print("- %s: %s (%d forced), done-with %d, released-with %d, no-progress share %s" % (
             row["skill"], _n(row["loads"], "load"), row["forced"],
-            row["done_with"], row["released_with"], row["no_progress_share_pct"]))
+            row["done_with"], row["released_with"], _pct(row["no_progress_share_pct"])))
     print("Correlation only, never causation: do not rank people or harnesses on this.")

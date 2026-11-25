@@ -435,5 +435,44 @@ assert d["friction"]["repeat_blocked_sessions"] == [], d["friction"]
 assert any("fixture" in n for n in d["notes"]), d["notes"]
 PYEOF
 
+# 17. Canonical skill marker satisfies eshu-* nudge arm (no forced double-load).
+touch "/tmp/claude-skill-loaded-${SID}-postgres-rigor"
+if printf '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"%s/storage/postgres/q.sql"},"session_id":"%s"}' "${repo}" "${SID}" |
+	bash "${HOOKS}/skill-nudge.sh" >/dev/null 2>&1; then
+	ok "canonical marker satisfies eshu-* nudge arm"
+else
+	no "canonical marker satisfies eshu-* nudge arm"
+fi
+rm -f "/tmp/claude-skill-loaded-${SID}-postgres-rigor"
+
+# 18. Report folds eshu-* aliases onto canonical rows and omits non-goal sessions
+#     from no_progress_share_pct (null/n/a) and stalled-session friction.
+cat >"${work}/fix5.jsonl" <<'EOF'
+{"harness":"muse","session":"worker1","ts":"2026-11-25T10:00:00+00:00","type":"skill-load","detail":{"skill":"postgres-rigor"}}
+{"harness":"muse","session":"worker1","ts":"2026-11-25T10:01:00+00:00","type":"nudge-block","detail":{"skills":["eshu-postgres-rigor"]}}
+{"harness":"muse","session":"worker1","ts":"2026-11-25T10:02:00+00:00","type":"skill-load","detail":{"skill":"eshu-postgres-rigor"}}
+{"harness":"muse","session":"goal1","ts":"2026-11-25T11:00:00+00:00","type":"skill-load","detail":{"skill":"eshu-performance-rigor"}}
+{"harness":"muse","session":"goal1","ts":"2026-11-25T11:01:00+00:00","type":"goal-continued","detail":{"progress":0,"remaining":2,"turn":"t1"}}
+EOF
+bash "${REPORT}" --log "${work}/fix5.jsonl" --no-mine --format json >"${work}/fix5.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/fix5.json" <<'PYEOF' && ok "aliases fold and non-goal sessions report null stall share" || no "aliases fold and non-goal sessions report null stall share"
+import json, sys
+d = json.load(open(sys.argv[1]))
+by_sk = {r["skill"]: r for r in d["skills"]}
+assert set(by_sk) == {"postgres-rigor", "performance-rigor"}, by_sk
+pg = by_sk["postgres-rigor"]
+assert pg["loads"] == 2 and pg["sessions"] == 1 and pg["goal_sessions"] == 0, pg
+assert pg["no_progress_share_pct"] is None, pg
+assert d["friction"]["nudge_blocked"] == {"postgres-rigor": 1}, d["friction"]
+pf = by_sk["performance-rigor"]
+assert pf["goal_sessions"] == 1 and pf["no_progress_share_pct"] == 100, pf
+PYEOF
+txt5="$(bash "${REPORT}" --log "${work}/fix5.jsonl" --no-mine)"
+rg -q "postgres-rigor \| 2 loads .* \| n/a" <<<"${txt5}" &&
+	! rg -q "worker1 \[open\]" <<<"${txt5}" &&
+	rg -q "goal1 \[open\]" <<<"${txt5}" &&
+	ok "text renders n/a for non-goal skills and excludes non-goal workers from stalled list" ||
+	no "text renders n/a for non-goal skills and excludes non-goal workers from stalled list"
+
 printf '\nskills-insights: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

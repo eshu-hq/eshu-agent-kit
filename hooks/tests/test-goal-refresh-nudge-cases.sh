@@ -134,6 +134,14 @@ out="$(cat "${TMPDIR}/loaded.out")"
 has "${out}" 'ACTIVE GOAL' 'a loaded-marker goal is still restated'
 hasnt "${out}" 'load `eshu-code-review` now' 'a loaded skill is not nudged again'
 rm -f "${marker}" "${TMPDIR}/loaded.out"
+canon_marker="${nudge_marker_dir}/claude-skill-loaded-${sid12}-code-review"
+printf '1\n' >"${canon_marker}"
+printf '{"session_id":"%s","prompt_id":"1","cwd":"%s","prompt":"/goal Use the eshu-code-review skill","hook_event_name":"UserPromptSubmit"}' \
+	"${sid}" "${c4}" |
+	bash "${HOOK}" 2>/dev/null >"${TMPDIR}/loaded-canon.out"
+out="$(cat "${TMPDIR}/loaded-canon.out")"
+hasnt "${out}" 'load `eshu-code-review` now' 'a canonical marker satisfies an eshu-* goal nudge'
+rm -f "${canon_marker}" "${TMPDIR}/loaded-canon.out"
 
 # ── 6. an unpinned directory is silent, not an error ───────────────────────
 # No .agent-kit-version anywhere: the walk-up finds nothing and the hook must
