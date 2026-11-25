@@ -193,7 +193,7 @@ fi
 spacedclean="${work}/my clean repo"
 if "${kit}/install.sh" --repo "${spacedclean}" --aliases "${manifest}" >/dev/null 2>&1; then
 	gotname="$(sed -n 's/^name: //p' "${spacedclean}/.claude/skills/eshu-code-review/SKILL.md")"
-	if [ "$(ls "${spacedclean}/.claude/skills" | wc -l | tr -d ' ')" = 21 ] && [ "${gotname}" = eshu-code-review ]; then
+	if [ "$(ls "${spacedclean}/.claude/skills" | wc -l | tr -d ' ')" = 22 ] && [ "${gotname}" = eshu-code-review ]; then
 		ok "space-path clean install works"
 	else
 		no "space-path clean install works"

@@ -232,6 +232,20 @@ Codex nor OpenCode exposes a skill-load event, so reports label them
 exclusions and never rank them. Multi-machine: each machine writes its own
 log; `scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
 
+**Report surface.** `scripts/skills-insights.sh [--log PATH]...
+[--since DATE] [--format text|json] [--repo PATH]... [--transcript-root
+PATH]... [--no-mine]`. Transcript mining (tool mix, errors, response gaps,
+prompt counts — counts only, never message text) runs by default over the
+known Claude/Muse log roots within `--since`; `--no-mine` skips it.
+`--repo` adds git history (commits, merges, reverts, lines) per repo.
+`--format json` emits sessions with ordered did → broke → solved timelines
+plus per-turn progress groups for the debrief step.
+
+**Debrief.** The `skills-debrief` skill reads the JSON aggregate and writes
+the full narrative report (single self-contained HTML file): wins, friction
+with session ids, actionable fixes, horizon ideas. Solved stays a judgment
+over a complete evidence chain, never a single event.
+
 **Timelines.** `scripts/skills-insights.sh --format json` emits one ordered
 timeline per session in a did → broke → solved vocabulary: `did:load+X`
 and `did:progress=N` (what the agent did), `broke:blocked-need+X` and
