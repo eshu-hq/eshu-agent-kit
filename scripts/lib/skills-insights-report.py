@@ -129,7 +129,22 @@ for e in events:
         block_event_counts[str(e.get("session", ""))] += 1
 
 
-T = _load_text()
+try:
+    T = _load_text()
+except Exception:
+    T = None
+
+
+def _sess_harness(sess):
+    return T._sess_harness(sess, events) if T else ""
+
+
+def _sess_skills(sess):
+    return T._sess_skills(sess, loads) if T else []
+
+
+def _timeline(sess):
+    return T._timeline(sess, events) if T else []
 
 
 def _median(vals):
@@ -321,14 +336,14 @@ data = {
     ],
     "sessions": [
         {"session": sess,
-         "harness": T._sess_harness(sess, events) or (mined_by_prefix.get(sess) or {}).get("harness", ""),
+         "harness": _sess_harness(sess) or (mined_by_prefix.get(sess) or {}).get("harness", ""),
          "outcome": outcomes.get(sess),
-         "skills": T._sess_skills(sess, loads),
+         "skills": _sess_skills(sess),
          "turns": _sess_turns(sess),
          "activity": ({k: (mined_by_prefix.get(sess) or {}).get(k)
                        for k in ("prompts", "tools", "errors")}
                       if sess in mined_by_prefix else None),
-         "timeline": T._timeline(sess, events)}
+         "timeline": _timeline(sess)}
         for sess in sorted(sessions)
     ],
     "friction": {
@@ -363,13 +378,26 @@ data = {
         "sessions that never progressed — it may be unrelated to the stall.",
         "Skill-load events exist on Claude+Muse only; Codex/OpenCode are "
         "labeled exclusions, never ranked.",
-    ],
+    ] + (["--project scopes transcript mining only: the skill table, "
+           "outcomes, and session list stay global (event logs carry no "
+           "repo signal)."] if ARGS.project.strip() else []),
 }
 
 if ARGS.format == "json":
     print(json.dumps(data, indent=1, sort_keys=True))
     raise SystemExit(0)
 
+if T is None:
+    print("skills-insights: text renderer unavailable — degraded skill "
+          "summary only (--format json still works)")
+    for row in data["skills"][:15]:
+        print("- %s: %d %s (%d forced), done-with %d, released-with %d, "
+              "no-progress share %d%%" % (
+                  row["skill"], row["loads"],
+                  "load" if row["loads"] == 1 else "loads", row["forced"],
+                  row["done_with"], row["released_with"],
+                  row["no_progress_share_pct"]))
+    raise SystemExit(0)
 T.render_text(data, {
     "events": events, "sessions": sessions, "loads": loads,
     "outcomes": outcomes, "progress_sessions": progress_sessions,

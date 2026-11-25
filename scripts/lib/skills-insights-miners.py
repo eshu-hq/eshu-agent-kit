@@ -226,8 +226,11 @@ def _mtime_ok(path, since):
 def _project_ok(path, want):
     """Substring match on the Claude dir slug or Muse workspace_root.
 
-    Muse files with no workspace_root in the peek window stay in
-    (fail-open): absence of signal is not evidence of another project.
+    The workspace_root must come from a runtime.session.metadata record —
+    the same signal mine_muse attributes — never from a raw string match,
+    which misfires on paths quoted inside other records. Muse files with
+    no metadata record in the peek window stay in (fail-open): absence
+    of signal is not evidence of another project.
     """
     if not want:
         return True
@@ -239,13 +242,19 @@ def _project_ok(path, want):
                 line = fh.readline()
                 if not line:
                     break
-                m = re.search(r'"workspace_root"\s*:\s*"((?:[^"\\]|\\.)*)"',
-                              line)
-                if m:
-                    try:
-                        return want in json.loads('"' + m.group(1) + '"')
-                    except ValueError:
-                        continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if rec.get("payload_type") != "runtime.session.metadata":
+                    continue
+                inner = (rec.get("payload") or {}).get("record") or {}
+                if not isinstance(inner, dict):
+                    continue
+                root = inner.get("workspace_root")
+                return want in root if isinstance(root, str) else True
     except OSError:
         return True
     return True

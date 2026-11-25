@@ -13,7 +13,7 @@ HOOKS="${KIT_DIR}/hooks"
 REPORT="${KIT_DIR}/scripts/skills-insights.sh"
 
 work="$(mktemp -d)"
-trap '[ -f "${work}/miners-away.py" ] && mv "${work}/miners-away.py" "${KIT_DIR}/scripts/lib/skills-insights-miners.py"; rm -rf "${work}"' EXIT
+trap '[ -f "${work}/miners-away.py" ] && mv "${work}/miners-away.py" "${KIT_DIR}/scripts/lib/skills-insights-miners.py"; [ -f "${work}/text-away.py" ] && mv "${work}/text-away.py" "${KIT_DIR}/scripts/lib/skills-insights-text.py"; rm -rf "${work}"' EXIT
 export XDG_DATA_HOME="${work}/xdg"
 export HOME="${work}/home"
 export TMPDIR="${work}/tmp"
@@ -187,6 +187,13 @@ mv "${work}/miners-away.py" "${KIT_DIR}/scripts/lib/skills-insights-miners.py"
 [ "${rc}" -eq 0 ] && rg -q "code-review \| 1 load" <<<"${out}" &&
 	! rg -q "Traceback" <<<"${out}" &&
 	ok "missing miners file degrades, never crashes" || no "missing miners file degrades, never crashes"
+mv "${KIT_DIR}/scripts/lib/skills-insights-text.py" "${work}/text-away.py"
+out="$(bash "${REPORT}" --log "${fix}" --no-mine 2>&1)" && rc=0 || rc=1
+mv "${work}/text-away.py" "${KIT_DIR}/scripts/lib/skills-insights-text.py"
+[ "${rc}" -eq 0 ] && rg -q "renderer unavailable" <<<"${out}" &&
+	rg -q "code-review: 1 load" <<<"${out}" &&
+	! rg -q "Traceback" <<<"${out}" &&
+	ok "missing text renderer degrades, never crashes" || no "missing text renderer degrades, never crashes"
 
 # 11. A dead turn logs its category, never its details.
 out="$(printf '{"hook_event_name":"StopFailure","session_id":"deadsess01","cwd":"%s","failure_category":"server_error","failure_details":"sekret-payload-text"}' "${work}" |
@@ -280,6 +287,13 @@ assert len(kid) == 1 and kid[0]["parent_session"] == "parent-sess", kid
 PYEOF
 # 13b. Sessions carry a project (Claude dir slug, Muse workspace_root);
 # --project scopes mining to one repo, fail-open on anything else.
+# sess2 carries a decoy workspace_root string in a non-metadata record:
+# the filter must read the metadata signal, not the raw string.
+mkdir -p "${troot}/muse/sess2"
+cat >"${troot}/muse/sess2/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"custom.note","recorded_at":1795000010000000,"stream":{"id":"sess2","kind":"x"},"payload":{"record":{"workspace_root":"/repo/alpha"}}}
+{"record_type":"event","payload_type":"runtime.session.metadata","recorded_at":1795000011000000,"stream":{"id":"sess2","kind":"x"},"payload":{"record":{"workspace_root":"/repo/beta"}}}
+EOF
 python3 - "${troot}" <<'PYEOF' && ok "sessions carry project, --project scopes" || no "sessions carry project, --project scopes"
 import json, subprocess, sys
 troot = sys.argv[1]
@@ -289,26 +303,31 @@ d = json.loads(subprocess.run(base, capture_output=True, text=True).stdout)
 by_id = {s["id"]: s for s in d["sessions"]}
 assert by_id["claude-fix-1"]["project"] == "claude", by_id["claude-fix-1"]
 assert by_id["muse-fix-1"]["project"] == "/repo/alpha", by_id["muse-fix-1"]
+assert by_id["sess2"]["project"] == "/repo/beta", by_id["sess2"]
 scoped = json.loads(subprocess.run(
     base + ["--project", "alpha"], capture_output=True, text=True).stdout)
 assert [s["id"] for s in scoped["sessions"]] == ["muse-fix-1"], scoped
 scoped2 = json.loads(subprocess.run(
     base + ["--project", "claude"], capture_output=True, text=True).stdout)
 assert [s["id"] for s in scoped2["sessions"]] == ["claude-fix-1"], scoped2
+scoped3 = json.loads(subprocess.run(
+    base + ["--project", "beta"], capture_output=True, text=True).stdout)
+assert [s["id"] for s in scoped3["sessions"]] == ["sess2"], scoped3
 PYEOF
 bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" \
 	--transcript-root "${troot}/muse" --format json >"${work}/proj.json" && rc=0 || rc=1
 [ "${rc}" -eq 0 ] && python3 - "${work}/proj.json" <<'PYEOF' && ok "report scopes and breaks down by project" || no "report scopes and breaks down by project"
 import json, sys
 d = json.load(open(sys.argv[1]))
-assert d["mined"]["projects"] == {"claude": 1, "/repo/alpha": 1}, d["mined"]
+assert d["mined"]["projects"] == {"claude": 1, "/repo/alpha": 1, "/repo/beta": 1}, d["mined"]
+assert not [n for n in d["notes"] if n.startswith("--project scopes")], d["notes"]
 PYEOF
 bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" \
 	--transcript-root "${troot}/muse" --project alpha --format json >"${work}/proj1.json" &&
-	python3 -c 'import json,sys; d = json.load(open(sys.argv[1])); assert d["mined"]["sessions"] == 1, d["mined"]; assert d["meta"]["project"] == "alpha", d["meta"]' "${work}/proj1.json" &&
+	python3 -c 'import json,sys; d = json.load(open(sys.argv[1])); assert d["mined"]["sessions"] == 1, d["mined"]; assert d["meta"]["project"] == "alpha", d["meta"]; assert d["notes"][-1].startswith("--project scopes transcript mining only"), d["notes"]' "${work}/proj1.json" &&
 	ok "report --project filters to one repo" || no "report --project filters to one repo"
-rg -q "project scope: alpha" <<<"$(bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/muse" --project alpha)" &&
-	ok "text names the project scope" || no "text names the project scope"
+rg -q "transcript scope: alpha" <<<"$(bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/muse" --project alpha)" &&
+	ok "text names the transcript scope" || no "text names the transcript scope"
 txt="$(bash "${REPORT}" --log "${fix}" --transcript-root "${troot}/claude" --transcript-root "${troot}/muse")"
 rg -q "top tools: Bash 2" <<<"${txt}" &&
 	rg -q "tool errors: Bash 2" <<<"${txt}" &&

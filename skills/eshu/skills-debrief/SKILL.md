@@ -18,8 +18,10 @@ events, no nudge blocks, no goal turns), do not force kit language.
 Write the project-aware subset instead — header stats, activity, wins,
 friction, fixes as tooling or workflow changes — and say the page is
 shorter because the data is thinner, not because nothing happened.
-Scope one invocation to one repo with `--project`; the default unified
-run answers "how do we work", not "how is this repo".
+Scope transcript activity to one repo with `--project` (the skill table,
+outcomes, and session list stay global — event logs carry no repo
+signal); the default unified run answers "how do we work", not "how is
+this repo".
 
 ## Inputs
 

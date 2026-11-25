@@ -64,7 +64,7 @@ def render_text(data, ctx):
         tss[0], tss[1]))
     print("harnesses observed: %s" % (", ".join(data["meta"]["harnesses"]) or "?"))
     if data["meta"].get("project"):
-        print("project scope: %s" % data["meta"]["project"])
+        print("transcript scope: %s (skill table and outcomes stay global)" % data["meta"]["project"])
     print("skill-load events exist on Claude+Muse only; Codex/OpenCode are")
     print("labeled exclusions, never ranked.")
     print()
