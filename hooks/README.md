@@ -217,8 +217,9 @@ for improving how we work, not for watching people.
 harness); `skill-nudge.sh` appends `nudge-block` (demanded skill ids) on its
 refusal path; `goal-continue.sh` appends `goal-done`, `goal-released`
 (stop count), `goal-blocked-watcher`, or `goal-continued` (progress,
-remaining). Muse and Codex wrappers attribute via `KIT_HARNESS`. All events
-go to `$XDG_DATA_HOME/eshu-agent-kit/skills-usage.jsonl` (fallback
+remaining, turn); `stop-failure.sh` appends `model-failure` (category only,
+never details). Muse and Codex wrappers attribute via `KIT_HARNESS`. All
+events go to `$XDG_DATA_HOME/eshu-agent-kit/skills-usage.jsonl` (fallback
 `~/.local/share`), rotated at 5 MiB keeping one spare.
 
 **Privacy bar.** Skill names, outcome labels, counters, timestamps. No prompt
@@ -231,13 +232,26 @@ Codex nor OpenCode exposes a skill-load event, so reports label them
 exclusions and never rank them. Multi-machine: each machine writes its own
 log; `scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
 
-**Synthesis prompt.** Paste the report's summary block into chat with:
+**Timelines.** `scripts/skills-insights.sh --format json` emits one ordered
+timeline per session in a did → broke → solved vocabulary: `did:load+X`
+and `did:progress=N` (what the agent did), `broke:blocked-need+X` and
+`broke:model-failure(cat)` (what broke), `solved:done` or `end:released`
+(how it ended). The text report prints the same timelines for stalled
+sessions (friction) and DONE sessions (wins).
 
-> Below is a skills-insights report from my kit sessions. Return a
-> prioritized fix-list: per skill, rewrite, re-route, or retire, with the
-> one-line reason tied to a row in the report. Treat correlation as
-> correlation — never rank people or harnesses, and never claim a load
-> caused an outcome. Name anything the report cannot answer.
+**Synthesis prompt.** Paste the report output (text, or `--format json` for
+full timelines) into chat with:
+
+> Below is a skills debrief from my kit sessions: per-skill aggregates plus
+> per-session timelines in did → broke → solved order. Read each timeline in
+> order first — what the agent did, what broke, what got solved or how it
+> ended — then return: (1) per-skill verdicts, rewrite, re-route, or retire,
+> each tied to a row or timeline; (2) friction patterns with the session ids
+> that show them; (3) wins worth repeating, with what made them work; (4)
+> anything the data cannot answer. Treat correlation as correlation — never
+> rank people or harnesses, and never claim a load caused an outcome. Solved
+> is a judgment over a complete evidence chain (progress, then DONE, then an
+> outcome the timeline supports), never a single event.
 
 **Limits.** Aggregates correlate loads with outcomes; they cannot attribute
 an outcome to one load among several. `no-progress-session share` means the
