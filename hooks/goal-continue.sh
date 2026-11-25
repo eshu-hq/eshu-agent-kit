@@ -465,7 +465,7 @@ Stop for real only when one of these is true, and say which:
 
 Continuations left for this message: ${remaining}.${final_warning}"
 
-command -v si_event >/dev/null 2>&1 && si_event "goal-continued" "${session_id}" "progress=${progress:-0}" "remaining=${remaining:-0}"
+command -v si_event >/dev/null 2>&1 && si_event "goal-continued" "${session_id}" "progress=${progress:-0}" "remaining=${remaining:-0}" "turn=${prompt_id:-}"
 printf '%s' "${reason}" | python3 -c '
 import json, sys
 print(json.dumps({"decision": "block", "reason": sys.stdin.read()}))
