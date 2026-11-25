@@ -68,6 +68,18 @@ for path in logs:
     except OSError:
         continue
 
+# Test-fixture sessions never describe real work. The hook suites run
+# hermetic, but hand-fired probes and live-fire checks have written fixture
+# ids into real logs (abcdefghijkl from test-global-claude-hooks.sh, ses9
+# from the opencode bridge tests). Real harness ids are UUIDs, so these
+# cannot collide; drop them before any aggregation counts them.
+FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
+fixture_dropped = sum(1 for e in events
+                      if str(e.get("session", "")) in FIXTURE_SESSIONS)
+if fixture_dropped:
+    events = [e for e in events
+              if str(e.get("session", "")) not in FIXTURE_SESSIONS]
+
 sessions = {str(e.get("session", "")) for e in events if e.get("session")}
 harnesses = sorted({str(e.get("harness", "")) for e in events if e.get("harness")})
 tss = sorted(t for t in (str(e.get("ts", "")) for e in events) if TS_RE.match(t))
@@ -309,6 +321,15 @@ def _mined_summary(ms):
 unjoined = [_mined_summary(ms) for ms in mined_sessions
             if str(ms.get("id", "")) not in joined_mined_ids]
 
+# Unloaded work: progress the hooks saw with no skill loaded, plus mined
+# sessions whose transcripts show prompts but no consulted skill. Counts
+# only — whether a missing skill explains any of it is a debrief judgment
+# over sampled transcripts, never a claim this aggregate makes.
+loaded_sessions = {sess for sess, _ in loads}
+unloaded_hook = sorted(s for s in progress_sessions if s not in loaded_sessions)
+unloaded_mined = [ms for ms in mined_sessions
+                  if (ms.get("prompts") or 0) > 0 and not (ms.get("skill_loads") or [])]
+
 data = {
     "meta": {
         "events": len(events),
@@ -352,6 +373,13 @@ data = {
         "repeat_blocked_sessions": sorted(
             s for s, c in block_event_counts.items() if c >= 3),
     },
+    "unloaded": {
+        "sessions": unloaded_hook,
+        "mined_sessions": len(unloaded_mined),
+        "mined_prompts": sum(ms.get("prompts", 0) or 0 for ms in unloaded_mined),
+        "mined_joined": sum(1 for ms in unloaded_mined
+                            if str(ms.get("id", "")) in joined_mined_ids),
+    },
     "mined": {
         "sessions": len(mined_sessions),
         "prompts": mined_prompts,
@@ -378,7 +406,9 @@ data = {
         "sessions that never progressed — it may be unrelated to the stall.",
         "Skill-load events exist on Claude+Muse only; Codex/OpenCode are "
         "labeled exclusions, never ranked.",
-    ] + (["--project scopes transcript mining only: the skill table, "
+    ] + (["%d test-fixture event(s) excluded (hook-probe session ids, "
+          "never real work)." % fixture_dropped] if fixture_dropped else []
+    ) + (["--project scopes transcript mining only: the skill table, "
            "outcomes, and session list stay global (event logs carry no "
            "repo signal)."] if ARGS.project.strip() else []),
 }

@@ -93,6 +93,18 @@ def render_text(data, ctx):
         "%s=%d" % (k, term[k]) for k in ("goal-done", "goal-released", "goal-blocked-watcher") if term[k]
     ) or "none recorded"))
     print()
+    unloaded = data.get("unloaded") or {}
+    if (unloaded.get("sessions") or unloaded.get("mined_sessions")):
+        print("unloaded work (progress with no skill loaded — gap-mining")
+        print("candidates, not findings):")
+        if unloaded.get("sessions"):
+            print("  hook sessions: %s" % ", ".join(unloaded["sessions"][:10]))
+        if unloaded.get("mined_sessions"):
+            print("  mined sessions: %s across %s (transcripts show work, "
+                  "no skill consulted)" % (
+                      _n(unloaded["mined_sessions"], "session"),
+                      _n(unloaded.get("mined_prompts", 0), "prompt")))
+        print()
     if mined["sessions"]:
         print("session activity (transcript mining, counts only — never message text):")
         print("  %s across %s" % (_n(mined["sessions"], "mined session"),
@@ -120,8 +132,8 @@ def render_text(data, ctx):
             for sk, c in Counter(mined["skill_loads"]).most_common(15):
                 print("  %s: %s" % (sk, _n(c, "load")))
         if mined["tools"].get("read_skill"):
-            print("  read_skill calls (Muse): %d — the harness does not record "
-                  "which skill, so these count but do not attribute" % mined["tools"]["read_skill"])
+            print("  read_skill calls (Muse): %d total — named loads are counted "
+                  "above" % mined["tools"]["read_skill"])
         if mined["subagents"]:
             print("  subagents spawned: %d across %s (%s child sessions logged separately)" % (
                 mined["subagents"], _n(mined["sessions"], "mined session"), mined["child_sessions"]))
