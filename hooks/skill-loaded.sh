@@ -15,6 +15,9 @@
 # starts matching, the shape changed and this comment is stale.
 set -u
 
+# shellcheck source=hooks/lib/skills-insights-events.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/skills-insights-events.sh" 2>/dev/null || true
+
 INPUT=$(cat)
 command -v python3 >/dev/null 2>&1 || exit 0
 
@@ -45,4 +48,5 @@ print("")
 SAFE=$(printf '%s' "$NAME" | tr -cd 'a-zA-Z0-9-' | cut -c1-40)
 [ -n "$SAFE" ] || exit 0
 touch "/tmp/claude-skill-loaded-${SID}-${SAFE}" 2>/dev/null
+command -v si_event >/dev/null 2>&1 && si_event "skill-load" "${SID}" "skill=${SAFE}"
 exit 0

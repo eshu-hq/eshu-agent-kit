@@ -207,3 +207,40 @@ the default export.
   the checkout since installing, reinstall from the new location first so
   uninstall recognizes the file; otherwise it keeps it and tells you to
   remove it by hand.
+
+## Skills insights telemetry
+
+Which skills get loaded, which loads were forced, and how sessions end —
+for improving how we work, not for watching people.
+
+**Events.** `skill-loaded.sh` appends `skill-load` (skill id, session,
+harness); `skill-nudge.sh` appends `nudge-block` (demanded skill ids) on its
+refusal path; `goal-continue.sh` appends `goal-done`, `goal-released`
+(stop count), `goal-blocked-watcher`, or `goal-continued` (progress,
+remaining). Muse and Codex wrappers attribute via `KIT_HARNESS`. All events
+go to `$XDG_DATA_HOME/eshu-agent-kit/skills-usage.jsonl` (fallback
+`~/.local/share`), rotated at 5 MiB keeping one spare.
+
+**Privacy bar.** Skill names, outcome labels, counters, timestamps. No prompt
+content, no file contents, no file paths, no identifiers beyond the
+truncated session id. Every failure path is silent and non-blocking;
+`ESHU_SKILLS_TELEMETRY_OFF=1` disables all of it.
+
+**Coverage.** Skill-load events exist on Claude and Muse only — neither
+Codex nor OpenCode exposes a skill-load event, so reports label them
+exclusions and never rank them. Multi-machine: each machine writes its own
+log; `scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
+
+**Synthesis prompt.** Paste the report's summary block into chat with:
+
+> Below is a skills-insights report from my kit sessions. Return a
+> prioritized fix-list: per skill, rewrite, re-route, or retire, with the
+> one-line reason tied to a row in the report. Treat correlation as
+> correlation — never rank people or harnesses, and never claim a load
+> caused an outcome. Name anything the report cannot answer.
+
+**Limits.** Aggregates correlate loads with outcomes; they cannot attribute
+an outcome to one load among several. `no-progress-session share` means the
+skill coincided with sessions that never progressed — it may be unrelated
+to the stall. History starts when this ships; the first report worth
+synthesizing needs a few weeks of sessions.

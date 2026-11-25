@@ -95,6 +95,9 @@ print(g("transcript_path"))
 # checkout-shared goal forever.
 # shellcheck source=hooks/lib/goal-issues.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/goal-issues.sh" 2>/dev/null || exit 0
+# shellcheck source=hooks/lib/skills-insights-events.sh
+# shellcheck disable=SC1091
+. "$(dirname "${BASH_SOURCE[0]}")/lib/skills-insights-events.sh" 2>/dev/null || true
 
 # Goal file: an explicit override, then this session's own goal in the worktree
 # it is in, then the worktree's shared goal, then a single per-user goal. The
@@ -138,7 +141,14 @@ done
 # Nothing active. If this session's own goal was just retired, the DONE check on
 # its issue ledger still has to run: the lookup above skips retired files.
 [ -n "${goal_file}" ] || {
-	gi_done_gate "$(gi_retired_goal_file "${session_id}" "${cwd}")" "${cwd}" "${session_id}" "${transcript:-}"
+	# No active goal file: only a retired tombstone counts as done. A stop
+	# with no goal at all emits nothing — logging it as goal-done would
+	# inflate the report's done column for sessions that never had a goal.
+	retired_goal="$(gi_retired_goal_file "${session_id}" "${cwd}")"
+	gi_done_gate "${retired_goal}" "${cwd}" "${session_id}" "${transcript:-}"
+	if [ -n "${retired_goal}" ]; then
+		command -v si_event >/dev/null 2>&1 && si_event "goal-done" "${session_id}"
+	fi
 	exit 0
 }
 
@@ -151,6 +161,7 @@ first_line="$(printf '%s\n' "${goal}" | head -1)"
 case "${first_line}" in
 DONE* | done*)
 	gi_done_gate "${goal_file}" "${cwd}" "${session_id}" "${transcript:-}"
+	command -v si_event >/dev/null 2>&1 && si_event "goal-done" "${session_id}"
 	exit 0
 	;;
 esac
@@ -295,6 +306,7 @@ BLOCKED:* | blocked:*)
 			dead_watcher="${watch_pid}"
 		else
 			printf 'goal-continue: stop allowed, BLOCKED: %s\n' "${blocked_reason}" >&2
+			command -v si_event >/dev/null 2>&1 && si_event "goal-blocked-watcher" "${session_id}"
 			exit 0
 		fi
 	fi
@@ -376,6 +388,7 @@ if [ "${count}" -ge "${MAX_NUDGES}" ]; then
 		printf '%s\n' '{"systemMessage":"The active goal remains unfinished. Automatic continuation has ended because the no-progress budget was exhausted. Resume it in a new user turn after a permitted recovery step or changed external condition; real tool progress resets this budget."}'
 	fi
 	printf '%s %s' "${count}" "${new_offset}" >"${counter}" 2>/dev/null || true
+	command -v si_event >/dev/null 2>&1 && si_event "goal-released" "${session_id}" "stops=${count}"
 	exit 0
 fi
 # Only a no-progress stop spends a nudge. Incrementing unconditionally meant a
@@ -452,6 +465,7 @@ Stop for real only when one of these is true, and say which:
 
 Continuations left for this message: ${remaining}.${final_warning}"
 
+command -v si_event >/dev/null 2>&1 && si_event "goal-continued" "${session_id}" "progress=${progress:-0}" "remaining=${remaining:-0}"
 printf '%s' "${reason}" | python3 -c '
 import json, sys
 print(json.dumps({"decision": "block", "reason": sys.stdin.read()}))

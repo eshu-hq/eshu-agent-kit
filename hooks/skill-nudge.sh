@@ -35,6 +35,9 @@ INPUT=$(cat)
 # shellcheck source=hooks/lib/skill-nudge-lib.sh
 # shellcheck disable=SC1091 # repo runs shellcheck without -x, so sources are never followed; path above is verified present for -x/editor runs
 . "$(dirname "${BASH_SOURCE[0]}")/lib/skill-nudge-lib.sh"
+# shellcheck source=hooks/lib/skills-insights-events.sh
+# shellcheck disable=SC1091
+. "$(dirname "${BASH_SOURCE[0]}")/lib/skills-insights-events.sh" 2>/dev/null || true
 
 command -v python3 >/dev/null 2>&1 || exit 0
 
@@ -134,6 +137,8 @@ done
 OVERRIDE="/tmp/claude-skill-override-${SID}"
 [ -f "$OVERRIDE" ] && exit 0
 
+# Only skill ids are logged; file paths stay out of telemetry by design.
+command -v si_event >/dev/null 2>&1 && si_event "nudge-block" "${SID:-na}" "skills=${MISSING}"
 printf 'BLOCKED (auto-hook): %s\n' "$FP" >&2
 printf 'That surface is governed by project skill(s) not loaded in this context: %s\n' "$MISSING" >&2
 [ -n "$NOTE" ] && printf 'Note: %s\n' "$NOTE" >&2
