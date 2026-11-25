@@ -7,9 +7,13 @@ Never extracts message text, file contents, prompts, or error bodies: tool
 names, error flags, timestamps, and structural ids only.
 
 Usage: miners.py [--root PATH]... [--since YYYY-MM-DD] [--cap-bytes N]
+  [--project SUB]
   Defaults roots: ~/.claude/projects and $XDG_DATA_HOME/muse/sessions
   (fallback ~/.local/share). Skips files older than --since by mtime and
   stops adding files past --cap-bytes (default 512 MiB), reporting both.
+  --project keeps only sessions whose project contains SUB: the Claude
+  transcripts dir slug, or the Muse workspace_root. Muse files with no
+  workspace_root in the peek window stay in (fail-open).
 
 Claude record shapes (observed live, fail open on anything else):
   type=user|assistant with message.role and message.content[]; tool_use
@@ -125,6 +129,7 @@ def mine_claude(path, budget):
             "skill_loads": sorted(set(skill_loads)),
             "subagents": subagents, "subagent_roles": dict(subagent_roles),
             "subagent_models": dict(subagent_models),
+            "project": os.path.basename(os.path.dirname(path)),
             "first_ts": first_ts, "last_ts": last_ts}
 
 
@@ -139,6 +144,7 @@ def mine_muse(path, budget):
     session_models = Counter()
     max_depth = 0
     started = {}
+    project = ""
     first_ts = None
     last_ts = None
     for rec in _load_json_lines(path, budget):
@@ -173,6 +179,10 @@ def mine_muse(path, budget):
             if isinstance(inner, dict) and isinstance(inner.get("model_id"), str):
                 if inner["model_id"]:
                     session_models[inner["model_id"][:60]] += 1
+        elif pt == "runtime.session.metadata" and not project:
+            inner = (rec.get("payload") or {}).get("record") or {}
+            if isinstance(inner, dict) and isinstance(inner.get("workspace_root"), str):
+                project = inner["workspace_root"][:240]
         elif pt == "tool_batch.effect.started":
             inner = (rec.get("payload") or {}).get("record") or {}
             if isinstance(inner, dict) and inner.get("call_id"):
@@ -198,7 +208,7 @@ def mine_muse(path, budget):
             "errors": dict(errors), "response_gaps": [],
             "subagents": subagents, "subagent_roles": dict(subagent_roles),
             "session_models": dict(session_models), "max_depth": max_depth,
-            "parent_session": parent,
+            "parent_session": parent, "project": project,
             "first_ts": first_ts, "last_ts": last_ts}
 
 
@@ -213,11 +223,49 @@ def _mtime_ok(path, since):
         return False
 
 
+def _project_ok(path, want):
+    """Substring match on the Claude dir slug or Muse workspace_root.
+
+    The workspace_root must come from a runtime.session.metadata record —
+    the same signal mine_muse attributes — never from a raw string match,
+    which misfires on paths quoted inside other records. Muse files with
+    no metadata record in the peek window stay in (fail-open): absence
+    of signal is not evidence of another project.
+    """
+    if not want:
+        return True
+    if os.path.basename(path) != "session.jsonl":
+        return want in os.path.basename(os.path.dirname(path))
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for _ in range(40):
+                line = fh.readline()
+                if not line:
+                    break
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if rec.get("payload_type") != "runtime.session.metadata":
+                    continue
+                inner = (rec.get("payload") or {}).get("record") or {}
+                if not isinstance(inner, dict):
+                    continue
+                root = inner.get("workspace_root")
+                return want in root if isinstance(root, str) else True
+    except OSError:
+        return True
+    return True
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", action="append", default=[])
     ap.add_argument("--since", default="")
     ap.add_argument("--cap-bytes", type=int, default=512 * 1024 * 1024)
+    ap.add_argument("--project", default="")
     ap.add_argument("--git", action="append", default=[])
     args = ap.parse_args(argv)
     if args.git:
@@ -235,6 +283,7 @@ def main(argv):
                      "muse", "sessions"),
     ]
     budget = [args.cap_bytes]
+    want = args.project.strip()
     sessions = []
     skipped_old = 0
     capped = False
@@ -249,6 +298,8 @@ def main(argv):
                 path = os.path.join(dirpath, name)
                 if not _mtime_ok(path, args.since):
                     skipped_old += 1
+                    continue
+                if not _project_ok(path, want):
                     continue
                 try:
                     candidates.append((os.path.getmtime(path), path))

@@ -1,6 +1,6 @@
 ---
 name: skills-debrief
-description: "Use when asked for a skills debrief, a usage-insights-style report, or what skill usage says about how we work. Reads scripts/skills-insights.sh --format json plus transcript evidence and writes a single self-contained HTML debrief: wins, friction with examples, actionable fixes, horizon ideas."
+description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or what skill usage says about how we work. Reads scripts/skills-insights.sh --format json plus transcript evidence and writes a single self-contained HTML debrief: wins, friction with examples, actionable fixes, horizon ideas."
 ---
 
 # Skills Debrief
@@ -12,6 +12,16 @@ cannot write: what got solved, what broke, what it means, what changes.
 Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and
 hook events resolve per `skills/registry.md`. Relative `docs/` paths resolve
 in the consuming repo checkout.
+
+Non-kit projects: when the aggregate carries no kit signals (no skill
+events, no nudge blocks, no goal turns), do not force kit language.
+Write the project-aware subset instead — header stats, activity, wins,
+friction, fixes as tooling or workflow changes — and say the page is
+shorter because the data is thinner, not because nothing happened.
+Scope transcript activity to one repo with `--project` (the skill table,
+outcomes, and session list stay global — event logs carry no repo
+signal); the default unified run answers "how do we work", not "how is
+this repo".
 
 ## Inputs
 
@@ -46,7 +56,11 @@ Write every section the data supports; omit and name any the data cannot:
   one line each, each pointing at its section.
 - Skill table: loads, forced share, no-progress share, outcome correlation.
 - Session activity: prompts, tool mix, errors by tool, response gaps (label
-  harness gaps where unobserved).
+  harness gaps where unobserved). Error counts mix hook blocks with
+  genuine tool failures: on Claude transcripts most edit errors are
+  skill-nudge blocks (the guard working, not the tool failing), while
+  Muse failures are near-verbatim misses the agent retries out of.
+  Sample the sessions before judging a tool.
 - Narrative plus key insight: how the sessions actually ran, in second
   person, then the one finding that matters most.
 - Wins: DONE sessions with the chain that proves each.
@@ -60,6 +74,15 @@ Write every section the data supports; omit and name any the data cannot:
 Do not write an upsell card, team feedback section, or entertainment. Do not
 rank people or harnesses. Correlation is never causation: say which
 alternative explanations the data cannot exclude.
+
+## Not tracked (on purpose)
+
+Name these exclusions instead of working around them: per-hook firing
+counts (volume without signal — first-fire witnesses plus transcript
+joins already cover compliance), Codex/OpenCode skill loads (no load
+signal exists; labeled exclusions, never ranked), publish
+non-conversion and repeat-stall rules (no trigger data yet; parked
+until outcomes accrue).
 
 ## Output
 
