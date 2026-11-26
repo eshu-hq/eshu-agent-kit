@@ -199,14 +199,15 @@ late both came from treating a filed issue as finished work. Settle these first:
    not bundle two problems into one issue, and do not split one problem across
    several.
 
-Small in-session friction (a skill, tool, or doc that misled the session) takes
-the papercut path instead of a full issue: open the `papercut` issue template
-(`.github/ISSUE_TEMPLATE/papercut.yml`), keep the `papercut` label, and write
-the required `skill: <name>` join-key line with the bare skill name. The
-debrief aggregate joins findings to skills on that line
-(`scripts/debrief.sh aggregate --papercuts FILE`, with FILE exported via
-`gh issue list --label papercut --json number,title,body,state,stateReason`);
-a report without the line counts as unmatched, never as a finding for a skill.
+Small in-session friction (a skill, hook, script, or doc that misled the session)
+takes the `papercut` skill (`../papercut/SKILL.md`) instead of a full issue so
+the `skill: <name>` join-key stays canonical for `/debrief`:
+
+```bash
+bash scripts/file-papercut.sh file --skill <name> --title "<summary>" \
+  --tried "<action>" --expected "<promised>" \
+  --happened "<observed>" --fix "<smallest fix>"
+```
 
 ## Issues Created During A Goal
 
