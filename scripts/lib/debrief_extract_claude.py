@@ -5,6 +5,7 @@ import re
 from collections import Counter
 
 from debrief_common import (
+    META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
     epoch_to_iso,
@@ -325,6 +326,7 @@ def extract_session(path, mtime=0.0):
         for sk, first_t in sorted(skill_first_turn.items())
     }
     meta = {
+        "meta_version": META_SCHEMA_VERSION,
         "id": sess_id,
         "harness": "claude",
         "source_path": path,

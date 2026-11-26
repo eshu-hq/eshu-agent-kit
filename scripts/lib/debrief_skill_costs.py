@@ -17,6 +17,7 @@ Scope rules:
   beside the global median. No cross-harness cost ranking is emitted anywhere.
 """
 
+import math
 import os
 from collections import Counter, defaultdict
 
@@ -62,9 +63,10 @@ def _nonneg_float(val):
     if isinstance(val, bool) or val is None:
         return 0.0
     try:
-        return max(0.0, float(val))
+        num = float(val)
     except (TypeError, ValueError):
         return 0.0
+    return max(0.0, num) if math.isfinite(num) else 0.0
 
 
 def _meta_tokens(meta):
@@ -205,10 +207,14 @@ def attribute_skill_costs(metas, skill_sizes=None):
 
         raw_gaps = [
             float(g) for g in (meta.get("response_gaps") or [])
-            if isinstance(g, (int, float)) and not isinstance(g, bool) and g >= 2
+            if isinstance(g, (int, float)) and not isinstance(g, bool) and math.isfinite(g) and g >= 2
         ]
         dur = meta.get("duration_minutes")
-        valid_dur = float(dur) if isinstance(dur, (int, float)) and not isinstance(dur, bool) and dur > 0 else None
+        valid_dur = (
+            float(dur)
+            if isinstance(dur, (int, float)) and not isinstance(dur, bool) and math.isfinite(dur) and dur > 0
+            else None
+        )
         raw_tasl = meta.get("turns_after_skill_load")
         tasl = {}
         if isinstance(raw_tasl, dict):

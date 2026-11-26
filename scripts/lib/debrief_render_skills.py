@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Harness activity and Skill Quality Flywheel HTML sections for /debrief v2."""
 import html
+import math
 
 from debrief_common import safe_float, safe_int
 
@@ -17,6 +18,8 @@ def _fmt_tokens(val):
         num = float(val)
     except (TypeError, ValueError):
         return "—"
+    if not math.isfinite(num):
+        return "—"
     if num >= 1_000_000:
         return f"{num / 1_000_000.0:.1f}M"
     if num >= 1000:
@@ -27,7 +30,14 @@ def _fmt_tokens(val):
 
 
 def _fmt_num(val):
-    num = float(val)
+    if isinstance(val, bool) or val is None:
+        return "—"
+    try:
+        num = float(val)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(num):
+        return "—"
     if num == int(num):
         return str(int(num))
     return f"{num:.1f}"
@@ -39,6 +49,8 @@ def _fmt_pct(val):
     try:
         num = float(val)
     except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num):
         return None
     if 0.0 <= num <= 1.0:
         num *= 100.0
@@ -71,7 +83,8 @@ def _fmt_papercuts(row, has_papercuts):
         return "—"
     filed = safe_int(row.get("papercut_filed"), 0)
     fixed = safe_int(row.get("papercut_fixed"), 0)
-    open_cnt = max(0, filed - fixed)
+    open_val = safe_int(row.get("papercut_open"), None)
+    open_cnt = max(0, open_val) if open_val is not None else max(0, filed - fixed)
     return f"{open_cnt}/{fixed}"
 
 
@@ -92,9 +105,9 @@ def _render_flywheel_summary(agg):
         if safe_float(r.get("estimated_context_tax_tokens"), 0.0) > 0
     ]
     if tax_rows:
-        top_tax = max(
+        top_tax = min(
             tax_rows,
-            key=lambda r: (safe_float(r.get("estimated_context_tax_tokens"), 0.0), str(r.get("skill") or "")),
+            key=lambda r: (-safe_float(r.get("estimated_context_tax_tokens"), 0.0), str(r.get("skill") or "")),
         )
         top_tax_val = f'{top_tax.get("skill", "")} ({_fmt_tokens(top_tax.get("estimated_context_tax_tokens"))})'
     else:
@@ -108,7 +121,8 @@ def _render_flywheel_summary(agg):
     if isinstance(pc, dict):
         filed = safe_int(pc.get("total_filed"), 0)
         fixed = safe_int(pc.get("total_fixed"), 0)
-        open_cnt = max(0, filed - fixed)
+        open_val = safe_int(pc.get("total_open"), None)
+        open_cnt = max(0, open_val) if open_val is not None else max(0, filed - fixed)
         tiles.append((f"{open_cnt} open / {fixed} fixed", "Papercuts"))
     ev = agg.get("evals")
     if isinstance(ev, dict):
@@ -142,13 +156,14 @@ def render_harness_skill_section(agg):
 
     h_rows = []
     for h, info in sorted((agg.get("by_harness") or {}).items()):
+        info = info if isinstance(info, dict) else {}
         h_rows.append(
             f'<tr><td><code>{_e(h)}</code></td>'
-            f'<td class="num">{int(info.get("top_sessions", 0))} / {int(info.get("sessions", 0))}</td>'
-            f'<td class="num">{int(info.get("facets", 0))}</td>'
-            f'<td class="num">{int(info.get("prompts", 0)):,}</td>'
-            f'<td class="num">{int(info.get("tool_calls", 0)):,}</td>'
-            f'<td class="num">{int(info.get("errors", 0)):,}</td>'
+            f'<td class="num">{safe_int(info.get("top_sessions"), 0)} / {safe_int(info.get("sessions"), 0)}</td>'
+            f'<td class="num">{safe_int(info.get("facets"), 0)}</td>'
+            f'<td class="num">{safe_int(info.get("prompts"), 0):,}</td>'
+            f'<td class="num">{safe_int(info.get("tool_calls"), 0):,}</td>'
+            f'<td class="num">{safe_int(info.get("errors"), 0):,}</td>'
             f'<td class="num">{_e(tok_by_h.get(h, "—"))}</td></tr>'
         )
     harness_tok_foot = (

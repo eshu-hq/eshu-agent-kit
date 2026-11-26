@@ -2,6 +2,7 @@
 """Debrief v2 aggregation: Stage 1 meta + Stage 2 facets + hook logs + git stats."""
 import datetime
 import json
+import math
 import os
 import statistics
 import sys
@@ -143,9 +144,10 @@ def _opt_float(val):
     if isinstance(val, bool) or val is None:
         return None
     try:
-        return float(val)
+        num = float(val)
     except (TypeError, ValueError):
         return None
+    return num if math.isfinite(num) else None
 
 
 def _opt_int(val):
@@ -163,6 +165,10 @@ def _should_replace_eval(prev, cand):
         old_ep, new_ep = ts_to_epoch(old_ts), ts_to_epoch(new_ts)
         if old_ep is not None and new_ep is not None:
             return new_ep >= old_ep
+        if old_ep is not None and new_ep is None:
+            return False
+        if old_ep is None and new_ep is not None:
+            return True
         return new_ts >= old_ts
     return bool(new_ts) or not old_ts
 
@@ -381,8 +387,9 @@ def cmd_aggregate(args):
     evals = eval_stats(getattr(args, "evals", None) or [])
     evals_by_skill = evals["per_skill"] if evals else {}
     for row in skill_table:
-        counts = filed_by_skill.get(row["skill"], {"filed": 0, "fixed": 0})
+        counts = filed_by_skill.get(row["skill"], {"filed": 0, "open": 0, "fixed": 0})
         row["papercut_filed"] = counts["filed"]
+        row["papercut_open"] = counts.get("open", max(0, counts["filed"] - counts["fixed"]))
         row["papercut_fixed"] = counts["fixed"]
         ev = evals_by_skill.get(row["skill"]) or {}
         row["eval_win_rate"] = ev.get("win_rate")

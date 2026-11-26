@@ -180,15 +180,18 @@ def papercut_stats(path):
         if not skill:
             unmatched += 1
             continue
-        entry = per_skill.setdefault(skill, {"filed": 0, "fixed": 0})
+        entry = per_skill.setdefault(skill, {"filed": 0, "open": 0, "fixed": 0})
         entry["filed"] += 1
         state = str(rec.get("state") or "").upper()
         reason = str(rec.get("stateReason") or "").upper()
-        if state == "CLOSED" and reason != "NOT_PLANNED":
+        if state == "OPEN":
+            entry["open"] += 1
+        elif state == "CLOSED" and reason != "NOT_PLANNED":
             entry["fixed"] += 1
     return {
         "snapshot": path,
         "total_filed": sum(e["filed"] for e in per_skill.values()),
+        "total_open": sum(e["open"] for e in per_skill.values()),
         "total_fixed": sum(e["fixed"] for e in per_skill.values()),
         "unmatched_without_skill": unmatched,
         "per_skill": dict(sorted(per_skill.items())),

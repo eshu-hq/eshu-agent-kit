@@ -8,6 +8,7 @@ import urllib.parse
 from collections import Counter
 
 from debrief_common import (
+    META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
     epoch_to_iso,
@@ -291,6 +292,7 @@ def extract_session(path, mtime=0.0, db_cache=None):
         for sk, first_t in sorted(skill_first_turn.items())
     }
     meta = {
+        "meta_version": META_SCHEMA_VERSION,
         "id": cid,
         "harness": "agy",
         "source_path": path,

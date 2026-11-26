@@ -135,6 +135,7 @@ cat >"${troot}/muse/parent-m/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168810000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c3","outcome":{"kind":"completed"}}}}
 {"record_type":"event","payload_type":"subagent.control.spawn_accepted","recorded_at":1795168810000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"subagent_id":"sub1","role":"develop-eshu","depth":1}}}
 {"record_type":"event","payload_type":"subagent.control.child_session_bound","recorded_at":1795168811000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"child_session_id":"child-m"}}}
+{"record_type":"event","payload_type":"subagent.control.runtime_observed","recorded_at":1795168815000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"usage":{"input_tokens":9999,"output_tokens":8888,"cache_read_tokens":7777,"cache_write_tokens":6666}}}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168829000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"model_completed","duration_ms":900,"usage":{"input_tokens":1500,"output_tokens":200,"cached_tokens":1000,"cache_write_tokens":0}}}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168830000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"assistant_message_committed","text":"Fixed foo.go and pushed."}}}
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795168865000000,"stream":{"id":"parent-m","kind":"x"},"payload":{}}
@@ -208,16 +209,16 @@ by_h = {d["harness"]: d for d in digs}
 assert set(by_h) == {"muse", "agy"} and by_h["muse"]["rolled_up_children"] == 1 and by_h["agy"]["project"] == "/repo/alpha", by_h
 mdir = sys.argv[2]
 am = json.load(open(os.path.join(mdir, "agy__conv-agy-1.json")))
-assert am["tokens_in"] == 5300 and am["tokens_out"] == 200 and am["tokens_cache_read"] == 4500 and am["tokens_cache_write"] == 0, am
+assert am["meta_version"] == 2 and am["tokens_in"] == 5300 and am["tokens_out"] == 200 and am["tokens_cache_read"] == 4500 and am["tokens_cache_write"] == 0, am
 assert am["turns_after_skill_load"] == {"publish": 2}, am
 cm = json.load(open(os.path.join(mdir, "claude__cl-parent.json")))
-assert cm["tokens_in"] == 2000 and cm["tokens_out"] == 250 and cm["tokens_cache_read"] == 1500 and cm["tokens_cache_write"] == 400, cm
+assert cm["meta_version"] == 2 and cm["tokens_in"] == 2000 and cm["tokens_out"] == 250 and cm["tokens_cache_read"] == 1500 and cm["tokens_cache_write"] == 400, cm
 assert cm["turns_after_skill_load"] == {"postgres-rigor": 1}, cm
 mm = json.load(open(os.path.join(mdir, "muse__parent-m.json")))
-assert mm["tokens_in"] == 2700 and mm["tokens_out"] == 500 and mm["tokens_cache_read"] == 1800 and mm["tokens_cache_write"] == 100 and mm["model_duration_ms"] == 2300, mm
+assert mm["meta_version"] == 2 and mm["tokens_in"] == 2700 and mm["tokens_out"] == 500 and mm["tokens_cache_read"] == 1800 and mm["tokens_cache_write"] == 100 and mm["model_duration_ms"] == 2300, mm
 assert mm["turns_after_skill_load"] == {"code-review": 2}, mm
 mc = json.load(open(os.path.join(mdir, "muse__child-m.json")))
-assert mc["tokens_in"] == 300 and mc["tokens_out"] == 100 and mc["model_duration_ms"] == 0, mc
+assert mc["meta_version"] == 2 and mc["tokens_in"] == 300 and mc["tokens_out"] == 100 and mc["model_duration_ms"] == 0, mc
 PYEOF
 
 # Test cache-write: valid facets + invalid facet rejection
