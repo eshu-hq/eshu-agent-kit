@@ -16,8 +16,14 @@ mkdir -p "${XDG_DATA_HOME}" "${HOME}" "${TMPDIR}"
 
 passed=0
 failed=0
-ok() { printf 'ok - %s\n' "$1"; passed=$((passed + 1)); }
-no() { printf 'not ok - %s\n' "$1"; failed=$((failed + 1)); }
+ok() {
+	printf 'ok - %s\n' "$1"
+	passed=$((passed + 1))
+}
+no() {
+	printf 'not ok - %s\n' "$1"
+	failed=$((failed + 1))
+}
 
 # --- Fake Muse sessions root: two real sessions + one fixture session. ---
 ROOT="${work}/muse/sessions"
@@ -138,8 +144,8 @@ bash "${REPLAY}" replay --evals "${work}/evals.json" --runner "${work}/runner.sh
 	--repeats 2 >/dev/null &&
 	bash "${REPLAY}" judge --runs "${work}/pairs-aa.json" --out "${work}/verdict-aa.json" >/dev/null &&
 	bash "${REPLAY}" report --verdict "${work}/verdict.json" --aa-verdict "${work}/verdict-aa.json" \
-	--seal "${work}/seal.json" \
-	>"${work}/report.txt" &&
+		--seal "${work}/seal.json" \
+		>"${work}/report.txt" &&
 	rg -q "win rate" "${work}/report.txt" && rg -q "noise band" "${work}/report.txt" &&
 	rg -q "cost delta" "${work}/report.txt" &&
 	python3 - "${work}/verdict-aa.json" <<'PYEOF' && ok "report carries win rate, noise band, and cost delta" || no "report carries win rate, noise band, and cost delta"
@@ -170,7 +176,7 @@ bash "${REPLAY}" replay --evals "${work}/evals.json" --runner "${work}/flaky.sh"
 	--skill performance-rigor --out "${work}/pairs-flaky.json" --seal "${work}/seal-flaky.json" \
 	--repeats 2 >/dev/null &&
 	bash "${REPLAY}" judge --runs "${work}/pairs-flaky.json" \
-	--out "${work}/verdict-flaky.json" >/dev/null &&
+		--out "${work}/verdict-flaky.json" >/dev/null &&
 	python3 - "${work}/verdict-flaky.json" <<'PYEOF' && ok "flaky repeats yield a nonzero noise band" || no "flaky repeats yield a nonzero noise band"
 import json, sys
 v = json.load(open(sys.argv[1]))
@@ -178,7 +184,6 @@ aa = [c for c in v["comparisons"] if c.get("kind") == "aa"]
 assert aa, v
 assert any(c["winner"] != "tie" for c in aa), aa
 PYEOF
-
 
 # 9. strip-proof gate catches arm identity embedded in longer strings.
 python3 - "${work}/pairs.json" "${work}/embedded.json" <<'PYEOF2'
@@ -217,7 +222,6 @@ raw = open(sys.argv[1]).read()
 banned = ("with-skill", "without-skill", "with_skill", "without_skill")
 assert not any(b in raw for b in banned), raw
 PYEOF2
-
 
 # 11. an external --judge-cmd decides the winner (stub prints A unconditionally).
 cat >"${work}/stub-judge.sh" <<'EOF2'
