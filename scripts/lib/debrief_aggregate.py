@@ -20,6 +20,7 @@ from debrief_common import (  # noqa: E402
     load_json_lines,
     read_json,
     resolve_since,
+    safe_int,
     safe_key,
 )
 
@@ -29,6 +30,38 @@ def parse_harnesses(raw):
         return ["muse", "agy", "claude"]
     out = [h.strip().lower() for h in raw.split(",") if h.strip().lower() in ("muse", "agy", "claude")]
     return out or ["muse", "agy", "claude"]
+
+
+def inherit_parent_projects(metas_by_key):
+    """Propagate parent project/workspaces to linked children missing their own."""
+    by_id = {(m["harness"], m["id"]): m for m in metas_by_key.values()}
+    parent_map = {}
+    for m in metas_by_key.values():
+        h = m["harness"]
+        pid = m.get("parent_session")
+        if pid and (h, pid) in by_id and by_id[(h, pid)] is not m:
+            parent_map[(h, m["id"])] = by_id[(h, pid)]
+        for cid in m.get("child_sessions") or []:
+            cm = by_id.get((h, cid))
+            if cm and cm is not m:
+                parent_map[(h, cid)] = m
+    for m in metas_by_key.values():
+        if m.get("project") or m.get("workspaces"):
+            continue
+        cur = m
+        seen = set()
+        while (cur["harness"], cur["id"]) in parent_map:
+            key = (cur["harness"], cur["id"])
+            if key in seen:
+                break
+            seen.add(key)
+            cur = parent_map[key]
+            if cur.get("project") or cur.get("workspaces"):
+                if cur.get("project"):
+                    m["project"] = cur["project"]
+                if cur.get("workspaces"):
+                    m["workspaces"] = list(cur["workspaces"])
+                break
 
 
 def project_match(meta, want):
@@ -41,7 +74,7 @@ def project_match(meta, want):
     for ws in meta.get("workspaces") or []:
         if w in str(ws).lower():
             return True
-    return not proj and not (meta.get("workspaces") or [])
+    return False
 
 
 def _collect_git_stats(path, since_str):
@@ -153,7 +186,7 @@ def _aggregate_hooks(hook_events, mined_skills):
                     nudge_blocked[c] += 1
         elif etype == "goal-continued":
             st["goal"] = True
-            if int(det.get("progress") or 0) > 0:
+            if safe_int(det.get("progress"), 0) > 0:
                 st["progressed"] = True
         elif etype == "goal-done":
             st["goal"] = True
@@ -228,11 +261,13 @@ def cmd_aggregate(args):
             fe = m.get("last_epoch") or m.get("first_epoch") or mt
             if since_ep and float(fe or 0) < since_ep and mt < since_ep:
                 continue
-            if not project_match(m, args.project):
-                continue
             k = safe_key(m["harness"], m["id"])
             if k not in metas or mt > float(metas[k].get("source_mtime") or 0):
                 metas[k] = m
+
+    inherit_parent_projects(metas)
+    if args.project:
+        metas = {k: m for k, m in metas.items() if project_match(m, args.project)}
 
     by_id = {(m["harness"], m["id"]): k for k, m in metas.items()}
     children = set()
@@ -298,8 +333,11 @@ def cmd_aggregate(args):
         if k not in children:
             projects[proj] += 1
         ft = str(m.get("first_ts") or "")[:10]
-        if ft:
+        lt = str(m.get("last_ts") or "")[:10]
+        if ft and (not since_str or ft >= since_str):
             dates.add(ft)
+        elif lt and (not since_str or lt >= since_str):
+            dates.add(lt)
 
     gap_buckets = Counter(gap_bucket(g) for g in gaps)
     gaps_sorted = sorted(gaps)
@@ -341,7 +379,7 @@ def cmd_aggregate(args):
     skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills)
 
     repos = [_collect_git_stats(r, since_str) for r in (args.repo or []) if r.strip()]
-    today_iso = datetime.date.today().isoformat()
+    today_iso = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     span_from = min(dates) if dates else since_str
     span_to = max(dates) if dates else today_iso
     days_active = max(1, len(dates))

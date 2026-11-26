@@ -33,7 +33,10 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 cmd="${1:-}"
-[ -n "${cmd}" ] || { usage; exit 2; }
+[ -n "${cmd}" ] || {
+	usage
+	exit 2
+}
 shift
 
 case "${cmd}" in

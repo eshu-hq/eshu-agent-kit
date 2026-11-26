@@ -8,7 +8,12 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from debrief_aggregate import cmd_aggregate, parse_harnesses, project_match  # noqa: E402
+from debrief_aggregate import (  # noqa: E402
+    cmd_aggregate,
+    inherit_parent_projects,
+    parse_harnesses,
+    project_match,
+)
 from debrief_common import (  # noqa: E402
     atomic_write_json,
     default_cache_dir,
@@ -162,12 +167,15 @@ def cmd_prepare(args):
     digests_by_key = {}
     for h, p, mt in discovered:
         m, d = _load_or_extract(h, p, mt, cache_dir, agy_db_cache)
-        if not project_match(m, args.project):
-            continue
         k = safe_key(h, m["id"])
         if k not in metas_by_key or mt > float(metas_by_key[k].get("source_mtime") or 0):
             metas_by_key[k] = m
             digests_by_key[k] = d
+
+    inherit_parent_projects(metas_by_key)
+    if args.project:
+        metas_by_key = {k: m for k, m in metas_by_key.items() if project_match(m, args.project)}
+        digests_by_key = {k: d for k, d in digests_by_key.items() if k in metas_by_key}
 
     rolled_up = _rollup_children(metas_by_key, digests_by_key)
 
@@ -218,7 +226,11 @@ def cmd_prepare(args):
 
 def cmd_cache_write(args):
     cache_dir = args.cache_dir or default_cache_dir()
-    raw_txt = sys.stdin.read() if args.input == "-" else open(args.input, encoding="utf-8").read()
+    if args.input == "-":
+        raw_txt = sys.stdin.read()
+    else:
+        with open(args.input, encoding="utf-8") as fh:
+            raw_txt = fh.read()
     parsed = json.loads(raw_txt)
     if isinstance(parsed, dict) and isinstance(parsed.get("facets"), list):
         items = parsed["facets"]

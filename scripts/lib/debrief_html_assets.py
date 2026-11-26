@@ -146,8 +146,12 @@ function updateHourHistogram(offsetHours) {
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('timezone-select');
   if (sel) {
-    sel.addEventListener('change', () => updateHourHistogram(parseInt(sel.value, 10) || 0));
-    updateHourHistogram(parseInt(sel.value, 10) || -5);
+    sel.addEventListener('change', () => {
+      const off = parseInt(sel.value, 10);
+      updateHourHistogram(Number.isNaN(off) ? 0 : off);
+    });
+    const initOff = parseInt(sel.value, 10);
+    updateHourHistogram(Number.isNaN(initOff) ? -5 : initOff);
   }
 });
 """

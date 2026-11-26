@@ -11,7 +11,7 @@ Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and hoo
 
 Privacy boundary: local transcripts and cached facets stay under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/` (never committed, never uploaded). Hook telemetry in `skills-usage.jsonl` stays content-free. Cite short session IDs in the report; never paste raw message text or secrets.
 
-## Workflow (4 Steps)
+## Workflow (5 Steps)
 
 ### Step 1: Resolve Kit Root & Prepare Batches
 
@@ -26,7 +26,7 @@ bash "$KIT/scripts/debrief.sh" prepare --days 30 --max-new 100 --batch-size 10
 Add `--since`, `--project`, or `--harness` if requested. `prepare`:
 - Extracts/caches Stage 1 metadata (`tools`, `error_categories`, `languages`, `response_gaps`, `message_hours`, `skill_loads`, `git_commits`, `subagents`) incrementally by file `mtime`.
 - Auto-imports existing `~/.claude/usage-data/facets/*.json` so Claude sessions are not re-classified.
-- Rolls Muse/Claude child subagents into their parent coordinator digest.
+- Rolls Muse, `agy`, and Claude child subagents into their parent coordinator digest.
 - Skips trivial sessions (`prompts < 2` and `tool_calls < 3`).
 - Emits up to `--max-new` (default 100, newest first) uncached digests into `batch-01.json`, `batch-02.json`, … and prints a JSON manifest.
 
@@ -53,7 +53,7 @@ Otherwise, dispatch **one fast-tier subagent per `batch-XX.json` in parallel** (
 }
 ```
 
-Use concrete `goal_categories` (e.g. `bug_fix`, `feature_implementation`, `ci_workflow_maintenance`, `pr_review_and_merge`, `performance_investigation`, `docs_and_process`, `refactoring`, `testing_and_verification`) and `friction_counts` keys (e.g. `buggy_code`, `wrong_approach`, `excessive_changes`, `misunderstood_request`, `tool_or_env_error`, `stale_context_or_branch`, `hook_or_gate_block`, `user_rejected_action`).
+Use concrete `goal_categories` (e.g. `bug_fix`, `feature_implementation`, `ci_workflow_maintenance`, `pr_review_and_merge`, `performance_investigation`, `docs_and_process`, `refactoring`, `testing_and_verification`) and canonical `friction_counts` keys (`buggy_code`, `wrong_approach`, `hook_or_env_retry`, `stale_status`, `tool_failure`, `misunderstood_request`, `missing_path_probe`, `excessive_changes`, `context_loss`, `user_rejected_action`).
 
 As each subagent replies, validate and write its facets atomically:
 

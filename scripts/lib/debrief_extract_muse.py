@@ -12,6 +12,7 @@ from debrief_common import (
     epoch_to_utc_hour,
     lang_from_path,
     load_json_lines,
+    safe_int,
     truncate_text,
     ts_to_epoch,
 )
@@ -107,6 +108,7 @@ def extract_session(path, mtime=0.0):
     skill_loads = set()
     hook_blocks = Counter()
     msg_hours = Counter()
+    fallback_hours = Counter()
     gaps = []
     started = {}
     read_seen = set()
@@ -126,12 +128,10 @@ def extract_session(path, mtime=0.0):
     touched_files = []
     touched_seen = set()
 
-    # Check path-based child detection (.../subagent/<child>/session.jsonl)
+    # Check path-based child detection (.../<parent>/subagent/<child>/session.jsonl)
     norm_parts = os.path.normpath(path).split(os.sep)
-    if "subagent" in norm_parts:
-        idx = norm_parts.index("subagent")
-        if idx >= 1:
-            parent_id = norm_parts[idx - 1]
+    if len(norm_parts) >= 4 and norm_parts[-3] == "subagent":
+        parent_id = norm_parts[-4]
 
     for rec in load_json_lines(path):
         ep = ts_to_epoch(rec.get("recorded_at"))
@@ -202,8 +202,8 @@ def extract_session(path, mtime=0.0):
                 subagent_runs.append({"role": "subagent", "summary": summ, "error_kind": errk})
         elif pt == "subagent.control.runtime_observed":
             usage = inner.get("usage") if isinstance(inner.get("usage"), dict) else {}
-            tokens_in += int(usage.get("input_tokens") or 0)
-            tokens_out += int(usage.get("output_tokens") or 0)
+            tokens_in += safe_int(usage.get("input_tokens"), 0)
+            tokens_out += safe_int(usage.get("output_tokens"), 0)
         elif pt == "tool_batch.effect.started":
             cid = inner.get("call_id")
             if cid:
@@ -231,10 +231,9 @@ def extract_session(path, mtime=0.0):
                         txt = truncate_text(m, 260)
                         if txt and len(user_prompts) < 8 and txt not in user_prompts:
                             user_prompts.append(txt)
-                            if prompts == 0:
-                                hr = epoch_to_utc_hour(ep)
-                                if hr is not None:
-                                    msg_hours[str(hr)] += 1
+                            hr = epoch_to_utc_hour(ep)
+                            if hr is not None:
+                                fallback_hours[str(hr)] += 1
             elif ek == "assistant_message_committed":
                 assistants += 1
                 if ep is not None:
@@ -258,7 +257,8 @@ def extract_session(path, mtime=0.0):
                         detail = ev.get("stderr") or ev.get("stdout") or f"exit {ec}"
                         error_samples.append(f"hook({hk}): {truncate_text(detail, 140)}")
             elif ek == "assistant_tool_calls_committed":
-                for tc in ev.get("tool_calls") or []:
+                tcalls = ev.get("tool_calls")
+                for tc in (tcalls if isinstance(tcalls, list) else []):
                     if not isinstance(tc, dict):
                         continue
                     tname = str(tc.get("name") or "")
@@ -291,6 +291,8 @@ def extract_session(path, mtime=0.0):
         sess_id = os.path.basename(os.path.dirname(path))
     if prompts == 0 and user_prompts:
         prompts = len(user_prompts)
+        if not msg_hours:
+            msg_hours.update(fallback_hours)
     dur_min = round((last_ep - first_ep) / 60.0, 2) if (first_ep and last_ep and last_ep >= first_ep) else 0.0
 
     meta = {

@@ -66,7 +66,7 @@ def discover(roots, since_epoch):
 
 
 def _db_path_for(path):
-    parts = os.path.normpath(path).split(os.sep)
+    parts = os.path.abspath(path).split(os.sep)
     for i in range(len(parts) - 1, -1, -1):
         if parts[i] == "brain" and i >= 1:
             base = os.sep.join(parts[:i]) or os.sep
@@ -210,7 +210,8 @@ def extract_session(path, mtime=0.0, db_cache=None):
                     assistant_tail.pop(0)
             pending = []
             pending_idx = 0
-            for tc in rec.get("tool_calls") or []:
+            tcalls = rec.get("tool_calls")
+            for tc in (tcalls if isinstance(tcalls, list) else []):
                 if not isinstance(tc, dict) or not tc.get("name"):
                     continue
                 tname = str(tc["name"])

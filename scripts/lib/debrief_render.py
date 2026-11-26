@@ -10,12 +10,17 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from debrief_common import default_reports_dir, read_json  # noqa: E402
+from debrief_common import default_reports_dir, read_json, safe_float, safe_int  # noqa: E402
 from debrief_html_assets import REPORT_CSS, REPORT_JS  # noqa: E402
 
 
 def _e(val):
     return html.escape(str(val if val is not None else ""), quote=True)
+
+
+def _safe_js_json(obj):
+    raw = json.dumps(obj, sort_keys=True)
+    return raw.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
 
 
 def _label(key):
@@ -206,11 +211,25 @@ def render_html(agg, syn):
     ov = charts.get("multi_agent_overlap") or {}
     med_g = charts.get("median_response_gap_s")
     avg_g = charts.get("avg_response_gap_s")
-    gap_foot = f"Median: {med_g}s &bull; Average: {avg_g}s" if med_g is not None else "No multi-turn gaps observed."
+    gap_foot = f"Median: {_e(med_g)}s &bull; Average: {_e(avg_g)}s" if med_g is not None else "No multi-turn gaps observed."
     caveats_li = "".join(f"<li>{_e(c)}</li>" for c in (agg.get("not_tracked") or []))
-    utc_hours_json = json.dumps(charts.get("hour_counts_utc") or {})
-    harnesses_lbl = ", ".join(meta.get("harnesses") or ["muse", "agy", "claude"])
+    raw_hours = charts.get("hour_counts_utc") if isinstance(charts.get("hour_counts_utc"), dict) else {}
+    clean_hours = {str(h): safe_int(raw_hours.get(str(h)), 0) for h in range(24)}
+    utc_hours_json = _safe_js_json(clean_hours)
+    harnesses_lbl = ", ".join(str(x) for x in (meta.get("harnesses") or ["muse", "agy", "claude"]))
     proj_lbl = f" &middot; Project: {_e(meta['project'])}" if meta.get("project") else " &middot; All projects"
+    m_prompts = safe_int(meta.get("prompts"), 0)
+    m_tools = safe_int(meta.get("tool_calls"), 0)
+    m_top = safe_int(meta.get("top_level_sessions"), 0)
+    m_tot = safe_int(meta.get("total_sessions"), 0)
+    m_fac = safe_int(meta.get("facets_analyzed"), 0)
+    m_days = safe_int(meta.get("days_active"), 1)
+    m_mpd = safe_float(meta.get("msgs_per_day"), 0.0)
+    m_commits = safe_int(meta.get("git_commits_in_transcripts"), 0)
+    m_fix = safe_int(meta.get("fixtures_excluded"), 0)
+    ov_ev = safe_int(ov.get("overlap_events"), 0)
+    ov_sess = safe_int(ov.get("sessions_involved"), 0)
+    ov_pct = safe_int(ov.get("pct_of_messages"), 0)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -223,7 +242,7 @@ def render_html(agg, syn):
 <body>
 <div class="container">
   <h1>Multi-Harness Agent Debrief</h1>
-  <p class="subtitle">{meta.get("prompts", 0):,} prompts &middot; {meta.get("tool_calls", 0):,} tool calls across {meta.get("top_level_sessions", 0)} top-level sessions ({meta.get("total_sessions", 0)} total, {meta.get("facets_analyzed", 0)} facets analyzed) &middot; {_e(meta.get("from"))} to {_e(meta.get("to"))} &middot; Harnesses: {_e(harnesses_lbl)}{proj_lbl}</p>
+  <p class="subtitle">{m_prompts:,} prompts &middot; {m_tools:,} tool calls across {m_top} top-level sessions ({m_tot} total, {m_fac} facets analyzed) &middot; {_e(meta.get("from"))} to {_e(meta.get("to"))} &middot; Harnesses: {_e(harnesses_lbl)}{proj_lbl}</p>
 
   <div class="at-a-glance">
     <div class="glance-title">At a Glance</div>
@@ -247,12 +266,12 @@ def render_html(agg, syn):
   </nav>
 
   <div class="stats-row">
-    <div class="stat"><div class="stat-value">{meta.get("prompts", 0):,}</div><div class="stat-label">Prompts</div></div>
-    <div class="stat"><div class="stat-value">{meta.get("tool_calls", 0):,}</div><div class="stat-label">Tool Calls</div></div>
-    <div class="stat"><div class="stat-value">{meta.get("facets_analyzed", 0)}</div><div class="stat-label">Facets</div></div>
+    <div class="stat"><div class="stat-value">{m_prompts:,}</div><div class="stat-label">Prompts</div></div>
+    <div class="stat"><div class="stat-value">{m_tools:,}</div><div class="stat-label">Tool Calls</div></div>
+    <div class="stat"><div class="stat-value">{m_fac}</div><div class="stat-label">Facets</div></div>
     <div class="stat"><div class="stat-value">{_e(lines_str)}</div><div class="stat-label">Repo Lines</div></div>
-    <div class="stat"><div class="stat-value">{merges if repos else meta.get("git_commits_in_transcripts", 0)}</div><div class="stat-label">{"Merged PRs" if repos else "Git Commits"}</div></div>
-    <div class="stat"><div class="stat-value">{meta.get("days_active", 1)}d ({meta.get("msgs_per_day", 0)}/d)</div><div class="stat-label">Active Days</div></div>
+    <div class="stat"><div class="stat-value">{merges if repos else m_commits}</div><div class="stat-label">{"Merge Commits" if repos else "Git Commits"}</div></div>
+    <div class="stat"><div class="stat-value">{m_days}d ({m_mpd:.1f}/d)</div><div class="stat-label">Active Days</div></div>
   </div>
 
   <h2 id="section-work">What You Work On</h2>
@@ -278,9 +297,9 @@ def render_html(agg, syn):
   <div class="chart-card" style="margin:20px 0">
     <div class="chart-title">Multi-Agent Parallelism (Overlapping Sessions Across Harnesses)</div>
     <div class="overlap-stats">
-      <div><div class="overlap-num">{ov.get("overlap_events", 0)}</div><div class="stat-label">Overlap Events</div></div>
-      <div><div class="overlap-num">{ov.get("sessions_involved", 0)}</div><div class="stat-label">Sessions Involved</div></div>
-      <div><div class="overlap-num">{ov.get("pct_of_messages", 0)}%</div><div class="stat-label">Of Prompts</div></div>
+      <div><div class="overlap-num">{ov_ev}</div><div class="stat-label">Overlap Events</div></div>
+      <div><div class="overlap-num">{ov_sess}</div><div class="stat-label">Sessions Involved</div></div>
+      <div><div class="overlap-num">{ov_pct}%</div><div class="stat-label">Of Prompts</div></div>
     </div>
     <p style="font-size:13px;color:#475569">Detected when top-level sessions overlap in wall-clock time across Muse, Antigravity, and Claude.</p>
   </div>
@@ -336,7 +355,7 @@ def render_html(agg, syn):
   <div class="caveats">
     <strong>Not tracked on purpose &amp; correlation caveats</strong>
     <ul>{caveats_li}</ul>
-    <p style="margin-top:8px">Fixtures excluded from hook log: {meta.get("fixtures_excluded", 0)}. Generated offline with zero external requests.</p>
+    <p style="margin-top:8px">Fixtures excluded from hook log: {m_fix}. Generated offline with zero external requests.</p>
   </div>
 </div>
 <script>

@@ -30,12 +30,13 @@ VALID_SESSION_TYPES = frozenset({
     "exploration", "delegated_subagent", "quick_question",
 })
 VALID_SATISFACTION = frozenset({
-    "likely_satisfied", "unsure", "dissatisfied", "frustrated",
+    "satisfied", "likely_satisfied", "unsure", "dissatisfied", "frustrated",
 })
 VALID_FRICTION = frozenset({
     "buggy_code", "wrong_approach", "hook_or_env_retry",
     "stale_status", "tool_failure", "misunderstood_request",
     "missing_path_probe", "excessive_changes", "context_loss",
+    "user_rejected_action",
 })
 VALID_SUCCESS = frozenset({
     "good_debugging", "multi_file_changes", "correct_code_edits",
@@ -93,21 +94,52 @@ def canon_skill(name):
     return ALIASES.get(bare, bare)
 
 
+def safe_int(val, default=0):
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_float(val, default=0.0):
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
 def resolve_since(since_str="", days=30):
     """Return (since_date_yyyy_mm_dd, since_epoch_float)."""
     s = (since_str or "").strip()
-    if s and re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
-        dt = datetime.datetime.fromisoformat(s + "T00:00:00+00:00")
+    if s:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+            raise SystemExit(f"debrief: invalid --since date (expected YYYY-MM-DD): {s!r}")
+        try:
+            dt = datetime.datetime.fromisoformat(s + "T00:00:00+00:00")
+        except ValueError as exc:
+            raise SystemExit(f"debrief: invalid --since calendar date {s!r}: {exc}") from exc
         return s, dt.timestamp()
-    d = max(1, int(days or 30))
+    d = max(1, safe_int(days, 30))
     dt = (datetime.datetime.now(datetime.timezone.utc)
           - datetime.timedelta(days=d)).replace(hour=0, minute=0, second=0, microsecond=0)
     return dt.date().isoformat(), dt.timestamp()
 
 
 def ts_to_epoch(val):
+    if isinstance(val, bool):
+        return None
     if isinstance(val, (int, float)) and val > 0:
-        return val / 1_000_000.0 if val > 1e12 else float(val)
+        if val > 1e17:
+            return val / 1_000_000_000.0
+        if val > 1e14:
+            return val / 1_000_000.0
+        if val > 1e11:
+            return val / 1_000.0
+        return float(val)
     if isinstance(val, str) and val:
         try:
             dt = datetime.datetime.fromisoformat(val.replace("Z", "+00:00"))
@@ -249,9 +281,12 @@ def normalize_friction_key(raw):
         "environment_issue": "hook_or_env_retry",
         "environment_issues": "hook_or_env_retry",
         "tool_environment_issue": "hook_or_env_retry",
+        "tool_or_env_error": "hook_or_env_retry",
         "hook_block": "hook_or_env_retry",
+        "hook_or_gate_block": "hook_or_env_retry",
         "file_not_found": "missing_path_probe",
         "stale_pr_status": "stale_status",
+        "stale_context_or_branch": "stale_status",
         "passive_waiting": "stale_status",
     }
     k = mapping.get(k, k)
@@ -272,7 +307,9 @@ def validate_facet(raw):
     stype = str(raw.get("session_type") or "single_task").strip().lower()
     if stype not in VALID_SESSION_TYPES:
         stype = "single_task"
-    sat = str(raw.get("satisfaction") or "likely_satisfied").strip().lower()
+    sat_raw = str(raw.get("satisfaction") or "likely_satisfied").strip().lower()
+    sat_alias = {"happy": "satisfied", "very_satisfied": "satisfied"}
+    sat = sat_alias.get(sat_raw, sat_raw)
     if sat not in VALID_SATISFACTION:
         sat = "unsure"
     ps = str(raw.get("primary_success") or "none").strip().lower()
@@ -284,10 +321,7 @@ def validate_facet(raw):
         for k, v in raw_gc.items():
             ck = re.sub(r"[^a-z0-9_]+", "_", str(k).strip().lower()).strip("_")[:48]
             if ck:
-                try:
-                    n = int(v)
-                except (TypeError, ValueError):
-                    n = 1
+                n = safe_int(v, 1)
                 if n > 0:
                     gmap[ck] = gmap.get(ck, 0) + n
     elif isinstance(raw_gc, list):
@@ -300,16 +334,13 @@ def validate_facet(raw):
     if isinstance(raw_fc, dict):
         for k, v in raw_fc.items():
             fk = normalize_friction_key(k)
-            try:
-                n = int(v)
-            except (TypeError, ValueError):
-                n = 1
+            n = safe_int(v, 1)
             if n > 0:
                 fmap[fk] = fmap.get(fk, 0) + n
     return {
         "session_id": sid,
         "harness": harness,
-        "source_mtime": float(raw.get("source_mtime") or 0),
+        "source_mtime": safe_float(raw.get("source_mtime"), 0.0),
         "underlying_goal": truncate_text(raw.get("underlying_goal") or "", 240),
         "goal_categories": gmap,
         "outcome": outcome,

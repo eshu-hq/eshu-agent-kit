@@ -29,7 +29,7 @@ no() {
 }
 loglines() { [ -f "${LOG}" ] && wc -l <"${LOG}" | tr -d ' ' || echo 0; }
 
-SID="debrieftest1"
+SID="dt$(printf '%010d' "$$" | tail -c 10)"
 
 # --- Part A: Hook telemetry emission (skills-insights-events.sh) ---
 
@@ -279,6 +279,8 @@ assert d["meta"]["fixtures_excluded"] == 3, d["meta"]
 assert set(d["by_harness"]) == {"muse", "agy", "claude"}, d["by_harness"]
 assert d["charts"]["multi_agent_overlap"]["overlap_events"] >= 1, d["charts"]["multi_agent_overlap"]
 assert d["charts"]["languages"].get("Go", 0) >= 1 and d["charts"]["languages"].get("Python", 0) >= 1, d["charts"]["languages"]
+assert d["charts"]["satisfaction"] == {"satisfied": 2, "likely_satisfied": 1}, d["charts"]["satisfaction"]
+assert d["charts"]["primary_friction_types"] == {"hook_or_env_retry": 1, "buggy_code": 1}, d["charts"]["primary_friction_types"]
 by_sk = {r["skill"]: r for r in d["skill_table"]}
 assert "postgres-rigor" in by_sk and by_sk["postgres-rigor"]["forced_pct"] == 100, by_sk
 assert by_sk["performance-rigor"]["no_progress_share_pct"] == 100, by_sk
@@ -289,7 +291,61 @@ assert g["commits"] == 5 and g["merges"] == 1 and g["reverts"] == 1, g
 assert any(r.get("unreadable") for r in d["meta"]["repos"]), d["meta"]["repos"]
 PYEOF
 
-# --- Part D: Offline HTML renderer + XSS escaping ---
+# --- Part C2: --project isolation (other repo + projectless child excluded), ts_to_epoch, malformed JSONL, invalid --since ---
+
+mkdir -p "${troot}/muse/beta-parent" "${troot}/muse/beta-parent/subagent/beta-child"
+cat >"${troot}/muse/beta-parent/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"session.workspace_branch.observed","recorded_at":1795168800000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{"record":{"workspace_root":"/repo/beta"}}}
+{"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795168805000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{}}
+{"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795168815000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{}}
+{"record_type":"event","payload_type":"subagent.control.child_session_bound","recorded_at":1795168816000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{"record":{"child_session_id":"beta-child"}}}
+{"record_type":"event","payload_type":"subagent.control.runtime_observed","recorded_at":1795168817000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{"record":{"usage":{"input_tokens":"bad","output_tokens":null}}}}
+{"record_type":"event","payload_type":"runtime.session","recorded_at":1795168818000000,"stream":{"id":"beta-parent","kind":"x"},"payload":{"event":{"kind":"assistant_tool_calls_committed","tool_calls":12345}}}
+EOF
+cat >"${troot}/muse/beta-parent/subagent/beta-child/session.jsonl" <<'EOF'
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168820000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"started","call_id":"bc1","tool_name":"bash"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168821000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"bc1","outcome":{"kind":"completed"}}}}
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168822000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"started","call_id":"bc2","tool_name":"bash"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168823000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"bc2","outcome":{"kind":"completed"}}}}
+{"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168824000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"started","call_id":"bc3","tool_name":"bash"}}}
+{"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168825000000,"stream":{"id":"beta-child","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"bc3","outcome":{"kind":"completed"}}}}
+EOF
+cat >"${troot}/claude/proj-alpha/malformed.jsonl" <<'EOF'
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":null}]},"timestamp":"2026-11-20T10:00:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":42,"usage":{"input_tokens":"oops","output_tokens":true}},"timestamp":"2026-11-20T10:00:05Z"}
+EOF
+
+proj_prep="$(bash "${DEBRIEF}" prepare --since 2026-11-01 --project alpha --cache-dir "${cache}" --out-dir "${work}/batches-alpha" \
+	--claude-facets-dir "${cfacets}" --transcript-root "${troot}/muse" --transcript-root "${troot}/claude")" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 -B - "${proj_prep}" "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "--project excludes other repo + projectless child; ts_to_epoch handles s/ms/us/ns/bool" || no "--project excludes other repo + projectless child; ts_to_epoch handles s/ms/us/ns/bool"
+import json, sys
+m = json.loads(sys.argv[1])
+assert m["facets_queued"] == 0, m
+assert m["rolled_up_children"] == 2, m
+sys.path.insert(0, sys.argv[2])
+import debrief_common as dc
+assert dc.ts_to_epoch(True) is None
+assert abs(dc.ts_to_epoch(1795168800) - 1795168800.0) < 0.01
+assert abs(dc.ts_to_epoch(1795168800000) - 1795168800.0) < 0.01
+assert abs(dc.ts_to_epoch(1795168800000000) - 1795168800.0) < 0.01
+assert abs(dc.ts_to_epoch(1795168800000000000) - 1795168800.0) < 0.01
+PYEOF
+
+if bash "${DEBRIEF}" aggregate --since 2026-02-30 --cache-dir "${cache}" >/dev/null 2>&1; then
+	no "invalid --since calendar date fails fast"
+else
+	ok "invalid --since calendar date fails fast"
+fi
+
+# --- Part D: Offline HTML renderer + XSS escaping (script breakout + attribute breakout) ---
+
+python3 - "${work}/agg.json" "${work}/agg-hostile.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+d["charts"]["hour_counts_utc"]["</script><img src=x onerror=alert(1)>"] = 9
+d["charts"]["median_response_gap_s"] = "12<script>bad()</script>"
+json.dump(d, open(sys.argv[2], "w"))
+PYEOF
 
 cat >"${work}/syn.json" <<'EOF'
 {
@@ -301,7 +357,7 @@ cat >"${work}/syn.json" <<'EOF'
   "big_wins": [{"title": "Cross-Harness Debugging", "description": "Fixed foo.go (parent-m) and app.py (conv-agy-1)."}],
   "friction_intro": "Two small friction hits.",
   "friction_categories": [{"title": "Tool Errors", "description": "Permission and test errors.", "examples": ["parent-m hit permission denied."]}],
-  "agents_md_additions": [{"target": "AGENTS.md", "snippet": "Run pytest before commit.", "why": "Avoids retry loops."}],
+  "agents_md_additions": [{"target": "AGENTS.md", "snippet": "Run \" onmouseover=\"alert(1) pytest", "why": "Avoids retry loops."}],
   "features_to_try": [{"title": "Pre-briefs", "oneliner": "Inject skill cues.", "why": "Cuts forced loads.", "example": "agents/roles.json"}],
   "usage_patterns": [{"title": "Batch Verification", "summary": "Verify once.", "detail": "Group test checks.", "prompt": "Run full suite once."}],
   "horizon_intro": "Next-step workflows.",
@@ -310,13 +366,16 @@ cat >"${work}/syn.json" <<'EOF'
 EOF
 
 rdir="${work}/reports"
-ren_out="$(bash "${DEBRIEF}" render --aggregate "${work}/agg.json" --synthesis "${work}/syn.json" --reports-dir "${rdir}")" && rc=0 || rc=1
-[ "${rc}" -eq 0 ] && python3 - "${ren_out}" "${rdir}" <<'PYEOF' && ok "render writes offline escaped HTML + report-latest.html" || no "render writes offline escaped HTML + report-latest.html"
+ren_out="$(bash "${DEBRIEF}" render --aggregate "${work}/agg-hostile.json" --synthesis "${work}/syn.json" --reports-dir "${rdir}")" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${ren_out}" "${rdir}" <<'PYEOF' && ok "render writes offline escaped HTML (blocks script & attribute XSS)" || no "render writes offline escaped HTML (blocks script & attribute XSS)"
 import json, os, re, sys
 info = json.loads(sys.argv[1])
 assert os.path.isfile(info["report"]) and os.path.isfile(info["latest"]), info
 html = open(info["report"], encoding="utf-8").read()
 assert "<script>alert(1)</script>" not in html, "unescaped script tag!"
+assert "<script>bad()</script>" not in html, "unescaped gap script!"
+assert "<img src=x onerror=alert(1)>" not in html, "script-context breakout!"
+assert '" onmouseover="alert(1)' not in html, "attribute breakout in data-text!"
 assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html, "escaped text missing"
 assert not re.search(r'https?://', html), "external URL found in offline HTML!"
 assert "copyAllCheckedRules" in html and "timezone-select" in html and "rawUtcHours" in html

@@ -12,6 +12,7 @@ from debrief_common import (
     lang_from_path,
     load_json_lines,
     read_json,
+    safe_int,
     truncate_text,
     ts_to_epoch,
     validate_facet,
@@ -88,12 +89,18 @@ def import_native_claude_facets(facets_dir=None):
         sat = "likely_satisfied"
         sc = raw.get("user_satisfaction_counts")
         if isinstance(sc, dict) and sc:
-            top_sat = max(sc.items(), key=lambda kv: kv[1])[0]
-            sat = str(top_sat)
+            scored = [(str(k), safe_int(v, 0)) for k, v in sc.items()]
+            scored = [kv for kv in scored if kv[1] > 0]
+            if scored:
+                sat = max(scored, key=lambda kv: kv[1])[0]
+        try:
+            mt = os.path.getmtime(p)
+        except OSError:
+            mt = 0.0
         cand = {
             "session_id": sid,
             "harness": "claude",
-            "source_mtime": os.path.getmtime(p),
+            "source_mtime": mt,
             "underlying_goal": raw.get("underlying_goal") or "",
             "goal_categories": raw.get("goal_categories") or {},
             "outcome": raw.get("outcome") or "unclear",
@@ -175,10 +182,11 @@ def extract_session(path, mtime=0.0):
             if isinstance(mdl, str) and mdl:
                 session_models[mdl[:60]] += 1
             usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
-            tokens_in += int(usage.get("input_tokens") or 0)
-            tokens_out += int(usage.get("output_tokens") or 0)
+            tokens_in += safe_int(usage.get("input_tokens"), 0)
+            tokens_out += safe_int(usage.get("output_tokens"), 0)
             txt_parts = []
-            for block in msg.get("content") or []:
+            blocks = msg.get("content")
+            for block in (blocks if isinstance(blocks, list) else []):
                 if not isinstance(block, dict):
                     continue
                 btype = block.get("type")
@@ -230,7 +238,11 @@ def extract_session(path, mtime=0.0):
             if isinstance(content, str):
                 user_txt = content
             elif isinstance(content, list):
-                tparts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+                tparts = [
+                    b["text"]
+                    for b in content
+                    if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)
+                ]
                 user_txt = " ".join(tparts)
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
