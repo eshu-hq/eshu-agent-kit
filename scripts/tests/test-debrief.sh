@@ -289,6 +289,35 @@ repos = {r["path"]: r for r in d["meta"]["repos"]}
 g = repos[sys.argv[2]]
 assert g["commits"] == 5 and g["merges"] == 1 and g["reverts"] == 1, g
 assert any(r.get("unreadable") for r in d["meta"]["repos"]), d["meta"]["repos"]
+assert d["charts"]["prompt_distribution"] == {"1": 1, "2-3": 3, "4-9": 0, "10+": 0}, d["charts"].get("prompt_distribution")
+ij = d["interjections"]
+assert ij["prompt_bearing_sessions"] == 4 and ij["zero_prompt_sessions"] == 0, ij
+assert ij["follow_up_rate_pct"] == 75.0, ij
+assert ij["by_harness"]["muse"]["median_prompts"] == 1.5, ij["by_harness"]
+assert ij["by_harness"]["agy"]["median_prompts"] == 2.0, ij["by_harness"]
+assert ij["by_harness"]["claude"]["median_prompts"] == 2.0, ij["by_harness"]
+steered_ids = {s["session_id"] for s in ij["top_steered"]}
+assert steered_ids == {"parent-m", "conv-agy-1", "cl-parent"}, steered_ids
+assert all(s["prompts"] == 2 and "content" not in s and "text" not in s for s in ij["top_steered"]), ij["top_steered"]
+PYEOF
+
+# --- Part C1b: interjection helper edge cases (zero-prompt window, empty input) ---
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "interjection stats handle zero-prompt and empty windows" || no "interjection stats handle zero-prompt and empty windows"
+import sys
+sys.path.insert(0, sys.argv[1])
+from debrief_aggregate import interjection_stats
+dist, ij = interjection_stats([])
+assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
+assert ij["follow_up_rate_pct"] is None and ij["prompt_bearing_sessions"] == 0, ij
+assert ij["by_harness"] == {} and ij["top_steered"] == [], ij
+metas = [
+    {"id": "a1", "harness": "muse", "prompts": 0, "tool_calls": 5},
+    {"id": "b2", "harness": "muse", "prompts": 0, "tool_calls": 7},
+]
+dist, ij = interjection_stats(metas)
+assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
+assert ij["follow_up_rate_pct"] is None and ij["zero_prompt_sessions"] == 2, ij
+assert ij["by_harness"]["muse"]["median_prompts"] is None, ij["by_harness"]
 PYEOF
 
 # --- Part C2: --project isolation (other repo + projectless child excluded), ts_to_epoch, malformed JSONL, invalid --since ---

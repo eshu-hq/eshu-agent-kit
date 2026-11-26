@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -143,6 +144,63 @@ def _compute_overlap(metas):
         "overlap_events": overlap_events,
         "sessions_involved": len(involved),
         "pct_of_messages": round(100.0 * ov_msgs / total_msgs),
+    }
+
+
+def _prompt_bucket(n):
+    return "1" if n <= 1 else "2-3" if n <= 3 else "4-9" if n <= 9 else "10+"
+
+
+def interjection_stats(top_metas):
+    """Prompts-per-session distribution and follow-up rates (issue #77).
+
+    Per-session ``prompts`` (accepted user turns) on top-level sessions.
+    Ids only, never message text. Zero-prompt sessions are reported, not
+    hidden: prompt mining is lossy, so every rate is a lower bound.
+    """
+    dist = {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}
+    per_harness = defaultdict(list)
+    zero = 0
+    steered = []
+    for m in top_metas:
+        p = safe_int(m.get("prompts"), 0)
+        if p < 1:
+            zero += 1
+            continue
+        dist[_prompt_bucket(p)] += 1
+        per_harness[str(m.get("harness") or "unknown")].append(p)
+        steered.append(m)
+
+    def rate(ps):
+        return round(100.0 * sum(1 for p in ps if p > 1) / len(ps), 1) if ps else None
+
+    def med(ps):
+        return round(float(statistics.median(ps)), 1) if ps else None
+
+    by_harness = {
+        h: {
+            "sessions_with_prompts": len(per_harness[h]),
+            "median_prompts": med(per_harness[h]),
+            "follow_up_rate_pct": rate(per_harness[h]),
+        }
+        for h in sorted({str(m.get("harness") or "unknown") for m in top_metas})
+    }
+    steered = [m for m in steered if safe_int(m.get("prompts"), 0) > 1]
+    top = sorted(steered, key=lambda m: (-safe_int(m.get("prompts"), 0), str(m.get("id") or "")))[:5]
+    return dist, {
+        "prompt_bearing_sessions": sum(dist.values()),
+        "zero_prompt_sessions": zero,
+        "follow_up_rate_pct": rate([p for ps in per_harness.values() for p in ps]),
+        "by_harness": by_harness,
+        "top_steered": [
+            {
+                "session_id": str(m.get("id") or ""),
+                "harness": str(m.get("harness") or "unknown"),
+                "prompts": safe_int(m.get("prompts"), 0),
+                "tool_calls": safe_int(m.get("tool_calls"), 0),
+            }
+            for m in top
+        ],
     }
 
 
@@ -343,6 +401,7 @@ def cmd_aggregate(args):
     gaps_sorted = sorted(gaps)
     med_gap = round(gaps_sorted[len(gaps_sorted) // 2], 1) if gaps_sorted else None
     avg_gap = round(sum(gaps_sorted) / len(gaps_sorted), 1) if gaps_sorted else None
+    prompt_dist, interjections = interjection_stats(top_metas)
 
     goal_cats = Counter()
     session_types = Counter()
@@ -412,6 +471,7 @@ def cmd_aggregate(args):
             "languages": dict(langs.most_common(8)),
             "session_types": dict(session_types.most_common(8)),
             "response_time_buckets": {b: gap_buckets[b] for b in ("2-10s", "10-30s", "30s-1m", "1-2m", "2-5m", "5-15m", ">15m")},
+            "prompt_distribution": dict(prompt_dist),
             "median_response_gap_s": med_gap,
             "avg_response_gap_s": avg_gap,
             "hour_counts_utc": {str(h): hours[str(h)] for h in range(24)},
@@ -424,6 +484,7 @@ def cmd_aggregate(args):
         },
         "projects": dict(projects.most_common(12)),
         "skill_table": skill_table,
+        "interjections": interjections,
         "facet_summaries": facet_summaries,
         "not_tracked": [
             "Per-hook firing counts (volume without signal; first-fire witnesses plus transcript joins cover compliance).",
