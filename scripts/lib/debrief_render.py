@@ -212,6 +212,15 @@ def render_html(agg, syn):
     med_g = charts.get("median_response_gap_s")
     avg_g = charts.get("avg_response_gap_s")
     gap_foot = f"Median: {_e(med_g)}s &bull; Average: {_e(avg_g)}s" if med_g is not None else "No multi-turn gaps observed."
+    ij = agg.get("interjections") or {}
+    ij_rate = ij.get("follow_up_rate_pct")
+    ij_bearing = safe_int(ij.get("prompt_bearing_sessions"), 0)
+    ij_zero = safe_int(ij.get("zero_prompt_sessions"), 0)
+    ij_foot = (
+        f"{_e(ij_rate)}% of {ij_bearing} prompt-bearing sessions had follow-ups"
+        f" &bull; {ij_zero} sessions mined zero prompts (rates are lower bounds)"
+        if ij_rate is not None else "No prompt-bearing sessions in window."
+    )
     caveats_li = "".join(f"<li>{_e(c)}</li>" for c in (agg.get("not_tracked") or []))
     raw_hours = charts.get("hour_counts_utc") if isinstance(charts.get("hour_counts_utc"), dict) else {}
     clean_hours = {str(h): safe_int(raw_hours.get(str(h)), 0) for h in range(24)}
@@ -293,6 +302,8 @@ def render_html(agg, syn):
   </div>
 
   {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot)}
+
+  {_render_chart_card("Prompts Per Session (Interjections)", charts.get("prompt_distribution"), "#0ea5e9", title_case=False, footer=ij_foot)}
 
   <div class="chart-card" style="margin:20px 0">
     <div class="chart-title">Multi-Agent Parallelism (Overlapping Sessions Across Harnesses)</div>

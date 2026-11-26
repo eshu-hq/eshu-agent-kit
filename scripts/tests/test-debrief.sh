@@ -289,6 +289,78 @@ repos = {r["path"]: r for r in d["meta"]["repos"]}
 g = repos[sys.argv[2]]
 assert g["commits"] == 5 and g["merges"] == 1 and g["reverts"] == 1, g
 assert any(r.get("unreadable") for r in d["meta"]["repos"]), d["meta"]["repos"]
+assert d["charts"]["prompt_distribution"] == {"1": 1, "2-3": 3, "4-9": 0, "10+": 0}, d["charts"].get("prompt_distribution")
+ij = d["interjections"]
+assert ij["prompt_bearing_sessions"] == 4 and ij["zero_prompt_sessions"] == 0, ij
+assert ij["follow_up_rate_pct"] == 75.0, ij
+assert ij["by_harness"]["muse"]["median_prompts"] == 1.5, ij["by_harness"]
+assert ij["by_harness"]["agy"]["median_prompts"] == 2.0, ij["by_harness"]
+assert ij["by_harness"]["claude"]["median_prompts"] == 2.0, ij["by_harness"]
+steered_ids = {s["session_id"] for s in ij["top_steered"]}
+assert steered_ids == {"parent-m", "conv-agy-1", "cl-parent"}, steered_ids
+assert all(s["prompts"] == 2 and "content" not in s and "text" not in s for s in ij["top_steered"]), ij["top_steered"]
+PYEOF
+
+# --- Part C1b: interjection helper edge cases (zero-prompt window, empty input) ---
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "interjection stats handle zero-prompt and empty windows" || no "interjection stats handle zero-prompt and empty windows"
+import sys
+sys.path.insert(0, sys.argv[1])
+from debrief_aggregate import interjection_stats, _prompt_bucket
+bounds = {0: "1", 1: "1", 2: "2-3", 3: "2-3", 4: "4-9", 9: "4-9", 10: "10+", 11: "10+", 500: "10+"}
+for n, want in bounds.items():
+    assert _prompt_bucket(n) == want, (n, _prompt_bucket(n))
+dist, ij = interjection_stats([])
+assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
+assert ij["follow_up_rate_pct"] is None and ij["prompt_bearing_sessions"] == 0, ij
+assert ij["by_harness"] == {} and ij["top_steered"] == [], ij
+bearing_metas = [
+    {"id": "s%d" % n, "harness": "muse", "prompts": n, "tool_calls": 1}
+    for n in (1, 2, 3, 4, 9, 10, 11)
+]
+dist2, ij2 = interjection_stats(bearing_metas)
+assert dist2 == {"1": 1, "2-3": 2, "4-9": 2, "10+": 2}, dist2
+assert ij2["follow_up_rate_pct"] == round(100.0 * 6 / 7, 1), ij2
+assert ij2["by_harness"]["muse"]["median_prompts"] == 4.0, ij2["by_harness"]
+metas = [
+    {"id": "a1", "harness": "muse", "prompts": 0, "tool_calls": 5},
+    {"id": "b2", "harness": "muse", "prompts": 0, "tool_calls": 7},
+]
+dist, ij = interjection_stats(metas)
+assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
+assert ij["follow_up_rate_pct"] is None and ij["zero_prompt_sessions"] == 2, ij
+assert ij["by_harness"]["muse"]["median_prompts"] is None, ij["by_harness"]
+PYEOF
+
+# --- Part C1c: Claude owner-turn filter (harness records are not prompts) ---
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "claude extractor counts owner turns, not harness records" || no "claude extractor counts owner turns, not harness records"
+import sys
+sys.path.insert(0, sys.argv[1])
+from debrief_extract_claude import _is_owner_turn as owner
+human = {"turnOrigin": "human", "origin": {"kind": "human"}, "promptSource": "typed"}
+assert owner(human, "9884 is merged, i merged it", False) is True
+assert owner({}, "Ship it", False) is True
+assert owner({"turnOrigin": "task_notification"}, "anything", False) is False
+assert owner({"promptSource": "system"}, "anything", False) is False
+assert owner({}, "Audit SQL", True) is False
+assert owner({}, "", False) is False
+system_texts = [
+    "Base directory for this skill: /x/eshu-issue-driver\n# Eshu Issue Driver",
+    "<local-command-caveat>The command below was run directly</local-command-caveat>",
+    "<command-name>/login</command-name>",
+    "Stop hook feedback: | You are stopping with an active goal",
+    "[Cross-session delivery notice] Your message was held",
+    "Goal check-in: the goal is still active",
+    "A session-scoped Stop hook is now active with condition: x",
+    "Another Claude session sent a message: | <teammate-message",
+    "Skill /eshu-postgres-rigor was loaded earlier (see above)",
+    "Skill /eshu-postgres-rigor is already loaded above; unchanged.",
+    "<task-notification> | <task-id>b6c0</task-id>",
+    "This session is being continued from a previous conversation",
+    "<artifact-content-authored-by-others/>\nThe summarized conversation",
+    "<bash-input>k6 run -e BASE_URL=https://x",
+]
+for t in system_texts:
+    assert owner({}, t, False) is False, t[:60]
 PYEOF
 
 # --- Part C2: --project isolation (other repo + projectless child excluded), ts_to_epoch, malformed JSONL, invalid --since ---
