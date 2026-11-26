@@ -166,7 +166,35 @@ for skill_file in "${files[@]}"; do
 			body_start=$((end + 1))
 			name="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{sub(/^name:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
 			name_line="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{print NR; exit}' "${skill_file}")"
-			desc="$(awk -v e="${end}" 'NR>1 && NR<e && /^description:[[:space:]]*/{sub(/^description:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
+			desc="$(awk -v e="${end}" -v sq="'" '
+				NR>1 && NR<e {
+					if (in_desc) {
+						if (/^[[:space:]]*$/) { next }
+						if (/^[[:space:]]+/) {
+							line = $0
+							gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+							out = (out == "" ? line : out " " line)
+							next
+						}
+						exit
+					}
+					if (/^description:[[:space:]]*/) {
+						val = $0
+						sub(/^description:[[:space:]]*/, "", val)
+						sub(/[[:space:]]+$/, "", val)
+						if (val ~ /^[>|]([+-]?[0-9]*|[0-9]*[+-]?)$/ || val == "") {
+							in_desc = 1
+							next
+						}
+						if (length(val) >= 2 && ((substr(val, 1, 1) == "\"" && substr(val, length(val), 1) == "\"") || (substr(val, 1, 1) == sq && substr(val, length(val), 1) == sq))) {
+							val = substr(val, 2, length(val) - 2)
+						}
+						out = val
+						exit
+					}
+				}
+				END { print out }
+			' "${skill_file}")"
 			desc_line="$(awk -v e="${end}" 'NR>1 && NR<e && /^description:[[:space:]]*/{print NR; exit}' "${skill_file}")"
 		fi
 	fi

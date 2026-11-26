@@ -257,9 +257,10 @@ done <"${BASELINE}"
 [ "${stale}" = "0" ] && ok "every baseline row names an existing skill" || no "every baseline row names an existing skill"
 
 # 11. SKILL009 RED/ADVISORY/GREEN: description token budget (>600 error,
-# 401-600 advisory, <=400 clean).
+# 401-600 advisory, <=400 clean), quoted boundaries, multi-line block scalar,
+# and Tier 1 non-suppressibility.
 make_desc_skill() {
-	local name="$1" len="$2"
+	local name="$1" len="$2" q="${3:-}"
 	local dir="${work}/${name}"
 	local pad
 	mkdir -p "${dir}"
@@ -267,7 +268,7 @@ make_desc_skill() {
 	cat >"${dir}/SKILL.md" <<EOF
 ---
 name: ${name}
-description: ${pad}
+description: ${q}${pad}${q}
 ---
 
 # ${name}
@@ -314,8 +315,39 @@ case "${out}" in
 *) ok "SKILL009 <=400 chars emits no SKILL009" ;;
 esac
 
+desc_q400="$(make_desc_skill desc-q400 400 '"')"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_q400}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && [[ "${out}" != *"SKILL009"* ]] && ok "quoted 400-char desc passes without SKILL009" || no "quoted 400-char desc passes without SKILL009 (exit ${code}: ${out:0:120})"
+
+desc_q600="$(make_desc_skill desc-q600 600 '"')"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_q600}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && [[ "${out}" == *"SKILL009 (advisory)"* ]] && ok "quoted 600-char desc stays exit 0 advisory" || no "quoted 600-char desc stays exit 0 advisory (exit ${code}: ${out:0:120})"
+
+desc_q601="$(make_desc_skill desc-q601 601 '"')"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_q601}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && [[ "${out}" == *"SKILL009 (error)"* ]] && ok "quoted 601-char desc fails SKILL009 (error)" || no "quoted 601-char desc fails SKILL009 (error) (exit ${code}: ${out:0:120})"
+
+desc_block="${work}/desc-block/SKILL.md"
+mkdir -p "${work}/desc-block"
+{
+	printf -- '---\nname: desc-block\ndescription: >\n'
+	for _ in 1 2 3 4; do printf '  %s\n' "$(python3 -c "print('b' * 160)")"; done
+	printf -- '---\n\n# Block\n\n1. Step.\n\n```bash\necho ok\n```\n\nWhen it fails, fix it.\n'
+} >"${desc_block}"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_block}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && [[ "${out}" == *"SKILL009 (error)"* ]] && ok "multi-line YAML block scalar >600 chars fails SKILL009 (error)" || no "multi-line YAML block scalar >600 chars fails SKILL009 (error) (exit ${code}: ${out:0:120})"
+
+printf 'desc-err\tSKILL009\tTier 1 SKILL009 is never suppressible.\n' >>"${fixture_base}"
+out="$(bash "${LINT}" --baseline "${fixture_base}" "${desc_err}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && [[ "${out}" == *"SKILL009 (error)"* ]] && ok "SKILL009 >600 is not suppressed by --baseline" || no "SKILL009 >600 is not suppressed by --baseline (exit ${code}: ${out:0:120})"
+
 # 12. SKILL010 RED/GREEN: >200 lines without references/ or scripts/ triggers
-# advisory; adding references/ clears it.
+# advisory; adding scripts/ or references/ clears it.
 long_skill="${work}/long-skill/SKILL.md"
 mkdir -p "${work}/long-skill"
 {
@@ -349,6 +381,12 @@ case "${out}" in
 *) no "SKILL010 fires over 200 lines with no references/ or scripts/ (got: ${out:0:150})" ;;
 esac
 
+mkdir -p "${work}/long-skill/scripts"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${long_skill}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && [[ "${out}" != *"SKILL010"* ]] && ok "adding scripts/ clears SKILL010" || no "adding scripts/ clears SKILL010 (exit ${code}: ${out:0:120})"
+rmdir "${work}/long-skill/scripts"
+
 mkdir -p "${work}/long-skill/references"
 out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${long_skill}" 2>&1)"
 code=$?
@@ -358,7 +396,7 @@ case "${out}" in
 *) ok "adding references/ clears SKILL010" ;;
 esac
 
-# 13. --json output: valid JSON with expected fields; exits 1 on Tier 1 error.
+# 13. --json output: clean, Tier 1 error, advisory/suppressed, hostile chars, missing file.
 json_ok="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${good}" "${long_skill}" 2>&1)"
 code=$?
 [ "${code}" = "0" ] && ok "--json exits 0 when clean" || no "--json exits 0 when clean (exit ${code})"
@@ -391,6 +429,55 @@ assert len(d["skills"]) == 1 and d["skills"][0]["errors"][0]["rule"] == "SKILL00
 	ok "--json records Tier 1 error in skills[].errors"
 else
 	no "--json records Tier 1 error in skills[].errors"
+fi
+
+json_adv="$(bash "${LINT}" --baseline "${fixture_base}" --json "${bare}" 2>&1)"
+code=$?
+if [ "${code}" = "0" ] && python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d["errors"] == 0 and d["advisories"] >= 1 and d["suppressed"] >= 1
+assert len(d["skills"][0]["advisories"]) == d["advisories"]
+' <<<"${json_adv}"; then
+	ok "--json advisory path reports advisories>=1 and suppressed>=1 with baseline"
+else
+	no "--json advisory path reports advisories>=1 and suppressed>=1 with baseline (exit ${code})"
+fi
+
+hostile="${work}/hostile/SKILL.md"
+mkdir -p "${work}/hostile"
+cat >"${hostile}" <<'EOF'
+---
+name: bad"name\slash
+description: Hostile "quotes" and \backslash\ in description.
+---
+
+# Hostile
+EOF
+json_hostile="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${hostile}" 2>&1)"
+code=$?
+if [ "${code}" = "1" ] && python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())
+detail = d["skills"][0]["errors"][0]["detail"]
+assert "\"" in detail and "\\" in detail
+' <<<"${json_hostile}"; then
+	ok "--json preserves hostile quotes and backslashes as valid JSON"
+else
+	no "--json preserves hostile quotes and backslashes as valid JSON (exit ${code})"
+fi
+
+json_miss="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${work}/missing/SKILL.md" 2>&1)"
+code=$?
+if [ "${code}" = "1" ] && python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d["checked"] == 1 and d["errors"] == 1
+assert d["skills"][0]["errors"][0]["rule"] == "SKILL001"
+' <<<"${json_miss}"; then
+	ok "--json on missing file exits 1 with valid JSON"
+else
+	no "--json on missing file exits 1 with valid JSON (exit ${code})"
 fi
 
 printf '\nskill-lint mirror: %s passed, %s failed\n' "${passed}" "${failed}"

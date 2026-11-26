@@ -110,7 +110,7 @@ Do not guess a gate's script name -- look up its `local.command` (and
 `test_command`) by `id` in `specs/ci-gates.v1.yaml` before running it:
 
 ```bash
-cd go && go test ./internal/reducer/... ./internal/projector/... ./internal/query/... -count=1
+(cd go && go test ./internal/reducer/... ./internal/projector/... ./internal/query/... -count=1)
 rg -n -A 8 'id: ifa-(materialized-edge-coverage|determinism|contract-layer)' specs/ci-gates.v1.yaml
 ```
 

@@ -115,8 +115,8 @@ touches is reproduced on the bare base and recorded as an inherited-breakage
 disposition, never silently ignored.
 
 ```bash
-# Pre-check PR body shape and select blocking gates for changed paths:
-bash ../publish/scripts/check-shape.sh --pr <body-file>
+# Run from repo root — pre-check PR body shape and select blocking gates for changed paths:
+bash .agents/skills/publish/scripts/check-shape.sh --pr <body-file>
 bash scripts/dev/select-gates.sh --base origin/main --tier pre-pr --explain
 
 # First-push promotion sequence after focused proof and clean preliminary review:

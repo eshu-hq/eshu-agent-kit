@@ -25,9 +25,13 @@ Provide a test mirror that runs without Postgres, NornicDB, or a Go build.
    bytes and the negative case fails visibly:
 
    ```bash
-   cp "${output_path}" "${output_path}.bak"
-   bash "${generator_script}"
-   cmp -s "${output_path}" "${output_path}.bak"
+   (
+     tmp_bak="$(mktemp)"
+     trap 'rm -f "${tmp_bak}"' EXIT
+     cp "${output_path}" "${tmp_bak}"
+     bash "${generator_script}"
+     cmp -s "${output_path}" "${tmp_bak}"
+   )
    ```
 
 2. **Regenerate before final verification.** Regenerate changed artifacts before
