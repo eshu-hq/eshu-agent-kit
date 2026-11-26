@@ -132,6 +132,47 @@ def _block_text(content):
     return ""
 
 
+# User-role records the harness generates itself: slash-command records,
+# hook feedback, delivery notices, goal check-ins, teammate relays, task
+# notifications, skill-load reminders, context summaries, injected skill
+# bodies. None of these is the owner interjecting.
+_SYSTEM_TURN_MARKERS = (
+    "Base directory for this skill:",
+    "local-command",
+    "<command-",
+    "Stop hook feedback",
+    "Cross-session delivery",
+    "Goal check-in",
+    "session-scoped Stop hook",
+    "Another Claude session sent a message",
+    "was loaded earlier",
+    "is already loaded above",
+    "<task-notification>",
+    "continued from a previous conversation",
+    "<artifact-",
+    "<bash-input>",
+)
+
+
+def _is_owner_turn(rec, text, has_tool_result):
+    """True when a user-role record is the owner's own turn (issue #77).
+
+    System turnOrigin/promptSource always excludes; otherwise known
+    harness-generated shapes are excluded by marker. Unmarked,
+    unattributed turns count: new notice formats inflate until listed
+    in _SYSTEM_TURN_MARKERS.
+    """
+    if not text or has_tool_result:
+        return False
+    if rec.get("turnOrigin") in ("task_notification", "system"):
+        return False
+    if rec.get("promptSource") == "system":
+        return False
+    if any(m in text for m in _SYSTEM_TURN_MARKERS):
+        return False
+    return True
+
+
 def extract_session(path, mtime=0.0):
     """Return (meta_dict, digest_dict) for one Claude JSONL transcript."""
     sess_id = os.path.splitext(os.path.basename(path))[0]
@@ -235,6 +276,7 @@ def extract_session(path, mtime=0.0):
             msg = rec.get("message") if isinstance(rec.get("message"), dict) else {}
             content = msg.get("content") or []
             user_txt = ""
+            has_tool_result = False
             if isinstance(content, str):
                 user_txt = content
             elif isinstance(content, list):
@@ -244,6 +286,9 @@ def extract_session(path, mtime=0.0):
                     if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)
                 ]
                 user_txt = " ".join(tparts)
+                has_tool_result = any(
+                    isinstance(block, dict) and block.get("type") == "tool_result" for block in content
+                )
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
                         tool = use_id_to_tool.get(str(block.get("tool_use_id") or ""), "unknown")
@@ -253,7 +298,7 @@ def extract_session(path, mtime=0.0):
                         if len(error_samples) < 8:
                             error_samples.append(f"{tool}: {truncate_text(etxt, 140)}")
             clean_u = truncate_text(user_txt, 260)
-            if clean_u:
+            if _is_owner_turn(rec, clean_u, has_tool_result):
                 prompts += 1
                 hr = epoch_to_utc_hour(ep)
                 if hr is not None:

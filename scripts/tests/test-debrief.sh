@@ -320,6 +320,38 @@ assert ij["follow_up_rate_pct"] is None and ij["zero_prompt_sessions"] == 2, ij
 assert ij["by_harness"]["muse"]["median_prompts"] is None, ij["by_harness"]
 PYEOF
 
+# --- Part C1c: Claude owner-turn filter (harness records are not prompts) ---
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "claude extractor counts owner turns, not harness records" || no "claude extractor counts owner turns, not harness records"
+import sys
+sys.path.insert(0, sys.argv[1])
+from debrief_extract_claude import _is_owner_turn as owner
+human = {"turnOrigin": "human", "origin": {"kind": "human"}, "promptSource": "typed"}
+assert owner(human, "9884 is merged, i merged it", False) is True
+assert owner({}, "Ship it", False) is True
+assert owner({"turnOrigin": "task_notification"}, "anything", False) is False
+assert owner({"promptSource": "system"}, "anything", False) is False
+assert owner({}, "Audit SQL", True) is False
+assert owner({}, "", False) is False
+system_texts = [
+    "Base directory for this skill: /x/eshu-issue-driver\n# Eshu Issue Driver",
+    "<local-command-caveat>The command below was run directly</local-command-caveat>",
+    "<command-name>/login</command-name>",
+    "Stop hook feedback: | You are stopping with an active goal",
+    "[Cross-session delivery notice] Your message was held",
+    "Goal check-in: the goal is still active",
+    "A session-scoped Stop hook is now active with condition: x",
+    "Another Claude session sent a message: | <teammate-message",
+    "Skill /eshu-postgres-rigor was loaded earlier (see above)",
+    "Skill /eshu-postgres-rigor is already loaded above; unchanged.",
+    "<task-notification> | <task-id>b6c0</task-id>",
+    "This session is being continued from a previous conversation",
+    "<artifact-content-authored-by-others/>\nThe summarized conversation",
+    "<bash-input>k6 run -e BASE_URL=https://x",
+]
+for t in system_texts:
+    assert owner({}, t, False) is False, t[:60]
+PYEOF
+
 # --- Part C2: --project isolation (other repo + projectless child excluded), ts_to_epoch, malformed JSONL, invalid --since ---
 
 mkdir -p "${troot}/muse/beta-parent" "${troot}/muse/beta-parent/subagent/beta-child"
