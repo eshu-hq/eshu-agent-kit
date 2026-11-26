@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import default_reports_dir, read_json, safe_float, safe_int  # noqa: E402
+from debrief_coaching import render_coaching_playbook_card, render_session_health_section  # noqa: E402
 from debrief_html_assets import REPORT_CSS, REPORT_JS  # noqa: E402
 from debrief_insights import (  # noqa: E402
     render_interjection_reasons_card,
@@ -254,6 +255,7 @@ def render_html(agg, syn):
   </div>
 
   <nav class="nav-toc">
+    <a href="#section-coaching">Coaching Playbook</a>
     <a href="#section-work">What You Work On</a>
     <a href="#section-usage">How You Work</a>
     <a href="#section-harnesses">Harnesses &amp; Skills</a>
@@ -272,6 +274,8 @@ def render_html(agg, syn):
     <div class="stat"><div class="stat-value">{merges if repos else m_commits}</div><div class="stat-label">{"Merge Commits" if repos else "Git Commits"}</div></div>
     <div class="stat"><div class="stat-value">{m_days}d ({m_mpd:.1f}/d)</div><div class="stat-label">Active Days</div></div>
   </div>
+
+  {render_coaching_playbook_card(agg)}
 
   <h2 id="section-work">What You Work On</h2>
   <div class="project-areas">{areas_html}</div>
@@ -331,6 +335,8 @@ def render_html(agg, syn):
   {render_harness_skill_section(agg)}
 
   {render_skill_recommendations_card(agg)}
+
+  {render_session_health_section(agg)}
 
   <h2 id="section-wins">Impressive Things You Did</h2>
   <p class="section-intro">{_e(syn.get("wins_intro"))}</p>

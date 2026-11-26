@@ -84,6 +84,8 @@ Read `$WORK/aggregate.json` — it contains:
 - `repositories` (normalized per-repo session, prompt, tool, error, token, top-skills, and top-interjection-reason rollups collapsing git/Claude worktrees under their parent repository)
 - `interjections` (prompts-per-session distribution, follow-up rate, and content-free follow-up intent counts: `redirect_goal`, `debugging`, `thought_process`, `new_scope`, `approval`, `clarification`)
 - `skill_recommendations` (evidence-backed `create` / `modify` / `remove` skill lifecycle suggestions driven by repo frequency, unattributed friction, overhead, nudged %, errors, open papercuts, goal-redirects, unused skills, and A/B evals)
+- `session_health` (skill-stacking distribution `0`/`1-2`/`3-5`/`6+`, model turn mix, per-harness prompt cache hit/write/fresh percentages, and runaway/high-friction session outliers)
+- `coaching_playbook` (two-sided plain-English action plan split into `for_you` user prompting/pacing habits and `for_agents` skill/rule/hook fixes)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 
 ### Step 4: Synthesize Usage-Driven Recommendations & Render HTML
