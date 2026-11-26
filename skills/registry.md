@@ -40,3 +40,7 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | skills-debrief | debrief | eshu | renamed |
 
 Rename rule: name reflects intended consumer vocabulary (drop the `eshu-` prefix when the skill is meant to be called generically). Directory reflects the layer rule above — a portably-named skill still lives in `skills/eshu/` until it passes T1–T3.
+
+## Skill content lint
+
+Every `skills/**/SKILL.md` must pass `bash scripts/skill-lint.sh` (#81). The rule list lives in that script's header: Tier 1 blocking (SKILL001–005: frontmatter, name match, links, size cap) and Tier 2 advisory (SKILL006–008: numbered steps, commands, error recovery, with per-skill exemptions in `scripts/skill-lint-baseline.tsv`). New rules from review findings get added there, not improvised per skill.

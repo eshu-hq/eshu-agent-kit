@@ -179,6 +179,8 @@ jobs:
         run: bash scripts/check-md-links.sh
       - name: Layer lint (coupling plus link baseline)
         run: bash scripts/layer-lint.sh
+      - name: Skill content lint (Tier 1 blocks, Tier 2 advises)
+        run: bash scripts/skill-lint.sh
       # lycheeverse/lychee-action v2.
       - name: External link check
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
