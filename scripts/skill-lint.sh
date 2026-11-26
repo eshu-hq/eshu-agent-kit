@@ -108,6 +108,10 @@ adv() { # skill file line rule detail
 	printf '%s:%s: %s (advisory): %s\n' "$2" "$3" "$4" "$5"
 	advisories=$((advisories + 1))
 }
+norm_label() { # canonicalize a reference label the CommonMark way
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]' |
+		sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]][[:space:]]*/ /g'
+}
 
 for skill_file in "${files[@]}"; do
 	rel="${skill_file#"${KIT_DIR}"/}"
@@ -152,13 +156,15 @@ for skill_file in "${files[@]}"; do
 
 	# SKILL004: every relative link target resolves, inline or
 	# reference-style. An optional quoted title is not part of the target.
+	# Known boundary (not checked): a quoted title containing ")" truncates
+	# the target at the first paren, since the inline extractor stops there.
 	while IFS= read -r hit; do
 		lnum="${hit%%:*}"
 		target="${hit#*:}"
 		case "${target}" in
 		http://* | https://* | mailto:* | \#* | /*) continue ;;
 		esac
-		target="$(printf '%s' "${target}" | sed -e 's/ ["'\''][^"'\'']*["'\'']$//')"
+		target="$(printf '%s' "${target}" | sed -e "s/[[:space:]][[:space:]]*\"[^\"]*\"$//" -e "s/[[:space:]][[:space:]]*'[^']*'$//")"
 		target="${target%%\#*}"
 		[[ -z "${target}" ]] && continue
 		if [[ ! -e "$(dirname "${skill_file}")/${target}" ]]; then
@@ -170,6 +176,44 @@ for skill_file in "${files[@]}"; do
 		rg -n --no-heading -o '^[[:space:]]*\[[^]]+\]:[[:space:]]*[^[:space:]]+' "${skill_file}" 2>/dev/null |
 			sed -e 's/^\([0-9][0-9]*\):\[[^]]*\]:[[:space:]]*\(.*\)$/\1:\2/'
 	} || true)
+	# SKILL004, reference uses: [text][label], [label][], and shortcut
+	# [label] each need a matching [label]: definition (case-insensitive).
+	defined_labels="$(rg --no-heading -o '^[[:space:]]*\[[^]]+\]:' "${skill_file}" 2>/dev/null |
+		sed -e 's/^[[:space:]]*\[//' -e 's/\]:$//' |
+		while IFS= read -r raw; do norm_label "${raw}"; done || true)"
+	while IFS= read -r use; do
+		ulnum="${use%%:*}"
+		pair="${use#*:}"
+		text="${pair%%\]*}"
+		text="${text#\[}"
+		rest="${pair#*\]\[}"
+		label="${rest%\]}"
+		[[ -z "${label}" ]] && label="${text}"
+		[[ -z "${label}" ]] && continue
+		label="$(norm_label "${label}")"
+		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
+			err "${rel}" "${ulnum}" SKILL004 "reference '[${label}]' has no matching definition"
+		fi
+	done < <(rg -n --no-heading -o '\[[^]]*\]\[[^]]*\]' "${skill_file}" 2>/dev/null || true)
+	# Bare [label] cannot prove link intent ([fill-in: ...], [string], and
+	# quoted prose all use bare brackets without referencing anything), so
+	# an undefined shortcut is advisory, not blocking. Full and collapsed
+	# uses above stay Tier 1: their syntax is unambiguous reference intent.
+	while IFS= read -r use; do
+		ulnum="${use%%:*}"
+		fragment="${use#*:}"
+		case "${fragment}" in
+		"!"*) continue ;;
+		*"(" | *"[" | *":") continue ;;
+		esac
+		inner="$(printf '%s' "${fragment}" | sed -e 's/^[^\[]*\[//' -e 's/\].*//')"
+		inner="${inner#\[}"
+		[[ -z "${inner}" ]] && continue
+		label="$(norm_label "${inner}")"
+		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
+			adv "${skill}" "${rel}" "${ulnum}" SKILL004 "possible shortcut reference '[${label}]' has no matching definition"
+		fi
+	done < <(rg -n --no-heading -o '.?\[[^]]+\].?' "${skill_file}" 2>/dev/null || true)
 
 	# SKILL005: size cap.
 	lines="$(wc -l <"${skill_file}" | tr -d ' ')"
