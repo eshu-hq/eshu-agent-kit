@@ -395,16 +395,18 @@ grepo="${work}/grepo"
 	cd grepo >/dev/null 2>&1 || exit 1
 	export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t
 	export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
-	echo a >f.txt && git add f.txt && git commit -qm "one" || exit 1
-	echo b >>f.txt && git commit -qam "two" || exit 1
-	git revert --no-edit HEAD >/dev/null 2>&1 || exit 1
+	echo a >f.txt && git add f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qm "one" || exit 1
+	echo b >>f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qam "two" || exit 1
+	GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git revert --no-edit HEAD >/dev/null 2>&1 || exit 1
 	git checkout -qb feat >/dev/null 2>&1 || exit 1
-	echo c >>f.txt && git commit -qam "feat" || exit 1
+	echo c >>f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qam "feat" || exit 1
 	git checkout -q main >/dev/null 2>&1 || exit 1
-	git merge -q --no-ff feat -m "Merge feat" >/dev/null 2>&1 || exit 1
+	GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git merge -q --no-ff feat -m "Merge feat" >/dev/null 2>&1 || exit 1
 ) || no "git fixture setup failed"
-bash "${REPORT}" --log "${fix}" --repo "${grepo}" --repo "${work}/not-a-repo" --format json >"${work}/grepo.json" && rc=0 || rc=1
-[ "${rc}" -eq 0 ] && python3 - "${work}/grepo.json" "${grepo}" <<'PYEOF' && ok "git history counts merges and reverts" || no "git history counts merges and reverts"
+today_utc="$(date -u +%Y-%m-%d)"
+printf '{"harness":"muse","session":"gsess","ts":"%sT00:06:00+00:00","type":"skill-load","detail":{"skill":"publish"}}\n' "${today_utc}" >"${work}/grepo.jsonl"
+bash "${REPORT}" --log "${work}/grepo.jsonl" --no-mine --repo "${grepo}" --repo "${work}/not-a-repo" --since "${today_utc}" --format json >"${work}/grepo.json" && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/grepo.json" "${grepo}" <<'PYEOF' && ok "git history counts merges, reverts, and full-day --since" || no "git history counts merges, reverts, and full-day --since"
 import json, sys
 d = json.load(open(sys.argv[1]))
 repos = {r["path"]: r for r in d["meta"]["repos"]}
@@ -415,24 +417,27 @@ bad = [r for r in d["meta"]["repos"] if r.get("unreadable")]
 assert len(bad) == 1, d["meta"]["repos"]
 PYEOF
 
-# 15. Test-fixture sessions never pollute the aggregate.
+# 15. Test-fixture sessions never pollute the aggregate (including t<pid><seq> from test-agent-hooks.sh).
 cat >"${work}/fix3.jsonl" <<'EOF'
 {"harness":"claude","session":"abcdefghijkl","ts":"2026-11-20T10:00:00+00:00","type":"nudge-block","detail":{"skills":["golang-engineering"]}}
 {"harness":"claude","session":"ses9","ts":"2026-11-20T10:00:00+00:00","type":"model-failure","detail":{"category":"UnknownError"}}
 {"harness":"claude","session":"ses9","ts":"2026-11-20T10:01:00+00:00","type":"model-failure","detail":{"category":429}}
+{"harness":"claude","session":"t2821813","ts":"2026-11-20T10:01:00+00:00","type":"nudge-block","detail":{"skills":["golang-engineering"]}}
+{"harness":"claude","session":"t5030626","ts":"2026-11-20T10:01:00+00:00","type":"skill-load","detail":{"skill":"brainstorming"}}
 {"harness":"muse","session":"realsess","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
+{"harness":"muse","session":"t1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"publish"}}
 EOF
 bash "${REPORT}" --log "${work}/fix3.jsonl" --no-mine --format json >"${work}/fix3.json" && rc=0 || rc=1
 [ "${rc}" -eq 0 ] && python3 - "${work}/fix3.json" <<'PYEOF' && ok "fixture sessions excluded from aggregate" || no "fixture sessions excluded from aggregate"
 import json, sys
 d = json.load(open(sys.argv[1]))
-assert d["meta"]["events"] == 1, d["meta"]
-assert d["meta"]["sessions"] == 1, d["meta"]
-assert [s["session"] for s in d["sessions"]] == ["realsess"], d["sessions"]
+assert d["meta"]["events"] == 2, d["meta"]
+assert d["meta"]["sessions"] == 2, d["meta"]
+assert sorted(s["session"] for s in d["sessions"]) == ["realsess", "t1"], d["sessions"]
 assert d["friction"]["nudge_blocked"] == {}, d["friction"]
 assert d["friction"]["model_failures"] == {}, d["friction"]
 assert d["friction"]["repeat_blocked_sessions"] == [], d["friction"]
-assert any("fixture" in n for n in d["notes"]), d["notes"]
+assert any("5 test-fixture" in n for n in d["notes"]), d["notes"]
 PYEOF
 
 # 17. Canonical skill marker satisfies eshu-* nudge arm (no forced double-load).

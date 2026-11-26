@@ -70,16 +70,23 @@ for path in logs:
         continue
 
 # Test-fixture sessions never describe real work. The hook suites run
-# hermetic, but hand-fired probes and live-fire checks have written fixture
-# ids into real logs (abcdefghijkl from test-global-claude-hooks.sh, ses9
-# from the opencode bridge tests). Real harness ids are UUIDs, so these
-# cannot collide; drop them before any aggregation counts them.
+# hermetic, but hand-fired probes and consuming-repo mirrors have written
+# fixture ids into real logs (abcdefghijkl from test-global-claude-hooks.sh,
+# ses9 from opencode bridge tests, and t<pid><seq> from test-agent-hooks.sh).
+# Real harness ids are UUIDs, so these cannot collide; drop them up front.
 FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
+FIXTURE_SESSION_RE = re.compile(r"^t[0-9]{4,}$")
+
+
+def _is_fixture_session(sid):
+    return sid in FIXTURE_SESSIONS or bool(FIXTURE_SESSION_RE.match(sid))
+
+
 fixture_dropped = sum(1 for e in events
-                      if str(e.get("session", "")) in FIXTURE_SESSIONS)
+                      if _is_fixture_session(str(e.get("session", ""))))
 if fixture_dropped:
     events = [e for e in events
-              if str(e.get("session", "")) not in FIXTURE_SESSIONS]
+              if not _is_fixture_session(str(e.get("session", "")))]
 
 sessions = {str(e.get("session", "")) for e in events if e.get("session")}
 harnesses = sorted({str(e.get("harness", "")) for e in events if e.get("harness")})
