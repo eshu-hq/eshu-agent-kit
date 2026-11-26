@@ -185,7 +185,7 @@ not just fixtures; the verification record lives on issue #46.
 |---|---|---|
 | goal-refresh plus resume note | `chat.message` appends the restated goal as a text part | Shipped, verified live |
 | stop-failure note | `session.error` records a note on terminal provider failure | Shipped, verified live |
-| on-compact warning | `experimental.session.compacting` appends the warning to the compaction context | Shipped, unit-tested; first live firing still to be observed (#54) |
+| on-compact warning | `experimental.session.compacting` appends the warning to the compaction context | V1-only (bridge is a V1 plugin; does not load on the v2 host) — see #97 (V2 port); live firing still unobserved (was #54, now tracked by #97) |
 | skill-nudge, live-gate blocks | throwing in `tool.execute.before` blocks the call and the session survives, but V1 omits the command text the guard and nudge decide on | Designed, not built |
 | issue-capture | same missing command text: the extractor cannot tell a create from a read | Designed, not built |
 | doc-staleness | global hooks never execute repo code, so the checker no-ops by rule | Not applicable |
