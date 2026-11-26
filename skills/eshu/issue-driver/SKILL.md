@@ -128,10 +128,39 @@ liveness misjudgement.
    stable check reads, cancelled gates, findings, and unavailable reviewers.
    Never request a GitHub Copilot review; handle any unrequested Copilot
    comment like any present reviewer's.
-   Every requested reviewer must have a disposition. A reviewer that does not
-   answer does not trigger another review: the independent review that ran
-   before the push and the green CI wave stand, and the PR says which reviewers
-   were unavailable (owner direction 2026-11-22).
+   Every requested reviewer must have a disposition. Request owner review on
+   every drive PR at creation time, so "no answer" can never mean "never
+   asked". A reviewer counts as unavailable only on positive evidence of
+   unavailability (an explicit decline, or a documented absence) — never on
+   mere silence — and only after a minimum 24-hour review window measured
+   from the review request. When every requested reviewer is positively
+   unavailable under those two tests, the independent review that ran before
+   the push and the green CI wave stand, and the PR says which reviewers
+   were unavailable (owner direction 2026-11-22, as amended by owner order:
+   silence is not unavailability). When the drive operates under the owner's
+   own credentials, the owner is the PR author, so requesting their review is
+   a no-op that GitHub silently drops — a self-opened PR satisfies nothing.
+   In that case merge waits for the owner's explicit review action or merge
+   order on the PR itself; the 24-hour window caps the wait and never delays
+   an acted review — an owner approval at hour two authorizes the merge at
+   hour two. If no owner action arrives, keep waiting: a timeout never
+   authorizes a self-merge.
+   The watcher owns the PR until merge. Every red gate on the PR is the
+   drive's problem whether or not this change caused it: fix the failure,
+   or prove with a clean-base reproduction that it is pre-existing or
+   environmental and say so on the PR — never merge over an undispositioned
+   red. Unless the all-unavailable exception above holds, find at least one
+   hosted reviewer beyond the pre-push independent review and work every
+   comment they leave: fix the code where the comment requires a code
+   change (p3-no-action otherwise, with a reply), push, reply on the thread,
+   and resolve the thread per resolve-review-threads once the fix, if any,
+   is in HEAD and CI on it is green. Keep watching until a full review of
+   the current head reports P0 = 0, P1 = 0, and zero blocking P2s (a
+   deferred P2 needs its linked issue and the owner's agreement, per the
+   merge bar; P2-vs-P3 grading follows the merge bar, and advisory-only
+   findings get replies but never block). An open reviewer thread or an
+   unaddressed finding above that bar blocks the merge, no matter how green
+   CI is.
 8. Merge only when that endpoint and act are authorized, checks are stably
    green, findings and threads are dispositioned, current base/head evidence
    remains valid, and the pre-push review is clean. Confirm local

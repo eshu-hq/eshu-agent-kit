@@ -76,11 +76,14 @@ Keep outward-facing comments and review requests within user authorization.
   owner and anyone from the community who chooses to review. If Copilot (or
   any unrequested bot) comments anyway, handle that comment like any other
   present reviewer's — read it, disposition it, resolve when fixed.
-- **A reviewer that does not answer is not a reason for another review.**
-  The rule lives in [issue-driver](../SKILL.md) steps 7–8: the pre-push
-  independent review plus the green CI wave stand as the record; name
-  unavailable reviewers in the PR and never claim a review that did not
-  happen. Recognise the quota-message shape rather than the exact wording,
+- **A reviewer that does not answer is not a reason for another review —
+  unless the silence rule in [issue-driver](../SKILL.md) steps 7–8 says
+  otherwise, and steps 7–8 win every conflict.** Silence alone never equals
+  unavailability: a reviewer counts as unavailable only on positive evidence
+  (explicit decline, documented absence) after a 24-hour window from the
+  request. The pre-push independent review plus the green CI wave stand as
+  the record only under those tests; name unavailable reviewers in the PR
+  and never claim a review that did not happen. Recognise the quota-message shape rather than the exact wording,
   e.g. `chatgpt-codex-connector[bot]` posts "reached your Codex usage
   limits" — a quota message is NOT a review and NOT a retryable failure, so
   do not re-request it and do not dispatch a second full review (owner
