@@ -160,7 +160,10 @@ liveness misjudgement.
    merge bar; P2-vs-P3 grading follows the merge bar, and advisory-only
    findings get replies but never block). An open reviewer thread or an
    unaddressed finding above that bar blocks the merge, no matter how green
-   CI is.
+   CI is. Replies are not resolutions: after posting a fix reply, verify
+   the fix landed and its CI is green, then resolve the thread through the
+   review-thread API and re-query the thread API to confirm zero unresolved
+   threads — before merge and again at closeout.
 8. Merge only when that endpoint and act are authorized, checks are stably
    green, findings and threads are dispositioned, current base/head evidence
    remains valid, and the pre-push review is clean. Confirm local
