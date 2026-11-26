@@ -43,6 +43,11 @@ A wrong derivable figure meets neither criterion. See
 [Derivable figures](#derivable-figures). A prose-form finding meets neither
 criterion either. See [Prose form](#prose-form).
 
+A missing or skipped computed proof row ([proof-matrix.md](proof-matrix.md))
+is not a P2 candidate for this bar at all: it is P1 (or P0) by the severity
+table, because the change itself is unproven where it can break. A follow-up
+lane or a scheduled gate does not defer it.
+
 A P2 **does not block** when it is genuinely orthogonal to the PR's claims,
 needs its own proof or a design decision, or would only be reachable by widening
 scope. Disposition it `deferred-to-linked-follow-up`, state it in the PR, and

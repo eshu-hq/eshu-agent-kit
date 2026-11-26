@@ -40,7 +40,10 @@ Eshu surfaces:
 - production subject and invariants:
 
 Proof:
-- selected proof tier:
+- proof matrix rows (requirement: status — evidence or reason):
+- test files changed:
+- contract/golden/snapshot files changed:
+- diagram or architecture files changed:
 - commands actually run:
 - commands not run and why:
 - performance or observability evidence:

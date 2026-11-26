@@ -2,12 +2,18 @@
 
 ## Proof Tier Decision
 
-Select exactly one tier and explain why it is enough. If cassette proof is
-sufficient, name the exact cassette/golden assertions that would fail on the
-bug. If it is not sufficient for behavior changed by the PR, name the missing
-runtime condition and block merge until the stronger gate runs. Link or create a
-follow-up only when the stronger proof is genuinely outside the PR scope and the
-current PR does not claim that condition is proven.
+Compute the proof rows first ([proof-matrix.md](proof-matrix.md)): one row
+per touched surface, from the changed paths. Then select, per surface, every
+tier whose evidence the in-scope claims need, and explain why. A change can
+owe several tiers at once (a queue rewrite owes unit, race, live-backend
+contention, and scaled proof together); satisfying one row discharges no
+other, and naming one overall tier for the diff is how the expensive rows
+used to disappear. If cassette proof is sufficient for a row, name the exact
+cassette/golden assertions that would fail on the bug. If it is not sufficient
+for behavior changed by the PR, name the missing runtime condition and block
+merge until the stronger gate runs. Link or create a follow-up only when the
+stronger proof is genuinely outside the PR scope and the current PR does not
+claim that condition is proven.
 
 | Tier | Use when |
 | --- | --- |
@@ -18,7 +24,50 @@ current PR does not claim that condition is proven.
 | Full remote corpus required | Live collector behavior, clone/discover/parse cost, provider credentials, cross-service startup/restart behavior, image/runtime version drift, pprof/resource attribution, or queue-terminal guarantees are load-bearing. |
 
 Wrong proof tier is a P1 unless it could ship wrong graph/query/deployment truth
-or private data, in which case it is P0.
+or private data, in which case it is P0. The same grades apply per row: a
+computed proof row left missing or skipped (a skipped live test counts as
+missing) on a touched surface is that P1 or P0, never a deferrable P2 — see
+[proof-matrix.md](proof-matrix.md#severity-of-an-undischarged-row).
+
+## What counts as evidence
+
+A proof row is `satisfied` only by evidence that meets all of these:
+
+- **A bug fix has a regression test that fails before the fix** and passes
+  after it. A test that would pass without the fix is a false-green test.
+  Done when the verdict names the pre-fix failure or the mutant below.
+- **A test guards only what it pins.** For each new assertion on text, a
+  pattern, or a count, ask whether an edit past the matched part (a clause
+  appended, a branch added, a value changed after the match) would still
+  pass. Unanchored patterns and "at least one" counts are the usual holes.
+- **An expected value copied from the code is a tautology.** Derive
+  expectations from an independent source (a fixture intent, a spec, a
+  hand-computed case), never from the implementation under test or a copy
+  of its own data.
+- **A performance claim has a before and after** on the same corpus, input
+  shape, topology, and start/end events, with exact figures. A mechanism
+  description ("it uses the index now") is a claim, not proof.
+- **Evidence postdates the last edit** it is offered for. A green run from
+  before the final change proves nothing about the final change.
+- **Exit codes are captured directly.** `cmd; echo $?` is evidence;
+  `cmd | tail; echo $?` reports the exit status of `tail`.
+- **Flaky or timing-based proof is not proof from one passing sample.**
+  State the number of runs and what makes the result stable.
+- **A check that silently skips without a credential, database, or
+  service** needs a hermetic structural guard that runs everywhere, or its
+  row is `skipped` (counts as missing) in the matrix.
+
+## The mutation challenge
+
+For every new or changed test, name the single production change that
+should make it fail. Where the reviewer can run code, make that change in a
+scratch copy (never the working tree), run the test, and record whether it
+failed. A test that survives its mutant does not guard that behavior: the
+usual causes are a missing assertion, an assertion on the wrong value, or
+dead code. Where code cannot run, trace which assertion the mutant would
+break and record the mutant as not checked, with what stopped it. Done when
+the verdict lists each mutant tried and its result, or the traced assertion
+for each one not run.
 
 Pressure scenarios reviewers must distinguish:
 

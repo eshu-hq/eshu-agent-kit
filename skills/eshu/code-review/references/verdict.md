@@ -81,6 +81,8 @@ The verdict is `blocked` when any of these are true:
 - base/head are not the final rebased diff to be pushed or merged;
 - the full-picture gate is incomplete for any touched production surface;
 - proof tier is missing, wrong, or not actually run for in-scope behavior;
+- a computed [proof-matrix](proof-matrix.md) row is missing or skipped on a
+  touched surface and is not carried as its P1 (or P0) finding;
 - an applicable adversarial probe is missing or only checks a helper instead of the production subject;
 - any P0 or P1 finding, or any blocking P2 ([merge-bar.md](merge-bar.md)), remains
   unresolved before preflight or push; a deferred P2 must be tracked (linked
