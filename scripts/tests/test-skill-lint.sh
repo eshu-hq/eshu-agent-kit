@@ -207,7 +207,97 @@ case "${out}" in
 *) ok "titled link to existing file fires no SKILL004" ;;
 esac
 
-# 8. Size RED: a line-count oversized skill fires SKILL005.
+# 8. Links GREEN: whitespace and quote variants of titles still resolve.
+titled2="${work}/titled2/SKILL.md"
+mkdir -p "${work}/titled2/references"
+printf -- '# Guide\n' >"${work}/titled2/references/guide.md"
+cat >"${titled2}" <<'EOF'
+---
+name: titled2
+description: Title separator and quote variants.
+---
+
+# Titled
+
+See [multi](references/guide.md  "spaced") and [apos](references/guide.md "it's") for details.
+EOF
+printf 'See [tab](references/guide.md\t"tabbed") for details.\n' >>"${titled2}"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${titled2}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "title variants resolve to the existing file" || no "title variants resolve to the existing file (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "title variants fire no SKILL004 (got: ${out:0:150})" ;;
+*) ok "title variants fire no SKILL004" ;;
+esac
+
+# 9. Links RED: a full reference use with no definition fails.
+ref_use="${work}/ref-use/SKILL.md"
+mkdir -p "${work}/ref-use"
+cat >"${ref_use}" <<'EOF'
+---
+name: ref-use
+description: Reference use whose label is never defined.
+---
+
+# Bad
+
+See [the guide][nosuch] here.
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_use}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "undefined reference use fails" || no "undefined reference use fails (exit 0)"
+case "${out}" in
+*"SKILL004"*) ok "undefined reference use cites SKILL004" ;;
+*) no "undefined reference use cites SKILL004 (got: ${out:0:120})" ;;
+esac
+
+# 10. Links ADVISORY: an undefined shortcut reference prints SKILL004
+# without failing, since bare brackets cannot prove link intent.
+ref_short="${work}/ref-short/SKILL.md"
+mkdir -p "${work}/ref-short"
+cat >"${ref_short}" <<'EOF'
+---
+name: ref-short
+description: Shortcut reference whose label is never defined.
+---
+
+# Bad
+
+See [nosuch] here.
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_short}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "undefined shortcut reference stays exit 0" || no "undefined shortcut reference stays exit 0 (exit ${code})"
+case "${out}" in
+*"SKILL004 (advisory)"*) ok "undefined shortcut reference prints a SKILL004 advisory" ;;
+*) no "undefined shortcut reference prints a SKILL004 advisory (got: ${out:0:150})" ;;
+esac
+
+# 11. Links GREEN: defined full, collapsed, and shortcut uses pass.
+ref_ok="${work}/ref-ok/SKILL.md"
+mkdir -p "${work}/ref-ok/references"
+printf -- '# Guide\n' >"${work}/ref-ok/references/guide.md"
+cat >"${ref_ok}" <<'EOF'
+---
+name: ref-ok
+description: Every reference use has a definition.
+---
+
+# Fine
+
+See [the guide][present] and [present][] and [present] for details.
+
+[present]: references/guide.md
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_ok}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "defined reference uses pass" || no "defined reference uses pass (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "defined reference uses fire no SKILL004 (got: ${out:0:150})" ;;
+*) ok "defined reference uses fire no SKILL004" ;;
+esac
+
+# 12. Size RED: a line-count oversized skill fires SKILL005.
 big="${work}/big/SKILL.md"
 mkdir -p "${work}/big"
 {
@@ -222,7 +312,7 @@ case "${out}" in
 *) no "oversized skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 9. Size RED: narrow lines but over the byte cap still fires SKILL005.
+# 13. Size RED: narrow lines but over the byte cap still fires SKILL005.
 wide="${work}/wide/SKILL.md"
 mkdir -p "${work}/wide"
 {
@@ -240,7 +330,7 @@ case "${out}" in
 *) no "byte-heavy skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 10. Verification RED: no numbered steps and no fences print advisories
+# 14. Verification RED: no numbered steps and no fences print advisories
 # but stay exit 0 (Tier 2 never blocks).
 bare="${work}/bare/SKILL.md"
 mkdir -p "${work}/bare"
@@ -264,7 +354,7 @@ for rule in SKILL006 SKILL007 SKILL008; do
 	esac
 done
 
-# 11. Recovery RED: a body whose only recovery advice is "try again" still
+# 15. Recovery RED: a body whose only recovery advice is "try again" still
 # fires SKILL008, and a real recovery section clears it.
 retry="${work}/retry/SKILL.md"
 mkdir -p "${work}/retry"
@@ -300,7 +390,7 @@ case "${out}" in
 *) ok "retry fixture fires only SKILL008" ;;
 esac
 
-# 12. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
+# 16. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
 # while Tier 1 still fires for a listed skill.
 fixture_base="${work}/baseline.tsv"
 printf 'bare\tSKILL006\tFixture exemption for the suite.\n' >"${fixture_base}"
@@ -322,7 +412,7 @@ case "${out}" in
 *) no "Tier 1 is never suppressed by the baseline (got: ${out:0:150})" ;;
 esac
 
-# 13. Baseline hygiene: every shipped exemption names a skill that exists,
+# 17. Baseline hygiene: every shipped exemption names a skill that exists,
 # so NEW skills cannot arrive pre-exempted.
 stale=0
 while IFS=$'\t' read -r skill _rule _reason; do
