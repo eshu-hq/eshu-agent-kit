@@ -442,7 +442,7 @@ def collect_git_stats(path, since):
     if window:
         # Bare YYYY-MM-DD makes git fill in the current wall-clock time of day,
         # dropping earlier commits on that date; anchor at UTC midnight instead.
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", window):
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", window):
             window += "T00:00:00Z"
         cmd += ["--since=" + window]
     try:

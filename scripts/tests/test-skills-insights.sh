@@ -387,25 +387,27 @@ capped_ids="$(printf '%s' "${capped}" | python3 -c 'import json,sys; print(" ".j
 [ "${capped_ids}" = "new" ] &&
 	ok "byte cap keeps newest sessions first" || no "byte cap keeps newest sessions first (got: ${capped_ids})"
 
-# 14. Git history counts merges and reverts; unknown paths stay green.
+# 14. Git history counts merges and reverts; bare --since YYYY-MM-DD anchors at UTC midnight.
 grepo="${work}/grepo"
+since_day="2026-11-20"
 (
 	cd "${work}" >/dev/null 2>&1 || exit 1
 	git init -qb main grepo >/dev/null 2>&1 || exit 1
 	cd grepo >/dev/null 2>&1 || exit 1
 	export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t
 	export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
-	echo a >f.txt && git add f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qm "one" || exit 1
-	echo b >>f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qam "two" || exit 1
-	GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git revert --no-edit HEAD >/dev/null 2>&1 || exit 1
+	echo pre >pre.txt && git add pre.txt && GIT_COMMITTER_DATE="2026-11-19T23:59:59Z" GIT_AUTHOR_DATE="2026-11-19T23:59:59Z" git commit -qm "pre" || exit 1
+	export GIT_COMMITTER_DATE="${since_day}T00:05:00Z" GIT_AUTHOR_DATE="${since_day}T00:05:00Z"
+	echo a >f.txt && git add f.txt && git commit -qm "one" || exit 1
+	echo b >>f.txt && git commit -qam "two" || exit 1
+	git revert --no-edit HEAD >/dev/null 2>&1 || exit 1
 	git checkout -qb feat >/dev/null 2>&1 || exit 1
-	echo c >>f.txt && GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git commit -qam "feat" || exit 1
+	echo c >>f.txt && git commit -qam "feat" || exit 1
 	git checkout -q main >/dev/null 2>&1 || exit 1
-	GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T00:05:00Z" git merge -q --no-ff feat -m "Merge feat" >/dev/null 2>&1 || exit 1
+	git merge -q --no-ff feat -m "Merge feat" >/dev/null 2>&1 || exit 1
 ) || no "git fixture setup failed"
-today_utc="$(date -u +%Y-%m-%d)"
-printf '{"harness":"muse","session":"gsess","ts":"%sT00:06:00+00:00","type":"skill-load","detail":{"skill":"publish"}}\n' "${today_utc}" >"${work}/grepo.jsonl"
-bash "${REPORT}" --log "${work}/grepo.jsonl" --no-mine --repo "${grepo}" --repo "${work}/not-a-repo" --since "${today_utc}" --format json >"${work}/grepo.json" && rc=0 || rc=1
+printf '{"harness":"muse","session":"gsess","ts":"%sT00:06:00+00:00","type":"skill-load","detail":{"skill":"publish"}}\n' "${since_day}" >"${work}/grepo.jsonl"
+TZ=UTC+5 bash "${REPORT}" --log "${work}/grepo.jsonl" --no-mine --repo "${grepo}" --repo "${work}/not-a-repo" --since "${since_day}" --format json >"${work}/grepo.json" && rc=0 || rc=1
 [ "${rc}" -eq 0 ] && python3 - "${work}/grepo.json" "${grepo}" <<'PYEOF' && ok "git history counts merges, reverts, and full-day --since" || no "git history counts merges, reverts, and full-day --since"
 import json, sys
 d = json.load(open(sys.argv[1]))
