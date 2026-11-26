@@ -141,10 +141,10 @@ liveness misjudgement.
    own credentials, the owner is the PR author, so requesting their review is
    a no-op that GitHub silently drops — a self-opened PR satisfies nothing.
    In that case merge waits for the owner's explicit review action or merge
-   order on the PR itself; the 24-hour window caps the wait and never delays
-   an acted review — an owner approval at hour two authorizes the merge at
-   hour two. If no owner action arrives, keep waiting: a timeout never
-   authorizes a self-merge.
+   order on the PR itself; the 24-hour minimum never delays an acted
+   review — an owner approval at hour two authorizes the merge at hour two.
+   If no owner action arrives, keep waiting: a timeout never authorizes
+   a self-merge.
    The watcher owns the PR until merge. Every red gate on the PR is the
    drive's problem whether or not this change caused it: fix the failure,
    or prove with a clean-base reproduction that it is pre-existing or
