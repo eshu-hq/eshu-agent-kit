@@ -1,0 +1,49 @@
+name: Papercut report
+description: File a small skill, tool, or doc friction in tried/expected/happened/fix shape so the debrief can track it to a fix.
+title: "[papercut] "
+labels: ["papercut"]
+body:
+  - type: textarea
+    id: skill-line
+    attributes:
+      label: Skill join-key line
+      description: >-
+        One line exactly like `skill: <name>` with the bare skill name
+        (for example `skill: debrief`). The debrief aggregate joins findings
+        to skills on this line; a report without it cannot count toward any
+        skill and shows up as unmatched.
+      placeholder: "skill: debrief"
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What the agent tried
+      description: The concrete action, command, or skill invocation that hit the friction.
+      placeholder: Ran the debrief aggregate on a window with zero sessions.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was expected
+      description: The behavior the skill, docs, or tooling promised.
+      placeholder: An empty but valid report with zeroed charts.
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened instead
+      description: The observed failure, wrong output, or silent wrong-key behavior.
+      placeholder: Aggregate exited 1 on a missing optional field.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: What would fix it
+      description: The smallest change that removes the friction, or the measurement that would prove it fixed.
+      placeholder: Default the field and note the assumption in the report.
+    validations:
+      required: true
