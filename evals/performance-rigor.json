@@ -1,0 +1,57 @@
+[
+  {
+    "id": "performance-rigor-golden-1",
+    "category": "golden",
+    "skill": "performance-rigor",
+    "prompt": "Our ingestion queue is slow. A teammate proposes doubling the default worker concurrency from 4 to 8 immediately without measuring conflict domains, lock contention, or backend CPU/IO headroom. Evaluate this proposal and list what evidence is required before changing defaults.",
+    "expectations": {
+      "must_mention": ["accuracy", "conflict|contention", "headroom|baseline"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bdouble(?:\\s+the)?\\s+workers\\s+immediately\\b",
+        "(?<!not )(?<!never )\\bno measurement needed\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "performance-rigor-golden-2",
+    "category": "golden",
+    "skill": "performance-rigor",
+    "prompt": "A PR claims a Cypher query rewrite cuts production wall time by 40% based solely on reading the rewritten query plan shape, with no before/after timing run or commit hash recorded. Should we accept this performance claim?",
+    "expectations": {
+      "must_mention": ["before|after|measure", "query shape|infer", "commit|hash|workload"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!cannot )(?<!can't )(?<!don't )(?<!or )\\baccept the 40% claim\\b",
+        "(?<!not )(?<!never )\\bquery shape alone is sufficient\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "performance-rigor-golden-3",
+    "category": "golden",
+    "skill": "performance-rigor",
+    "prompt": "An end-to-end pipeline currently takes 120 seconds against a 90-second target. A teammate wants to spend a week optimizing a stage that currently takes 8 seconds total. Apply target contribution budgeting to evaluate whether this stage can close the target gap.",
+    "expectations": {
+      "must_mention": ["30", "8", "required_saving|maximum_recoverable|budget|gap"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bwill meet the 90-second target\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "performance-rigor-edge-1",
+    "category": "edge",
+    "skill": "performance-rigor",
+    "prompt": "A contributor ran a warm benchmark on a 64-core workstation and got 42s, comparing it directly against a cold 60s baseline from a 4-core reference profile to declare the absolute production target met. What is wrong with this comparison and how must the claim be qualified?",
+    "expectations": {
+      "must_mention": ["non-comparable|resource profile|absolute_target_applicable", "cold|warm", "relative"],
+      "must_not_mention": [
+        "(?<!cannot claim the )(?<!can't claim the )(?<!not claim the )(?<!cannot declare the )(?<!not declare the )(?<!not prove the )\\babsolute target is met\\b",
+        "(?<!not )(?<!never )(?<!isn't )(?<!aren't )\\bdirectly comparable\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

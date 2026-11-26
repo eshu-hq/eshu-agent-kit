@@ -1,41 +1,49 @@
 #!/usr/bin/env python3
-"""Replay-eval harness backend for issue #83 (D5 scope, do not widen).
+"""Multi-harness replay-eval backend (issue #103).
 
-One skill (performance-rigor), one harness (Muse). Replays first prompts
-re-mined from raw Muse transcripts with the skill loaded vs stripped, then
-blind-judges which trajectory better satisfies the session's evident goal.
-
-Mine and replay half of the harness (judge/report live in replay_judge.py).
+Mine first prompts from Muse, Claude, or Agy transcripts, replay each prompt
+with any target skill loaded vs stripped via the built-in isolated runner (or a
+custom --runner), and emit strip-proof blind A/B pairs plus a sealed arm map.
 
 Subcommands:
-  mine    First-prompt-only fixtures from raw session.jsonl transcripts.
-  replay  Run each prompt both ways via an injectable --runner; emit a blind
-          pair package (randomized A/B labels) plus a sealed arm mapping.
+  mine    First-prompt-only fixtures from raw Muse, Claude, or Agy transcripts.
+  replay  Run each prompt both ways; emit blind A/B pairs plus seal.json.
 
-Refresh path: re-run `mine` as new sessions accrue and concat new session_ids;
-fixtures are never hand-written. Nothing in this harness runs in CI.
+Refresh path: re-run `mine` as new sessions accrue; keep mined production suites
+local (never commit raw transcripts). Nothing in this harness runs in CI.
 """
+import getopt
 import json
 import os
 import random
+import re
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from debrief_common import is_fixture_session, truncate_text  # noqa: E402
+import debrief_extract_agy as agy_mod  # noqa: E402
+import debrief_extract_claude as claude_mod  # noqa: E402
+import debrief_extract_muse as muse_mod  # noqa: E402
+from debrief_common import (  # noqa: E402
+    canon_skill, is_fixture_session, load_json_lines,
+    safe_float, safe_int, truncate_text,
+)
 
-SKILL = "performance-rigor"
-HARNESS = "muse"
+VALID_HARNESSES = ("muse", "claude", "agy")
+VALID_CATEGORIES = ("golden", "production", "edge")
 BANNED_KEYS = frozenset({
-    "mode", "arm", "skill", "skills", "with_skill", "without_skill",
-    "with-skill", "without-skill",
+    "mode", "arm", "skill", "skills", "skill_count",
+    "with_skill", "without_skill", "with-skill", "without-skill",
 })
-BANNED_VALUES = frozenset({"with-skill", "without-skill",
-                                 "with_skill", "without_skill"})
+BANNED_VALUES = frozenset({
+    "with-skill", "without-skill", "with_skill", "without_skill",
+})
+ARM_TOKEN_RE = re.compile(r"with[-_]skill|without[-_]skill", re.IGNORECASE)
 STOPWORDS = frozenset(
     "the a an and or for with from that this what how add use via per our your "
     "are was were been does did doing than then into over under again once here "
-    "there when where which while with".split()
+    "there when where which while".split()
 )
 
 
@@ -46,256 +54,349 @@ def fail(msg, code=1):
 
 def usage(code=2):
     print(__doc__.split("Subcommands")[0].strip(), file=sys.stderr)
-    print("Usage: replay-eval.sh <mine|replay|judge|report> [options]",
-          file=sys.stderr)
+    print("Usage: replay-eval.sh <mine|replay|judge|report> [options]", file=sys.stderr)
     sys.exit(code)
 
 
-def load_json_lines(path):
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            s = line.strip()
-            if not s:
-                continue
-            try:
-                yield json.loads(s)
-            except ValueError:
-                continue
-
-
-def _first_user_text(path):
-    """First model_user_messages text in a raw Muse session.jsonl."""
+def _first_prompt_muse(path):
     for rec in load_json_lines(path):
-        if not isinstance(rec, dict):
-            continue
         pl = rec.get("payload")
-        if not isinstance(pl, dict):
+        ev = pl.get("event") if isinstance(pl, dict) else None
+        if not isinstance(ev, dict) or ev.get("kind") != "model_user_messages":
             continue
-        ev = pl.get("event")
-        if not isinstance(ev, dict):
-            continue
-        if ev.get("kind") != "model_user_messages":
-            continue
-        msgs = ev.get("messages")
-        if not isinstance(msgs, list):
-            continue
-        for m in msgs:
-            if isinstance(m, str) and m.strip():
-                return m.strip()
+        for msg in (ev.get("messages") if isinstance(ev.get("messages"), list) else []):
+            if isinstance(msg, str) and msg.strip():
+                return msg.strip()
     return ""
 
 
-def _session_id(path, rec_id):
-    if rec_id:
-        return str(rec_id)
-    parent = os.path.basename(os.path.dirname(path))
-    return parent or path
+def _first_prompt_claude(path):
+    for rec in load_json_lines(path):
+        if rec.get("type") != "user":
+            continue
+        msg = rec.get("message") if isinstance(rec.get("message"), dict) else {}
+        content = msg.get("content") or []
+        has_tool_result = False
+        if isinstance(content, str):
+            text = content.strip()
+        elif isinstance(content, list):
+            text = " ".join(
+                b["text"] for b in content
+                if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)
+            ).strip()
+            has_tool_result = any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content)
+        else:
+            text = ""
+        if claude_mod._is_owner_turn(rec, text, has_tool_result):
+            return text
+    return ""
+
+
+def _first_prompt_agy(path):
+    for rec in load_json_lines(path):
+        if rec.get("type") != "USER_INPUT":
+            continue
+        raw = rec.get("text") or rec.get("user_response") or rec.get("content") or ""
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+    return ""
+
+
+def _maybe_append(items, harness, sid, prompt, meta, req_skill, query_re, category):
+    if not prompt:
+        return
+    loads = [canon_skill(s) for s in (meta.get("skill_loads") or []) if s]
+    if req_skill and req_skill not in loads:
+        return
+    if query_re and not query_re.search(prompt):
+        return
+    items.append({
+        "id": "%s-%s" % (harness, sid),
+        "session_id": sid,
+        "harness": harness,
+        "skill": req_skill if req_skill else (loads[0] if loads else ""),
+        "category": category,
+        "prompt": truncate_text(prompt, 1000),
+        "prompts_in_session": max(1, safe_int(meta.get("prompts"), 1)),
+    })
+
+
+def _mine_harness(harness, roots, req_skill, query_re, category):
+    items = []
+    if harness == "muse":
+        for path, mt in muse_mod.discover(roots or muse_mod.default_roots(), 0):
+            parts = os.path.normpath(path).split(os.sep)
+            if len(parts) >= 4 and parts[-3] == "subagent":
+                continue
+            meta, _ = muse_mod.extract_session(path, mt)
+            sid = str(meta.get("id") or "")
+            if sid and not meta.get("parent_session") and not is_fixture_session(sid):
+                _maybe_append(items, harness, sid, _first_prompt_muse(path), meta, req_skill, query_re, category)
+    elif harness == "claude":
+        for path, mt in claude_mod.discover(roots or claude_mod.default_roots(), 0):
+            if claude_mod._parent_from_path(path):
+                continue
+            meta, _ = claude_mod.extract_session(path, mt)
+            sid = str(meta.get("id") or "")
+            if sid and not meta.get("parent_session") and not is_fixture_session(sid):
+                _maybe_append(items, harness, sid, _first_prompt_claude(path), meta, req_skill, query_re, category)
+    elif harness == "agy":
+        db_cache = {}
+        for path, mt in agy_mod.discover(roots or agy_mod.default_roots(), 0):
+            smeta = agy_mod.load_summary_meta(path, db_cache)
+            if safe_int(smeta.get("nesting_depth"), 0) > 0 or smeta.get("parent_session"):
+                continue
+            meta, _ = agy_mod.extract_session(path, mt, db_cache=db_cache)
+            sid = str(meta.get("id") or "")
+            if sid and not meta.get("parent_session") and not is_fixture_session(sid):
+                _maybe_append(items, harness, sid, _first_prompt_agy(path), meta, req_skill, query_re, category)
+    return items
 
 
 def cmd_mine(args):
-    import getopt
     try:
         opts, _ = getopt.getopt(args, "", [
-            "sessions-root=", "out=", "max=", "harness=", "help"])
+            "harness=", "sessions-root=", "skill=", "query=", "top-steered",
+            "category=", "max=", "out=", "help",
+        ])
     except getopt.GetoptError as exc:
         fail(str(exc), 2)
-    root = out = None
-    maxn = 50
-    harness = HARNESS
+    harness, roots, req_skill, query_str = "all", [], "", ""
+    top_steered, category, maxn, out = False, "production", 50, None
     for key, val in opts:
-        if key == "--sessions-root":
-            root = val
+        if key == "--harness":
+            harness = val.strip().lower()
+        elif key == "--sessions-root":
+            roots.append(val)
+        elif key == "--skill":
+            req_skill = canon_skill(val)
+        elif key == "--query":
+            query_str = val
+        elif key == "--top-steered":
+            top_steered = True
+        elif key == "--category":
+            category = val.strip().lower()
+        elif key == "--max":
+            try:
+                maxn = int(val)
+            except ValueError:
+                fail("--max must be an integer", 2)
         elif key == "--out":
             out = val
-        elif key == "--max":
-            maxn = int(val)
-        elif key == "--harness":
-            harness = val
         elif key == "--help":
-            print("mine: re-mine first prompts from raw Muse transcripts.\n"
-                  "Refresh path: re-run mine as new sessions accrue and keep\n"
-                  "new session_ids; fixtures stay mined, never hand-written.")
+            print(
+                "mine: re-mine first prompts from raw Muse, Claude, or Agy transcripts.\n"
+                "Refresh path: re-run mine as new sessions accrue; keep mined production\n"
+                "evals local and never commit raw transcripts.\n"
+                "Options: --harness muse|claude|agy|all --sessions-root PATH (repeatable)\n"
+                "         --skill NAME --query REGEX --top-steered\n"
+                "         --category golden|production|edge --max N --out FILE"
+            )
             return
-    if harness != HARNESS:
-        fail("only the muse harness is supported (got %r)" % harness, 2)
-    if not root or not out:
-        fail("mine needs --sessions-root and --out", 2)
-    found = []
-    for dp, _, fns in os.walk(root):
-        if "session.jsonl" not in fns:
-            continue
-        parts = os.path.normpath(os.path.join(dp, "session.jsonl")).split(os.sep)
-        if len(parts) >= 4 and parts[-3] == "subagent":
-            continue  # children roll into parents; seed from top-level only
-        found.append(os.path.join(dp, "session.jsonl"))
-    found.sort()
+    if harness != "all" and harness not in VALID_HARNESSES:
+        fail("unsupported --harness %r (expected muse|claude|agy|all)" % harness, 2)
+    if category not in VALID_CATEGORIES:
+        fail("unsupported --category %r (expected golden|production|edge)" % category, 2)
+    if maxn < 1:
+        fail("--max must be >= 1", 2)
+    if not out:
+        fail("mine needs --out", 2)
+    query_re = None
+    if query_str:
+        try:
+            query_re = re.compile(query_str, re.IGNORECASE)
+        except re.error as exc:
+            fail("invalid --query regex %r: %s" % (query_str, exc), 2)
     evals = []
-    for path in found:
-        if len(evals) >= maxn:
-            break
-        stream_id = None
-        for rec in load_json_lines(path):
-            stream = rec.get("stream") if isinstance(rec, dict) else None
-            if isinstance(stream, dict) and stream.get("id"):
-                stream_id = stream["id"]
-                break
-        sid = _session_id(path, stream_id)
-        if is_fixture_session(sid):
-            continue
-        prompt = _first_user_text(path)
-        if not prompt:
-            continue
-        evals.append({"session_id": sid, "harness": HARNESS,
-                      "prompt": truncate_text(prompt, 1000)})
+    for h in (VALID_HARNESSES if harness == "all" else (harness,)):
+        evals.extend(_mine_harness(h, roots, req_skill, query_re, category))
+    if top_steered:
+        evals.sort(key=lambda e: (-e["prompts_in_session"], e["harness"], e["session_id"]))
+    else:
+        evals.sort(key=lambda e: (e["harness"], e["session_id"]))
+    evals = evals[:maxn]
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(evals, fh, indent=1)
         fh.write("\n")
     print("mine: %d evals -> %s" % (len(evals), out))
 
 
-def run_runner(runner, mode, prompt, prompt_file, out_path):
+def _builtin_runner_path():
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "replay-runner.sh")
+
+
+def run_runner(runner, mode, skill, prompt, prompt_file, out_path,
+               harness="claude", model="", workspace="", kit_dir="", timeout=300):
     with open(prompt_file, "w", encoding="utf-8") as fh:
         fh.write(prompt)
-    proc = subprocess.run(
-        [runner, "--mode", mode, "--skill", SKILL,
-         "--prompt-file", prompt_file, "--out", out_path],
-        capture_output=True, text=True, timeout=600)
+    if runner:
+        cmd = [runner, "--mode", mode, "--skill", skill, "--prompt-file", prompt_file, "--out", out_path]
+    else:
+        cmd = ["bash", _builtin_runner_path(), "--harness", harness, "--mode", mode, "--skill", skill,
+               "--prompt-file", prompt_file, "--out", out_path, "--timeout", str(timeout)]
+    for flag, val in (("--model", model), ("--workspace", workspace), ("--kit-dir", kit_dir)):
+        if val:
+            cmd += [flag, val]
+    label = runner or ("replay-runner.sh(%s)" % harness)
+    run_timeout = max(60, timeout + 60)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=run_timeout)
+    except subprocess.TimeoutExpired:
+        fail("runner %s timed out for mode %s after %ds" % (label, mode, run_timeout))
+    except OSError as exc:
+        fail("runner %s could not execute for mode %s: %s" % (label, mode, exc))
     if proc.returncode != 0:
-        fail("runner %s failed for mode %s: %s" % (
-            runner, mode, (proc.stderr or proc.stdout).strip()[-500:]))
+        fail("runner %s failed for mode %s: %s" % (label, mode, (proc.stderr or proc.stdout).strip()[-500:]))
     try:
         with open(out_path, encoding="utf-8") as fh:
             traj = json.load(fh)
     except (OSError, ValueError) as exc:
         fail("runner wrote no trajectory JSON for mode %s: %s" % (mode, exc))
-    if not isinstance(traj, dict) or not isinstance(
-            traj.get("transcript"), str):
+    if not isinstance(traj, dict) or not isinstance(traj.get("transcript"), str):
         fail("runner trajectory needs a transcript string (mode %s)" % mode)
     return traj
 
 
 def blind_traj(traj):
-    """Strip arm identity; keep behavior the rubric may score."""
-    skills = traj.get("skills")
-    count = len(skills) if isinstance(skills, list) else 0
-    tools = traj.get("tools")
-    tools = [str(t) for t in tools] if isinstance(tools, list) else []
-    text = traj.get("transcript") or ""
-    for token in BANNED_VALUES:
-        text = text.replace(token, "[arm]")
-    try:
-        errors = int(traj.get("errors") or 0)
-    except (TypeError, ValueError):
-        errors = 0
-    try:
-        tin = float(traj.get("tokens_in") or 0)
-    except (TypeError, ValueError):
-        tin = 0.0
-    try:
-        tout = float(traj.get("tokens_out") or 0)
-    except (TypeError, ValueError):
-        tout = 0.0
-    return {"transcript": text, "tools": tools[:20], "skill_count": count,
-            "errors": max(0, errors), "tokens_in": max(0.0, tin),
-            "tokens_out": max(0.0, tout)}
+    """Strip arm identity and skill_count; keep behavior and cost metrics."""
+    raw_tools = traj.get("tools")
+    tools = [ARM_TOKEN_RE.sub("[arm]", str(t)) for t in raw_tools[:50]] if isinstance(raw_tools, list) else []
+    return {
+        "transcript": ARM_TOKEN_RE.sub("[arm]", traj.get("transcript") or ""),
+        "tools": tools,
+        "errors": max(0, safe_int(traj.get("errors"), 0)),
+        "tokens_in": max(0.0, safe_float(traj.get("tokens_in"), 0.0)),
+        "tokens_out": max(0.0, safe_float(traj.get("tokens_out"), 0.0)),
+        "cache_read_tokens": max(0.0, safe_float(traj.get("cache_read_tokens"), 0.0)),
+        "wall_time_s": round(max(0.0, safe_float(traj.get("wall_time_s"), 0.0)), 3),
+        "cost_usd": round(max(0.0, safe_float(traj.get("cost_usd"), 0.0)), 6),
+    }
 
 
 def cmd_replay(args):
-    import getopt
     try:
         opts, _ = getopt.getopt(args, "", [
-            "evals=", "runner=", "skill=", "out=", "seal=", "repeats=",
-            "help"])
+            "evals=", "runner=", "skill=", "harness=", "model=", "workspace=",
+            "kit-dir=", "timeout=", "out=", "seal=", "repeats=", "help",
+        ])
     except getopt.GetoptError as exc:
         fail(str(exc), 2)
     evals_path = runner = out = seal = None
-    skill = SKILL
-    repeats = 1
+    skill = model = workspace = kit_dir = ""
+    harness, repeats, timeout = "claude", 1, 300
     for key, val in opts:
         if key == "--evals":
             evals_path = val
         elif key == "--runner":
             runner = val
         elif key == "--skill":
-            skill = val
+            skill = canon_skill(val)
+        elif key == "--harness":
+            harness = val.strip().lower()
+        elif key == "--model":
+            model = val
+        elif key == "--workspace":
+            workspace = val
+        elif key == "--kit-dir":
+            kit_dir = val
+        elif key == "--timeout":
+            try:
+                timeout = int(val)
+            except ValueError:
+                fail("--timeout must be an integer", 2)
         elif key == "--out":
             out = val
         elif key == "--seal":
             seal = val
         elif key == "--repeats":
-            repeats = int(val)
+            try:
+                repeats = int(val)
+            except ValueError:
+                fail("--repeats must be an integer", 2)
         elif key == "--help":
-            print("replay: run each eval with-skill vs stripped; emit blind "
-                  "pairs + seal.")
+            print(
+                "replay: run each eval with-skill vs stripped; emit blind pairs + seal.\n"
+                "Options: --evals FILE --skill NAME [--harness claude|agy|muse]\n"
+                "         [--runner CMD] [--model ID] [--workspace PATH] [--kit-dir PATH]\n"
+                "         [--timeout SEC] [--repeats N] --out FILE --seal FILE"
+            )
             return
-    if skill != SKILL:
-        fail("only skill %r is in scope (got %r)" % (SKILL, skill), 2)
-    if not evals_path or not runner or not out or not seal:
-        fail("replay needs --evals, --runner, --out, and --seal", 2)
+    if not skill:
+        fail("replay needs --skill", 2)
+    if harness not in VALID_HARNESSES:
+        fail("unsupported --harness %r (expected claude|agy|muse)" % harness, 2)
+    if not evals_path or not out or not seal:
+        fail("replay needs --evals, --skill, --out, and --seal", 2)
     if repeats < 1:
         fail("--repeats must be >= 1", 2)
+    if timeout < 1:
+        fail("--timeout must be >= 1", 2)
     with open(evals_path, encoding="utf-8") as fh:
         evals = json.load(fh)
+    if not isinstance(evals, list):
+        fail("evals file must be a JSON array")
     rng = random.Random()
-    tmp = os.path.dirname(os.path.abspath(out)) or "."
-    pairs = []
-    seal_map = {}
-    for idx, item in enumerate(evals):
-        prompt = item.get("prompt") or ""
-        if not prompt:
-            fail("eval %d has no prompt" % idx)
-        with_runs, without_runs = [], []
-        for rep in range(max(1, repeats)):
-            pf = os.path.join(tmp, ".replay-prompt-%d-%d" % (idx, rep))
-            for mode, bucket in (("with-skill", with_runs),
-                                 ("without-skill", without_runs)):
-                op = os.path.join(
-                    tmp, ".replay-traj-%d-%d-%s" % (idx, rep, mode))
-                traj = run_runner(runner, mode, prompt, pf, op)
-                bucket.append(blind_traj(traj))
-                try:
-                    os.remove(op)
-                except OSError:
-                    pass
-            try:
-                os.remove(pf)
-            except OSError:
-                pass
-        pid = "p%d" % idx
-        order = ["with", "without"]
-        rng.shuffle(order)
-        label_of = {}
-        trajs = {"with": with_runs[0], "without": without_runs[0]}
-        pair = {"pair_id": pid, "kind": "cross", "prompt": prompt,
-                "session_id": item.get("session_id", "")}
-        for pos, arm in zip(("traj_a", "traj_b"), order):
-            pair[pos] = trajs[arm]
-            label_of[arm] = pos[-1].upper()
-        seal_map[pid] = label_of["with"]
-        pairs.append(pair)
-        for rep in range(1, repeats):
-            for arm_no, bucket in enumerate((with_runs, without_runs)):
-                apid = "p%d-aa%d" % (idx, len(seal_map))
-                aa = [bucket[0], bucket[rep]]
-                rng.shuffle(aa)
-                pairs.append({"pair_id": apid, "kind": "aa", "prompt": prompt,
-                              "session_id": item.get("session_id", ""),
-                              "traj_a": aa[0], "traj_b": aa[1]})
-                seal_map[apid] = "A"  # same arm both sides; label unused
+    pairs, arms_map = [], {}
+    with tempfile.TemporaryDirectory(prefix="replay-run-") as run_tmp:
+        for idx, item in enumerate(evals):
+            prompt = item.get("prompt") or ""
+            if not prompt:
+                fail("eval %d has no prompt" % idx)
+            with_runs, without_runs = [], []
+            for rep in range(repeats):
+                pf = os.path.join(run_tmp, "prompt-%d-%d.txt" % (idx, rep))
+                for mode, bucket in (("with-skill", with_runs), ("without-skill", without_runs)):
+                    op = os.path.join(run_tmp, "traj-%d-%d-%s.json" % (idx, rep, mode))
+                    traj = run_runner(
+                        runner, mode, skill, prompt, pf, op, harness=harness,
+                        model=model, workspace=workspace, kit_dir=kit_dir, timeout=timeout,
+                    )
+                    bucket.append(blind_traj(traj))
+            pid = "p%d" % idx
+            order = ["with", "without"]
+            rng.shuffle(order)
+            trajs = {"with": with_runs[0], "without": without_runs[0]}
+            pair = {
+                "pair_id": pid, "kind": "cross",
+                "category": str(item.get("category") or "production"),
+                "prompt": prompt, "session_id": item.get("session_id", ""),
+            }
+            if isinstance(item.get("expectations"), dict):
+                pair["expectations"] = item["expectations"]
+            for pos, arm in zip(("traj_a", "traj_b"), order):
+                pair[pos] = trajs[arm]
+                if arm == "with":
+                    arms_map[pid] = pos[-1].upper()
+            pairs.append(pair)
+            for rep in range(1, repeats):
+                for bucket in (with_runs, without_runs):
+                    apid = "p%d-aa%d" % (idx, len(arms_map))
+                    aa = [bucket[0], bucket[rep]]
+                    rng.shuffle(aa)
+                    pairs.append({
+                        "pair_id": apid, "kind": "aa",
+                        "category": str(item.get("category") or "production"),
+                        "prompt": prompt, "session_id": item.get("session_id", ""),
+                        "traj_a": aa[0], "traj_b": aa[1],
+                    })
+                    arms_map[apid] = "A"
+    for target in (out, seal):
+        os.makedirs(os.path.dirname(os.path.abspath(target)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
     with open(seal, "w", encoding="utf-8") as fh:
-        json.dump(seal_map, fh, indent=1, sort_keys=True)
+        json.dump({"meta": {"skill": skill, "harness": harness}, "arms": arms_map}, fh, indent=1, sort_keys=True)
         fh.write("\n")
-    print("replay: %d pairs (%d evals, repeats=%d) -> %s" % (
-        len(pairs), len(evals), repeats, out))
+    print("replay: %d pairs (%d evals, skill=%s, harness=%s, repeats=%d) -> %s" % (
+        len(pairs), len(evals), skill, harness, repeats, out))
 
 
 def _taint_scan(node):
     if isinstance(node, dict):
         for key, val in node.items():
-            if key in BANNED_KEYS:
+            k_low = str(key).strip().lower()
+            if k_low in BANNED_KEYS or "skill_count" in k_low or any(b in k_low for b in BANNED_VALUES):
                 return "banned key %r" % key
             hit = _taint_scan(val)
             if hit:
@@ -323,19 +424,17 @@ def _sig_words(prompt):
 
 
 def rubric_score(prompt, traj):
+    """Blind offline fallback rubric: zero skill or arm leakage."""
     words = _sig_words(prompt)
     text = (traj.get("transcript") or "").lower()
     coverage = (sum(1 for w in words if w in text) / len(words)) if words else 0.0
     tool_use = 1.0 if traj.get("tools") else 0.0
-    discipline = 1.0 if (traj.get("skill_count") or 0) > 0 else 0.0
-    error_free = 1.0 if (traj.get("errors") or 0) == 0 else 0.0
-    total = (0.50 * coverage + 0.20 * tool_use + 0.15 * discipline
-             + 0.15 * error_free)
-    return {"goal_coverage": round(coverage, 3), "tool_use": tool_use,
-            "skill_use": discipline, "error_free": error_free,
-            "total": round(total, 3)}
-
-
+    error_free = 1.0 if safe_int(traj.get("errors"), 0) == 0 else 0.0
+    total = 0.55 * coverage + 0.20 * tool_use + 0.25 * error_free
+    return {
+        "goal_coverage": round(coverage, 3), "tool_use": tool_use,
+        "error_free": error_free, "total": round(total, 3),
+    }
 
 
 def main(argv):
@@ -347,8 +446,7 @@ def main(argv):
     elif cmd == "replay":
         cmd_replay(rest)
     elif cmd in ("judge", "report"):
-        fail("%r lives in replay_judge.py (routed by replay-eval.sh)" % cmd,
-             2)
+        fail("%r lives in replay_judge.py (routed by replay-eval.sh)" % cmd, 2)
     elif cmd in ("-h", "--help", "help"):
         usage(0)
     else:

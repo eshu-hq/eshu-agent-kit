@@ -1,62 +1,106 @@
-# Replay evals
+# Replay Evals
 
-Measure whether loading a skill changes outcomes: replay real mined prompts
-with the skill loaded versus stripped, and blind-judge which trajectory better
-satisfies the session's evident goal. Issue #83.
+Measure whether loading a skill changes outcomes across **any skill** and all
+three harnesses (**Claude**, **Agy**, and **Muse**). Replays prompts in an
+isolated workspace with the target `SKILL.md` injected versus stripped, then
+runs deterministic trajectory checks and blind A/B judging.
 
-Scope is deliberately small (arbiter D5, do not widen):
+Nothing in this harness runs in CI by design. Starter golden/edge suites live
+under [evals/README.md](../../evals/README.md).
 
-- One skill: `performance-rigor`.
-- One harness: Muse. Prompts are re-mined from raw Muse transcripts only.
-- First prompt only per session; subagent children and fixture sessions skipped.
-- Nothing in this harness runs in CI.
+## Workflow
 
-## Commands
+1. **Mine production prompts** (optional; keep mined output local, never commit
+   raw transcripts):
 
-```bash
-# 1. Mine fixtures from raw transcripts (refresh path: re-run as sessions accrue).
-bash scripts/replay-eval.sh mine --sessions-root "$XDG_DATA_HOME/muse/sessions" --out evals.json
+   ```bash
+   # Auto-discovers default Muse, Claude, and Agy roots; filter by skill or regex
+   bash scripts/replay-eval.sh mine \
+     --harness all --skill code-review --top-steered --max 20 \
+     --out /tmp/evals-prod.json
+   ```
 
-# 2. Replay each prompt both ways. The runner loads or strips the skill:
-#    CMD --mode with-skill|without-skill --skill performance-rigor \
-#        --prompt-file PROMPT --out TRAJECTORY_JSON
-bash scripts/replay-eval.sh replay --evals evals.json --runner ./run-once.sh \
-  --skill performance-rigor --out pairs.json --seal seal.json --repeats 3
+   Pass `--sessions-root PATH` (repeatable) to override default discovery roots,
+   `--query REGEX` to match first prompts, and `--category golden|production|edge`.
+   Re-run `mine` as new sessions accrue to refresh production evals.
 
-# 3. Blind-judge the pair package. The judge sees randomized A/B labels only;
-#    any arm identity in the input fails the strip-proof gate.
-bash scripts/replay-eval.sh judge --runs pairs.json --out verdict.json
+2. **Replay prompts in isolated workspaces** (`with-skill` vs `without-skill`):
 
-# 4. Report win rate (decoded with --seal, which the judge never saw),
-#    A/A repeat noise band, and token cost delta (#80 field names).
-bash scripts/replay-eval.sh report --verdict verdict.json \
-  --aa-verdict verdict.json --seal seal.json
-```
+   ```bash
+   bash scripts/replay-eval.sh replay \
+     --evals evals/code-review.json \
+     --skill code-review \
+     --harness claude \
+     --workspace /path/to/repo \
+     --repeats 3 \
+     --out /tmp/pairs.json \
+     --seal /tmp/seal.json
+   ```
 
-Pairs with `--repeats N` also compare repeat runs of the same arm (`aa`
-pairs). Their disagreement fraction is the noise band: a win rate inside the
-band is measurement noise, not skill value.
+   When `--runner` is omitted, `replay` invokes `scripts/replay-runner.sh`,
+   which creates a detached temporary git worktree (or temp dir) per run and
+   cleans it up automatically:
+   - `claude`: passes `--output-format stream-json --verbose
+     --no-session-persistence --disable-slash-commands`, adding
+     `--append-system-prompt-file <SKILL.md>` only in `with-skill` mode.
+   - `agy`: passes `--output-format json --disable-slash-commands -p=<prompt>`,
+     prepending `SKILL.md` only in `with-skill` mode.
+   - `muse`: passes `muse exec --json --no-session-log --disable-web-tools
+     --disable-reminders --disable-request-user-input --no-foreign-personal-context
+     --approval-mode never --trust-workspace --workspace <iso_dir> --prompt-file <file>`
+     on both arms (writing the prompt file outside `<iso_dir>` so the worktree
+     stays clean and both arms have identical workspace tool access). In
+     `with-skill` mode it prepends `SKILL.md`; in `without-skill` mode it strips
+     `<iso_dir>/.agents/skills` inside the isolated worktree and relies on
+     `--no-foreign-personal-context` to exclude foreign personal skills.
 
-`judge` also accepts `--judge-cmd PATH`: the pair package is piped as JSON to
-that executable on stdin and its stdout must be `A`, `B`, or `TIE`. The
-strip-proof gate runs first, so an external judge stays blind too. The default
-is the built-in goal-coverage rubric.
+   Pass `--runner PATH` to plug in a custom runner executable (for offline
+   tests or bespoke harnesses). Use `scripts/replay-runner.sh --dry-run-cmd ...`
+   to inspect the exact CLI invocation without calling an LLM.
 
-## Worked example (stub runner, 3 mined prompts, repeats=2)
+3. **Blind-judge pairs and grade trajectory expectations**:
 
-```
-replay-eval report: skill=performance-rigor
-cross pairs: 3 (3 decisive, 0 ties)
-win rate (with-skill): 3/3 = 1.00
-noise band (A/A disagreement): 0/6 = 0.00
-cost delta (mean with-skill minus stripped, #80 token fields): +50.0 in / +140.0 out over 3 pairs
-```
+   ```bash
+   # Real blind LLM judge (claude, agy, or muse)
+   bash scripts/replay-eval.sh judge \
+     --runs /tmp/pairs.json \
+     --judge-harness claude \
+     --out /tmp/verdict.json
+   ```
 
-The stub runner answers the goal verbatim with the skill and rambles without
-it, so 1.00 is the ceiling, not a claim. Replace the stub with a runner that
-drives the real agent (skill pinned vs stripped) to measure actual skill value.
+   Alternative judge modes:
+   - Omit `--judge-harness` and `--judge-cmd` to use the offline fallback
+     rubric (`0.55 * goal_coverage + 0.20 * tool_use + 0.25 * error_free` —
+     zero skill or arm leakage).
+   - Pass `--judge-cmd PATH` to pipe each pair JSON to a custom executable that
+     prints `A`, `B`, or `TIE`.
 
-Blindness is enforced by substring: any arm token (`with-skill`,
-`without-skill`, and their underscore forms) anywhere in the judged package
-fails the gate, and runner transcripts are scrubbed the same way before
-pairing. Keep arm tokens out of prompts and tool names or the run refuses.
+   When an eval item includes `expectations` (`must_call_tools`, `must_mention`,
+   `must_not_mention`, `max_errors`), `judge` deterministically grades both
+   anonymous trajectories alongside the A/B verdict.
+
+4. **Report metrics and export JSON for `/debrief`**:
+
+   ```bash
+   bash scripts/replay-eval.sh report \
+     --verdict /tmp/verdict.json \
+     --seal /tmp/seal.json \
+     --json-out /tmp/eval-summary.json
+   ```
+
+   Pass `--aa-verdict FILE` if A/A repeat comparisons live in a separate verdict
+   file (otherwise `report` reads `kind == "aa"` entries from `--verdict`).
+   The report prints win rate, A/A noise band with a signal-vs-noise note,
+   trajectory pass rates (with a sweet-spot warning when `with-skill` hits 100%
+   over 3+ pairs), token cost delta, and wall-time latency delta.
+
+   `--json-out` writes the machine-readable JSON summary contract (which
+   `/debrief` will ingest via `--evals` once #100 lands).
+
+## Blindness And Strip-Proof Gate
+
+`blind_traj` removes `skill_count`, strips `skills`/`mode`/`arm` fields, and
+scrubs arm tokens (`with-skill`, `without-skill`, and underscore forms) before
+pairing. `judge` runs a strip-proof taint scan over the entire pair package
+before invoking any judge and refuses tainted input. Arm labels live only in
+`seal.json`, which the judge never sees.
