@@ -13,17 +13,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import (  # noqa: E402
     atomic_write_json,
-    canon_skill,
     default_cache_dir,
     default_usage_log,
-    gap_bucket,
-    is_fixture_session,
-    load_json_lines,
     read_json,
     resolve_since,
     safe_int,
     safe_key,
 )
+from debrief_hooks import _aggregate_hooks, _read_hook_events  # noqa: E402
+from debrief_skill_costs import attribute_skill_costs, gap_stats  # noqa: E402
 
 
 def parse_harnesses(raw):
@@ -204,102 +202,6 @@ def interjection_stats(top_metas):
     }
 
 
-def _read_hook_events(log_paths, since_str):
-    events = []
-    dropped = 0
-    for p in log_paths:
-        if not p or not os.path.isfile(p):
-            continue
-        for ev in load_json_lines(p):
-            if since_str and str(ev.get("ts") or "") < since_str:
-                continue
-            sid = str(ev.get("session") or "")
-            if not sid:
-                continue
-            if is_fixture_session(sid):
-                dropped += 1
-                continue
-            events.append(ev)
-    return events, dropped
-
-
-def _aggregate_hooks(hook_events, mined_skills):
-    hook_loads = Counter()
-    hook_forced = Counter()
-    nudge_blocked = Counter()
-    model_failures = Counter()
-    sessions = defaultdict(lambda: {"skills": set(), "blocked": set(), "goal": False, "progressed": False, "outcome": None})
-    goal_done = goal_released = goal_blocked_watcher = 0
-
-    for ev in hook_events:
-        sid = str(ev.get("session") or "")
-        etype = str(ev.get("type") or "")
-        det = ev.get("detail") if isinstance(ev.get("detail"), dict) else {}
-        st = sessions[sid]
-        if etype == "nudge-block":
-            for sk in det.get("skills") or []:
-                c = canon_skill(sk)
-                if c:
-                    st["blocked"].add(c)
-                    nudge_blocked[c] += 1
-        elif etype == "goal-continued":
-            st["goal"] = True
-            if safe_int(det.get("progress"), 0) > 0:
-                st["progressed"] = True
-        elif etype == "goal-done":
-            st["goal"] = True
-            st["outcome"] = "done"
-            goal_done += 1
-        elif etype == "goal-released":
-            st["goal"] = True
-            st["outcome"] = "released"
-            goal_released += 1
-        elif etype == "goal-blocked-watcher":
-            st["goal"] = True
-            goal_blocked_watcher += 1
-        elif etype == "model-failure":
-            cat = str(det.get("category") or "unknown")
-            model_failures[cat] += 1
-
-    for ev in hook_events:
-        if ev.get("type") == "skill-load":
-            sid = str(ev.get("session") or "")
-            det = ev.get("detail") if isinstance(ev.get("detail"), dict) else {}
-            sk = canon_skill(det.get("skill") or "")
-            if sk:
-                hook_loads[sk] += 1
-                sessions[sid]["skills"].add(sk)
-                if sk in sessions[sid]["blocked"]:
-                    hook_forced[sk] += 1
-
-    all_sk = sorted(set(hook_loads) | set(mined_skills),
-                    key=lambda s: (-(mined_skills[s] + hook_loads[s]), s))
-    skill_table = []
-    for s in all_sk[:25]:
-        goal_s = [st for st in sessions.values() if s in st["skills"] and st["goal"]]
-        no_prog = sum(1 for st in goal_s if not st["progressed"] and st["outcome"] != "done")
-        skill_table.append({
-            "skill": s,
-            "hook_loads": hook_loads[s],
-            "forced": hook_forced[s],
-            "forced_pct": round(100 * hook_forced[s] / hook_loads[s]) if hook_loads[s] else None,
-            "mined_loads": mined_skills[s],
-            "goal_sessions": len(goal_s),
-            "no_progress_share_pct": round(100 * no_prog / len(goal_s)) if goal_s else None,
-        })
-
-    hooks_summary = {
-        "events": len(hook_events),
-        "sessions": len(sessions),
-        "goal_done": goal_done,
-        "goal_released": goal_released,
-        "goal_blocked_watcher": goal_blocked_watcher,
-        "nudge_blocked": dict(nudge_blocked.most_common(12)),
-        "model_failures": dict(model_failures.most_common(12)),
-    }
-    return skill_table, hooks_summary
-
-
 def cmd_aggregate(args):
     since_str, since_ep = resolve_since(args.since, args.days)
     harnesses = parse_harnesses(args.harness)
@@ -350,8 +252,7 @@ def cmd_aggregate(args):
     err_cats = Counter()
     langs = Counter()
     hours = Counter()
-    gaps = []
-    mined_skills = Counter()
+    gaps_with_harness = []
     projects = Counter()
     by_harness = defaultdict(lambda: {"sessions": 0, "top_sessions": 0, "facets": 0, "prompts": 0, "tool_calls": 0, "errors": 0})
     dates = set()
@@ -384,9 +285,7 @@ def cmd_aggregate(args):
             hours[str(hr)] += hv
         for g in m.get("response_gaps") or []:
             if isinstance(g, (int, float)) and g >= 2:
-                gaps.append(float(g))
-        for sk in m.get("skill_loads") or []:
-            mined_skills[canon_skill(sk)] += 1
+                gaps_with_harness.append((float(g), h))
         proj = os.path.basename(str(m.get("project") or "").rstrip("/")) or "unknown"
         if k not in children:
             projects[proj] += 1
@@ -397,11 +296,10 @@ def cmd_aggregate(args):
         elif lt and (not since_str or lt >= since_str):
             dates.add(lt)
 
-    gap_buckets = Counter(gap_bucket(g) for g in gaps)
-    gaps_sorted = sorted(gaps)
-    med_gap = round(gaps_sorted[len(gaps_sorted) // 2], 1) if gaps_sorted else None
-    avg_gap = round(sum(gaps_sorted) / len(gaps_sorted), 1) if gaps_sorted else None
+    gap_buckets, med_gap, avg_gap, med_gap_by_harness = gap_stats(gaps_with_harness)
     prompt_dist, interjections = interjection_stats(top_metas)
+    skill_costs = attribute_skill_costs(metas.values())
+    mined_skills = Counter(skill_costs["mined_skills"])
 
     goal_cats = Counter()
     session_types = Counter()
@@ -435,7 +333,8 @@ def cmd_aggregate(args):
 
     log_paths = [p for p in (args.log or []) if p] or [default_usage_log()]
     hook_events, fixtures_dropped = _read_hook_events(log_paths, since_str)
-    skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills)
+    costs_by_skill = {r["skill"]: r for r in skill_costs["per_skill"]}
+    skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills, costs_by_skill)
 
     repos = [_collect_git_stats(r, since_str) for r in (args.repo or []) if r.strip()]
     today_iso = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
@@ -473,6 +372,7 @@ def cmd_aggregate(args):
             "response_time_buckets": {b: gap_buckets[b] for b in ("2-10s", "10-30s", "30s-1m", "1-2m", "2-5m", "5-15m", ">15m")},
             "prompt_distribution": dict(prompt_dist),
             "median_response_gap_s": med_gap,
+            "median_response_gap_s_by_harness": med_gap_by_harness,
             "avg_response_gap_s": avg_gap,
             "hour_counts_utc": {str(h): hours[str(h)] for h in range(24)},
             "tool_error_categories": dict(err_cats.most_common(8)),
@@ -484,6 +384,7 @@ def cmd_aggregate(args):
         },
         "projects": dict(projects.most_common(12)),
         "skill_table": skill_table,
+        "skill_costs": skill_costs,
         "interjections": interjections,
         "facet_summaries": facet_summaries,
         "not_tracked": [

@@ -141,7 +141,35 @@ def _render_horizon(items):
     return '<div class="horizon-section">' + "\n".join(cards) + "</div>"
 
 
+def _fmt_tokens(val):
+    """Compact token figure: thousands with one decimal (12.5k) or plain ints."""
+    try:
+        num = float(val or 0)
+    except (TypeError, ValueError):
+        return "—"
+    if num >= 1000:
+        return f"{num / 1000.0:.1f}k"
+    if num == int(num):
+        return str(int(num))
+    return f"{num:.2f}"
+
+
 def _render_harness_skill_section(agg):
+    costs_by_harness = ((agg.get("skill_costs") or {}).get("by_harness") or {})
+    tok_cells = []
+    for h in sorted((agg.get("by_harness") or {})):
+        if h == "agy":
+            tok_cells.append((h, "not mined"))
+            continue
+        c = costs_by_harness.get(h)
+        if c is None:
+            tok_cells.append((h, "—"))
+            continue
+        tin = _fmt_tokens(c.get("attributed_tokens_in"))
+        tout = _fmt_tokens(c.get("attributed_tokens_out"))
+        tag = " *" if h == "muse" else ""
+        tok_cells.append((h, f"{tin} in / {tout} out{tag}"))
+    tok_by_h = dict(tok_cells)
     h_rows = []
     for h, info in sorted((agg.get("by_harness") or {}).items()):
         h_rows.append(
@@ -150,28 +178,38 @@ def _render_harness_skill_section(agg):
             f'<td class="num">{int(info.get("facets", 0))}</td>'
             f'<td class="num">{int(info.get("prompts", 0)):,}</td>'
             f'<td class="num">{int(info.get("tool_calls", 0)):,}</td>'
-            f'<td class="num">{int(info.get("errors", 0)):,}</td></tr>'
+            f'<td class="num">{int(info.get("errors", 0)):,}</td>'
+            f'<td class="num">{_e(tok_by_h.get(h, "—"))}</td></tr>'
         )
+    harness_tok_foot = ("* Muse tokens are subagent-observed only; agy token usage is "
+                        "not mined. Figures are per-harness rollups, never ranked.")
     s_rows = []
     for row in (agg.get("skill_table") or [])[:15]:
         fp = f'{row["forced_pct"]}% ({row["forced"]}/{row["hook_loads"]})' if row.get("forced_pct") is not None else "—"
+        cost = _fmt_tokens(row.get("attributed_tokens_total"))
         s_rows.append(
             f'<tr><td><code>{_e(row["skill"])}</code></td>'
             f'<td class="num">{_e(row["mined_loads"])}</td>'
             f'<td class="num">{_e(row["hook_loads"])}</td>'
-            f'<td class="num">{_e(fp)}</td></tr>'
+            f'<td class="num">{_e(fp)}</td>'
+            f'<td class="num">{_e(cost)}</td></tr>'
         )
+    cost_foot = ("Cost splits each session's tokens equally among its own skills; "
+                 "sessions with no loaded skill are unattributed.")
     return (
         '<h2 id="section-harnesses">Harnesses &amp; Skill Effectiveness</h2>'
         '<div class="charts-row">'
         '<div class="chart-card"><div class="chart-title">Per-Harness Activity</div>'
         '<table><thead><tr><th>Harness</th><th class="num">Top / All</th><th class="num">Facets</th>'
-        '<th class="num">Prompts</th><th class="num">Tools</th><th class="num">Errors</th></tr></thead>'
-        f'<tbody>{"".join(h_rows)}</tbody></table></div>'
+        '<th class="num">Prompts</th><th class="num">Tools</th><th class="num">Errors</th>'
+        '<th class="num">Attributed tokens</th></tr></thead>'
+        f'<tbody>{"".join(h_rows)}</tbody></table>'
+        f'<div style="font-size:12px;color:#64748b;margin-top:8px">{_e(harness_tok_foot)}</div></div>'
         '<div class="chart-card"><div class="chart-title">Top Skills (Mined vs Hook Forced)</div>'
         '<table><thead><tr><th>Skill</th><th class="num">Mined</th><th class="num">Hook</th>'
-        '<th class="num">Forced</th></tr></thead>'
-        f'<tbody>{"".join(s_rows) or "<tr><td colspan=4>No skill loads in window.</td></tr>"}</tbody></table></div>'
+        '<th class="num">Forced</th><th class="num">Cost (tok)</th></tr></thead>'
+        f'<tbody>{"".join(s_rows) or "<tr><td colspan=5>No skill loads in window.</td></tr>"}</tbody></table>'
+        f'<div style="font-size:12px;color:#64748b;margin-top:8px">{_e(cost_foot)}</div></div>'
         '</div>'
     )
 
@@ -211,7 +249,26 @@ def render_html(agg, syn):
     ov = charts.get("multi_agent_overlap") or {}
     med_g = charts.get("median_response_gap_s")
     avg_g = charts.get("avg_response_gap_s")
-    gap_foot = f"Median: {_e(med_g)}s &bull; Average: {_e(avg_g)}s" if med_g is not None else "No multi-turn gaps observed."
+    med_by_h = charts.get("median_response_gap_s_by_harness") or {}
+    gap_rows = []
+    for h in sorted(med_by_h):
+        cell = f'{_e(med_by_h[h])}s' if med_by_h[h] is not None else "—"
+        gap_rows.append(f'<tr><td><code>{_e(h)}</code></td><td class="num">{cell}</td></tr>')
+    gap_harness_table = (
+        '<div class="chart-card" style="margin:0 0 20px">'
+        '<div class="chart-title">Median Response Gap by Harness</div>'
+        '<table><thead><tr><th>Harness</th><th class="num">Median gap</th></tr></thead>'
+        f'<tbody>{"".join(gap_rows) or "<tr><td colspan=2>No multi-turn gaps observed.</td></tr>"}</tbody></table></div>'
+    )
+    if med_g is not None:
+        per_h = ", ".join(
+            f'{h}: {med_by_h[h]}s' if med_by_h.get(h) is not None else f'{h}: —'
+            for h in sorted(med_by_h)
+        )
+        gap_foot = (f"Median: {_e(med_g)}s &bull; Average: {_e(avg_g)}s"
+                    + (f" &bull; Per harness — {_e(per_h)}" if per_h else ""))
+    else:
+        gap_foot = "No multi-turn gaps observed."
     ij = agg.get("interjections") or {}
     ij_rate = ij.get("follow_up_rate_pct")
     ij_bearing = safe_int(ij.get("prompt_bearing_sessions"), 0)
@@ -302,6 +359,8 @@ def render_html(agg, syn):
   </div>
 
   {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot)}
+
+  {gap_harness_table}
 
   {_render_chart_card("Prompts Per Session (Interjections)", charts.get("prompt_distribution"), "#0ea5e9", title_case=False, footer=ij_foot)}
 
