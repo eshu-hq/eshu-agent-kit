@@ -240,46 +240,21 @@ Antigravity (`agy`), including `agy` skill loads (`read_file`/`view_file`
 reads of `SKILL.md`), tool mix, errors, response gaps, subagents, models,
 and workspace projects; Codex and OpenCode remain labeled exclusions, never
 ranked. Multi-machine: each machine writes its own log;
-`scripts/skills-insights.sh --log a.jsonl --log b.jsonl` merges them.
+`scripts/debrief.sh aggregate --log a.jsonl --log b.jsonl` merges them.
 
-**Report surface.** `scripts/skills-insights.sh [--log PATH]...
-[--since DATE] [--format text|json] [--repo PATH]... [--transcript-root
-PATH]... [--project SUB] [--no-mine]`. Transcript mining (tool mix,
-errors, response gaps, prompt counts, skill loads, subagents — counts
-only, never message text) runs by default over the known
-Claude/Muse/Antigravity (`agy`) log roots within `--since`; `--no-mine`
-skips it. `--repo` adds git history (commits, merges, reverts, lines) per
-repo. `--format json` emits sessions with ordered did → broke → solved
-timelines plus per-turn progress groups for the debrief step.
+**Debrief v2 pipeline.** `scripts/debrief.sh` replaces the old single-stage
+text report with a four-subcommand local pipeline:
+- `scripts/debrief.sh prepare [--days 30] [--since DATE] [--max-new 100] [--batch-size 10] [--project SUB] [--harness muse,agy,claude]` — extracts and mtime-caches Stage 1 session metadata and bounded digests across Muse, `agy`, and Claude under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`, imports native `~/.claude/usage-data/facets/*.json`, rolls child subagents into their parent coordinator digest, skips trivial sessions, and writes batched digests for fast-tier Stage 2 facet classification.
+- `scripts/debrief.sh cache-write <FILE|->` — validates and atomically stores Stage 2 semantic facet JSON records in the local cache (never committed or uploaded).
+- `scripts/debrief.sh aggregate [--days 30] [--since DATE] [--log PATH]... [--repo PATH]... [--project SUB] [--harness ...] [--out FILE]` — merges Stage 1 metadata, Stage 2 facets, hook logs (`skills-usage.jsonl`), multi-agent parallel overlap, and git rollups (anchoring bare `--since YYYY-MM-DD` at UTC midnight).
+- `scripts/debrief.sh render --aggregate AGG.json --synthesis SYN.json [--out FILE]` — renders an offline interactive HTML report to `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and `report-latest.html`.
 
-**Debrief.** The `debrief` skill reads the JSON aggregate and writes
-the full narrative report (single self-contained HTML file): wins, friction
-with session ids, actionable fixes, horizon ideas. Solved stays a judgment
-over a complete evidence chain, never a single event.
+**Debrief skill.** Invoke `/debrief` (loaded from `skills/eshu/debrief/SKILL.md`)
+to run `prepare`, classify uncached batches in parallel with fast-tier
+subagents, run `aggregate`, synthesize evidence-backed `AGENTS.md`/role/hook
+recommendations, and `render` the interactive offline HTML report.
 
-**Timelines.** `scripts/skills-insights.sh --format json` emits one ordered
-timeline per session in a did → broke → solved vocabulary: `did:load+X`
-and `did:progress=N` (what the agent did), `broke:blocked-need+X` and
-`broke:model-failure(cat)` (what broke), `solved:done` or `end:released`
-(how it ended). The text report prints the same timelines for stalled
-sessions (friction) and DONE sessions (wins).
-
-**Synthesis prompt.** Paste the report output (text, or `--format json` for
-full timelines) into chat with:
-
-> Below is a skills debrief from my kit sessions: per-skill aggregates plus
-> per-session timelines in did → broke → solved order. Read each timeline in
-> order first — what the agent did, what broke, what got solved or how it
-> ended — then return: (1) per-skill verdicts, rewrite, re-route, or retire,
-> each tied to a row or timeline; (2) friction patterns with the session ids
-> that show them; (3) wins worth repeating, with what made them work; (4)
-> anything the data cannot answer. Treat correlation as correlation — never
-> rank people or harnesses, and never claim a load caused an outcome. Solved
-> is a judgment over a complete evidence chain (progress, then DONE, then an
-> outcome the timeline supports), never a single event.
-
-**Limits.** Aggregates correlate loads with outcomes; they cannot attribute
-an outcome to one load among several. `no-progress-session share` means the
-skill coincided with sessions that never progressed — it may be unrelated
-to the stall. History starts when this ships; the first report worth
-synthesizing needs a few weeks of sessions.
+**Limits.** Hook telemetry stays strictly content-free; semantic facets stay
+local in `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`. Aggregates and model-estimated
+facets show correlation, not causation — never rank people or harnesses, and
+treat `no-progress-session share` as coincidence until corroborated.

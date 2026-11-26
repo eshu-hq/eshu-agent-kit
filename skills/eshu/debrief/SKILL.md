@@ -1,109 +1,164 @@
 ---
 name: debrief
-description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or what skill usage says about how we work. Reads scripts/skills-insights.sh --format json plus transcript evidence and writes a single self-contained HTML debrief: wins, friction with examples, actionable fixes, horizon ideas."
+description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or workflow recommendations across Muse, Antigravity (agy), and Claude. Runs scripts/debrief.sh (Stage 1 meta + Stage 2 cached semantic facets + hook telemetry) and renders an offline interactive HTML report."
 ---
 
-# Skills Debrief
+# Multi-Harness Agent Debrief
 
-Write the kit equivalent of a usage-insights report from debrief data. The
-deterministic aggregates already exist — your job is the narrative a counter
-cannot write: what got solved, what broke, what it means, what changes.
+Generate a `/insights`-grade operational debrief across **Muse**, **Antigravity (`agy`)**, and **Claude** sessions. Deterministic scripts extract session metadata, cache semantic facets locally under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`, merge hook telemetry (`skills-usage.jsonl`) and git history, and render an offline interactive HTML report. Your job is to orchestrate parallel fast-tier facet extraction for uncached sessions and write the high-signal narrative synthesis and actionable workflow fixes.
 
-Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and
-hook events resolve per `skills/registry.md`. Relative `docs/` paths resolve
-in the consuming repo checkout.
+Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and hook events resolve per `skills/registry.md`. By default, debrief runs across **all harnesses (`muse,agy,claude`)** and **all repos** over the last **30 days**; pass `--since YYYY-MM-DD`, `--days N`, `--project SUB`, or `--harness muse,agy,claude` when the user asks to narrow scope.
 
-Non-kit projects and transcript-only harnesses: when the aggregate carries
-no hook signals (no `skill-load` events, no nudge blocks, no goal turns —
-including `agy`-only runs where kit hooks are not wired yet), do not force
-hook-only language. Write the subset the data supports — header stats,
-activity, `mined.skill_loads` (from Claude `Skill`, Muse `read_skill`, and
-`agy` `read_file`/`view_file` reads of `SKILL.md`), `unloaded` candidates,
-wins, friction, fixes as tooling or workflow changes — and say which
-sections are absent because hooks were unobserved, not because nothing
-happened. Scope transcript activity to one repo with `--project` (the
-hook skill table, outcomes, and session list stay global — event logs
-carry no repo signal); the default unified run answers "how do we work",
-not "how is this repo".
+Privacy boundary: local transcripts and cached facets stay under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/` (never committed, never uploaded). Hook telemetry in `skills-usage.jsonl` stays content-free. Cite short session IDs in the report; never paste raw message text or secrets.
 
-## Inputs
+## Workflow (4 Steps)
 
-1. Resolve the kit checkout first: the script lives in the kit, not in the
-   working repo. Take the path of the SKILL.md you are reading this from,
-   follow symlinks (`readlink -f`), and go up three levels from the skill
-   directory (`skills/eshu/debrief` → kit root, which holds `scripts/`).
-   If this file is a copy with no symlink behind it (alias wrapper),
-   resolve the same skill name under your harness user skills directory
-   instead; if that fails too, ask the user for the kit checkout path
-   rather than searching the working repo. Then run
-   `bash "$KIT/scripts/skills-insights.sh" --format json` (add `--log`
-   paths for other machines, `--repo` paths for git history — the working
-   repo is a good `--repo` value — `--since` to bound the window).
-   This JSON is the skeleton: per-skill aggregates, per-session
-   timelines, wins, friction, mined activity, git history.
-2. Read session timelines in did → broke → solved order before judging any
-   skill: `did:load+X` and `did:progress=N` (what the agent did),
-   `broke:blocked-need+X` and `broke:model-failure(cat)` (what broke),
-   `solved:done` or `end:released` (how it ended). A skill that appears in a
-   timeline without progress beside it is coincidence until a second session
-   says otherwise.
-3. Sample transcripts only to confirm a pattern the aggregates already
-   suggest — never to go fishing. Quote session ids, never message text.
+### Step 1: Resolve Kit Root & Prepare Batches
 
-## Solved Is A Judgment
+Find the kit checkout from the path of this `SKILL.md`: follow symlinks (`readlink -f`) and go up three levels (`skills/eshu/debrief` → kit root containing `scripts/debrief.sh`). If copied without a symlink, resolve under your harness user skills directory; if still missing, ask for the kit path.
 
-Call work solved only over a complete evidence chain: progress pulses, then
-DONE, then an outcome the timeline supports (merged PR, green CI, clean
-first verdict). A DONE with no progress behind it is a claim, not a win. A
-release that later needed no revert still counts when the timeline shows
-why. Say which chain each win rests on.
+Run Stage 1 extraction and batch preparation:
 
-## Sections (adapted from the usage-insights shape)
+```bash
+bash "$KIT/scripts/debrief.sh" prepare --days 30 --max-new 100 --batch-size 10
+```
 
-Write every section the data supports; omit and name any the data cannot:
+Add `--since`, `--project`, or `--harness` if requested. `prepare`:
+- Extracts/caches Stage 1 metadata (`tools`, `error_categories`, `languages`, `response_gaps`, `message_hours`, `skill_loads`, `git_commits`, `subagents`) incrementally by file `mtime`.
+- Auto-imports existing `~/.claude/usage-data/facets/*.json` so Claude sessions are not re-classified.
+- Rolls Muse/Claude child subagents into their parent coordinator digest.
+- Skips trivial sessions (`prompts < 2` and `tool_calls < 3`).
+- Emits up to `--max-new` (default 100, newest first) uncached digests into `batch-01.json`, `batch-02.json`, … and prints a JSON manifest.
 
-- Header stats: sessions, events, date range, goals DONE versus released,
-  merged PRs, lines changed.
-- At a glance: what is working, what is hindering, quick wins, ambitious —
-  one line each, each pointing at its section.
-- Skill table: loads, forced share, no-progress share, outcome correlation.
-- Session activity: prompts, tool mix, errors by tool, response gaps (label
-  harness gaps where unobserved). Error counts mix hook blocks with
-  genuine tool failures: on Claude transcripts most edit errors are
-  skill-nudge blocks (the guard working, not the tool failing), Muse
-  failures are near-verbatim misses the agent retries out of, and `agy`
-  runs without kit hooks today so errors are direct tool failures (missing
-  paths, edit misses, non-zero commands, or MCP errors). Sample the
-  sessions before judging a tool.
-- Narrative plus key insight: how the sessions actually ran, in second
-  person, then the one finding that matters most.
-- Wins: DONE sessions with the chain that proves each.
-- Friction: stalled sessions, repeated nudge blocks, model-failure clusters —
-  with session ids, never message text.
-- Actionable fixes: copy-pasteable overlay snippets, skill pointer fixes, or
-  hook changes, one per finding. A finding with no fix is a note, not an
-  action.
-- Horizon: ambitious workflows the data hints at, marked as ideas.
+### Step 2: Parallel Fast-Tier Facet Extraction (Stage 2)
 
-Do not write an upsell card, team feedback section, or entertainment. Do not
-rank people or harnesses. Correlation is never causation: say which
-alternative explanations the data cannot exclude.
+If `manifest.facets_queued == 0`, skip directly to Step 3.
 
-## Not tracked (on purpose)
+Otherwise, dispatch **one fast-tier subagent per `batch-XX.json` in parallel** (`flash` on `agy`, `muse-ember` on Muse, `haiku` on Claude). Give each subagent its batch file path and ask it to return strict JSON `{"facets": [...]}` with one object per digest in the batch using this exact schema:
 
-Name these exclusions instead of working around them: per-hook firing
-counts (volume without signal — first-fire witnesses plus transcript
-joins already cover compliance), `agy` hook telemetry (no kit hooks are
-wired on `agy` yet — `agy` skill loads, tools, errors, response gaps, and
-subagents come from transcript mining, not `skills-usage.jsonl`),
-Codex/OpenCode skill loads (no load signal exists; labeled exclusions,
-never ranked), publish non-conversion and repeat-stall rules (no trigger
-data yet; parked until outcomes accrue).
+```json
+{
+  "session_id": "<exact digest session_id>",
+  "harness": "muse|agy|claude",
+  "source_mtime": 0,
+  "underlying_goal": "1 concise sentence describing what the user wanted",
+  "goal_categories": {"<snake_case_category>": 1},
+  "outcome": "fully_achieved|mostly_achieved|partially_achieved|not_achieved|unclear",
+  "satisfaction": "satisfied|likely_satisfied|dissatisfied|frustrated|unsure",
+  "friction_counts": {"<friction_type>": 1},
+  "friction_detail": "1-2 sentences naming the concrete failure mode (or empty string)",
+  "primary_success": "multi_file_changes|good_debugging|correct_code_edits|good_explanations|proactive_help|fast_accurate_search|none",
+  "session_type": "single_task|multi_task|iterative_refinement|exploration|quick_question",
+  "brief_summary": "1-2 sentences summarizing what happened and how it ended"
+}
+```
 
-## Output
+Use concrete `goal_categories` (e.g. `bug_fix`, `feature_implementation`, `ci_workflow_maintenance`, `pr_review_and_merge`, `performance_investigation`, `docs_and_process`, `refactoring`, `testing_and_verification`) and `friction_counts` keys (e.g. `buggy_code`, `wrong_approach`, `excessive_changes`, `misunderstood_request`, `tool_or_env_error`, `stale_context_or_branch`, `hook_or_gate_block`, `user_rejected_action`).
 
-A single self-contained HTML file at the path the request names (inline CSS
-only, system font stack, no external requests so it reads offline), plus a
-chat summary: the key insight, the top three fixes, and what the data could
-not answer. Keep the file under 500 lines; split narrative detail into the
-chat summary rather than bloating the page.
+As each subagent replies, validate and write its facets atomically:
+
+```bash
+bash "$KIT/scripts/debrief.sh" cache-write /path/to/batch-01-facets.json
+```
+
+(Or pipe JSON on stdin with `cache-write -`.) Re-run or fix any rejected record before proceeding.
+
+### Step 3: Aggregate Across Harnesses, Hooks & Git
+
+```bash
+bash "$KIT/scripts/debrief.sh" aggregate --days 30 --repo "$PWD" --out "$WORK/aggregate.json"
+```
+
+Pass `--log` for extra machine logs, additional `--repo` flags for other active repos, and the same `--since`/`--project`/`--harness` flags used in Step 1.
+
+Read `$WORK/aggregate.json` — it contains:
+- `meta` (totals, active days, git repo rollups, excluded fixtures)
+- `by_harness` (per-harness top/all sessions, facets, prompts, tool calls, errors)
+- `hooks` (`goal_done`, `goal_released`, `model_failures`, `nudge_blocked`)
+- `charts` (all 13 deterministic distributions + multi-agent parallel overlap + UTC hour counts)
+- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share)
+- `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
+
+### Step 4: Synthesize Usage-Driven Recommendations & Render HTML
+
+Write `$WORK/synthesis.json` grounded strictly in `aggregate.json`. Every recommendation must cite the specific pattern, count, or session IDs that motivate it. Keep the report operational: no upsell card, no team-feedback section, no entertainment fluff, never rank people or harnesses, and never confuse correlation with causation.
+
+Required `synthesis.json` schema:
+
+```json
+{
+  "at_a_glance": {
+    "working": "1-2 sentences on strongest proven patterns.",
+    "hindering": "1-2 sentences on top recurring friction.",
+    "quick_wins": "1-2 sentences on highest-leverage rules/skills/hooks to add.",
+    "ambitious": "1-2 sentences on next-level parallel/autonomous workflows."
+  },
+  "project_areas": [
+    {"name": "Area Name", "sessions_label": "~N sessions", "description": "2-3 sentences of concrete work observed."}
+  ],
+  "narrative_paragraphs": ["2-3 concise second-person paragraphs on how the sessions actually ran."],
+  "key_insight": "The single highest-leverage observation from this window.",
+  "wins_intro": "1 sentence framing what went right.",
+  "big_wins": [
+    {"title": "Win Title", "description": "2-3 sentences citing the evidence chain and session IDs."}
+  ],
+  "friction_intro": "1 sentence framing where time was lost.",
+  "friction_categories": [
+    {
+      "title": "Friction Pattern",
+      "description": "1-2 sentences on root cause and impact.",
+      "examples": ["Concrete example with short session ID (no raw prompt text)."]
+    }
+  ],
+  "agents_md_additions": [
+    {
+      "target": "AGENTS.md | agents/roles.json | hooks/skill-nudge.sh | skills/...",
+      "snippet": "Copy-pasteable rule, pre-brief, or hook snippet.",
+      "why": "Evidence-backed reason tied to observed friction."
+    }
+  ],
+  "features_to_try": [
+    {
+      "title": "Skill, Hook, or Harness Feature",
+      "oneliner": "What it does in one line.",
+      "why": "Why it fixes a pattern seen in your data.",
+      "example": "Concrete command, config, or prompt to try."
+    }
+  ],
+  "usage_patterns": [
+    {
+      "title": "Concrete Habit Shift",
+      "summary": "1-sentence takeaway.",
+      "detail": "2-3 sentences grounded in observed counts.",
+      "prompt": "Ready-to-paste prompt for Muse / agy / Claude."
+    }
+  ],
+  "horizon_intro": "1 sentence framing ambitious workflow upgrades.",
+  "horizon_workflows": [
+    {
+      "title": "Ambitious Workflow",
+      "possible": "What becomes possible with multi-agent / headless / hook automation.",
+      "tip": "Practical first step.",
+      "prompt": "Ready-to-paste workflow prompt."
+    }
+  ]
+}
+```
+
+Render the offline HTML report:
+
+```bash
+bash "$KIT/scripts/debrief.sh" render \
+  --aggregate "$WORK/aggregate.json" \
+  --synthesis "$WORK/synthesis.json"
+```
+
+By default, `render` writes `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and updates `report-latest.html` (override with `--out PATH` when requested). Generated reports are offline (inline CSS/JS, system font stack, zero external requests) and have no artificial line cap.
+
+### Step 5: Chat Summary
+
+Reply concisely with:
+1. Clickable `file://` link to the generated HTML report (and `report-latest.html`).
+2. Coverage line (window, harnesses, top-level sessions, facets analyzed, any deferred by the 100-session cap).
+3. The **Key Insight** and **Top 3 Actionable Fixes**.
+4. What the data could not answer (unwired `agy` hooks, Codex/OpenCode exclusions, correlation caveats).

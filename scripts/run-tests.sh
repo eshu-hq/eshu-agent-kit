@@ -30,8 +30,7 @@ suites=(
 	scripts/tests/test-install-prune.sh
 	scripts/tests/test-install-ux.sh
 	scripts/tests/test-install-uninstall.sh
-	scripts/tests/test-skills-insights.sh
-	scripts/tests/test-skills-insights-agy.sh
+	scripts/tests/test-debrief.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh
