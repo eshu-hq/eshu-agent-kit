@@ -452,6 +452,9 @@ assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html, "escaped text missing"
 assert not re.search(r'https?://', html), "external URL found in offline HTML!"
 assert "copyAllCheckedRules" in html and "timezone-select" in html and "rawUtcHours" in html
 assert "&amp;middot;" not in html, "double-escaped middot!"
+assert "Cost (tok)" in html, "cost column missing from render!"
+assert "Median Response Gap by Harness" in html, "per-harness gap table missing from render!"
+assert "not mined" in html, "agy not-mined marker missing from render!"
 PYEOF
 
 # --- Part E: Per-skill cost/latency/error attribution (issue #80) ---

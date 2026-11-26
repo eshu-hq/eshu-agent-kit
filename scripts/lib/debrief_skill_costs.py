@@ -156,7 +156,6 @@ def attribute_skill_costs(metas):
                     "unattributed_tokens_out"):
             by_harness[harness][key] = round(by_harness[harness][key], 2)
         by_harness[harness]["attributed_errors"] = round(by_harness[harness]["attributed_errors"], 2)
-        by_harness[harness]["unattributed_errors"] = by_harness[harness]["unattributed_errors"]
 
     return {
         "per_skill": per_skill_rows,
@@ -204,17 +203,4 @@ def gap_stats(gaps_with_harness):
         per_harness[str(harness or "unknown")].append(float(gap))
     med_by_harness = {h: _upper_median(v) for h, v in sorted(per_harness.items())}
     return buckets, med_gap, avg_gap, med_by_harness
-
-
-def median_gap_by_harness(metas):
-    """Per-harness upper-median response gap over ALL metas (children included)."""
-    per_harness = defaultdict(list)
-    for meta in metas:
-        if not isinstance(meta, dict):
-            continue
-        harness = str(meta.get("harness") or "unknown")
-        for gap in meta.get("response_gaps") or []:
-            if isinstance(gap, (int, float)) and gap >= 2:
-                per_harness[harness].append(float(gap))
-    return {h: _upper_median(v) for h, v in sorted(per_harness.items())}
 
