@@ -46,16 +46,33 @@ The guide owns historical incident links; do not duplicate stale inventories.
 
 ## Verification by affected surface
 
-- Coverage, registrations, or stages: run
-  `ESHU_TELEMETRY_COVERAGE_BASE=origin/main bash scripts/verify-telemetry-coverage.sh`
-  (use the actual reviewed base when different). Run the verifier test mirror
-  when its logic or fixtures change.
-- Dashboard, generator, or metric registry feeding panels: run
-  `bash scripts/test-generate-operator-dashboard.sh`, regenerate with
-  `scripts/generate-operator-dashboard.sh`, and check subsequent runs for no
-  drift. Add template variables to `OPERATOR_DASHBOARD_METRIC_VARS` when needed.
-- Go emission changes: run focused production-path tests and relevant Go gates.
-- Documentation changes: run the repository docs build and `git diff --check`.
+1. **Coverage, registrations, or stages:** run the coverage verifier against
+   the reviewed base (and its test mirror when verifier logic or fixtures
+   change); done when it exits 0:
+
+   ```bash
+   ESHU_TELEMETRY_COVERAGE_BASE=origin/main bash scripts/verify-telemetry-coverage.sh
+   ```
+
+2. **Dashboard, generator, or metric registry feeding panels:** add template
+   variables to `OPERATOR_DASHBOARD_METRIC_VARS` when needed, run the generator
+   test mirror, regenerate, and confirm a subsequent run produces no drift; done
+   when both commands exit 0 and `git diff` is unchanged after the second run:
+
+   ```bash
+   bash scripts/test-generate-operator-dashboard.sh
+   bash scripts/generate-operator-dashboard.sh
+   ```
+
+3. **Go emission changes:** run focused production-path tests and relevant Go
+   gates; done when emission is verified on the owning dispatcher.
+4. **Documentation changes:** run the repository docs build and
+   `git diff --check`; done when both exit 0.
+
+## Failure And Recovery
+
+- **When `verify-telemetry-coverage.sh` fails on an undocumented metric or new stage-owner file:** register the metric in `go/internal/telemetry/instruments.go` (and `contract.go`/`contract_*.go`) or add the stage row (or `No-Observability-Change: <existing eshu_dp_* signals>`) in `docs/public/observability/telemetry-coverage.md`, then re-run the verifier until exit 0.
+- **When `operator-dashboard` fails on drift or a missing variable:** add the metric variable to `OPERATOR_DASHBOARD_METRIC_VARS`, regenerate via `scripts/generate-operator-dashboard.sh`, and confirm a second run produces zero diff.
 
 These are focused development checks. Required CI, hooks, docs, and promotion
 gates still apply; do not rerun unrelated artifact suites merely because this

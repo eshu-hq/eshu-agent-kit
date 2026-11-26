@@ -14,24 +14,35 @@ Ordinary passing test runs do not require this diagnostic workflow.
 
 ## Establish The Cause
 
-Read the relevant runtime contracts and active ADR before changing behavior.
-Start from the failing run's logs, state, and artifacts. Attach each causal claim
-to an observation; label unproven causes as hypotheses whenever repeated. Give
-an independent investigator the symptom and raw evidence, not a cause to confirm.
-For intermittent behavior, report a measured occurrence rate rather than treating
-one passing sample as proof.
+1. **Read contracts and bind run identity.** Read the relevant runtime contracts
+   and active ADR before changing behavior. Bind proof to exact source,
+   binary/image digest, retained-data and harness/browser runner identity. A
+   stale artifact invalidates a final claim. Never source Compose env files as
+   shell programs; pass required variables explicitly without leaking secrets
+   into logs or tracked evidence. Done when source SHA and running image/service
+   identity are recorded:
 
-Form a narrow hypothesis and add telemetry if existing signals cannot test it.
-Use focused local proof; rebuild production binaries before runtime validation.
-Preserve correctness, bounded runtime cost, and intended concurrent behavior.
-A performance-sensitive change needs the impact declaration and applicable proof
-from [performance-rigor](../performance-rigor/SKILL.md) before
-implementation; this skill does not define a second proof ladder.
+   ```bash
+   git rev-parse HEAD
+   docker compose ps --format json
+   ```
 
-Bind proof to exact source, binary/image digest, retained-data and harness/browser
-runner identity. A stale artifact invalidates a final claim. Never source Compose
-env files as shell programs; pass required variables explicitly without leaking
-secrets into logs or tracked evidence.
+2. **Start from raw failing evidence.** Start from the failing run's logs,
+   state, and artifacts. Attach each causal claim to an observation; label
+   unproven causes as hypotheses whenever repeated. Give an independent
+   investigator the symptom and raw evidence, not a cause to confirm. For
+   intermittent behavior, report a measured occurrence rate rather than treating
+   one passing sample as proof. Done when each candidate cause links to raw
+   observed output or is explicitly marked as a hypothesis.
+
+3. **Test one narrow hypothesis.** Form a narrow hypothesis and add telemetry if
+   existing signals cannot test it. Use focused local proof; rebuild production
+   binaries before runtime validation. Preserve correctness, bounded runtime
+   cost, and intended concurrent behavior. A performance-sensitive change needs
+   the impact declaration and applicable proof from
+   [performance-rigor](../performance-rigor/SKILL.md) before implementation;
+   this skill does not define a second proof ladder. Done when a rebuilt local
+   reproduction confirms or rejects the hypothesis.
 
 ## Read The Relevant Procedure
 

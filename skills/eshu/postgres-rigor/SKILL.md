@@ -96,23 +96,31 @@ is a Postgres read, claim, lock, or completion statement.
 
 ## Tests And Gates
 
-- Use TDD for SQL or schema behavior changes.
-- Add focused storage tests for predicate/lifecycle fixes.
-- Add integration or fixture-plan evidence for query-plan/index changes.
-- `AS MATERIALIZED` is load-bearing only when measured query shape shows an
-  inlinable CTE would duplicate expensive work or otherwise change the intended
-  plan. In PostgreSQL 12 and newer, side-effect-free CTEs referenced more than
-  once are materialized by default; single-reference side-effect-free CTEs are
-  normally folded unless explicitly marked materialized. Assert explicit
-  materialization in a query-shape test only when the measured shape makes that
-  marker part of the contract.
-- Freeze a differential's expected query by DERIVING it from the shipped query
-  constant (truncate at a stable boundary marker, append a read-only tail), never
-  by hand-copying — a hand-frozen copy drifts and goes false-green. Add a hermetic
-  prefix guard asserting the derived string is a byte-prefix of production.
-- Run affected `go/internal/storage/postgres` tests and `git diff --check`.
-- Evidence markers and gates: `performance-rigor` owns the marker format and
-  the verify scripts; follow it for hot-path evidence.
+1. **Write failing storage tests first (TDD).** Add focused storage tests for
+   predicate and lifecycle fixes, and integration or fixture-plan evidence for
+   query-plan or index changes. Done when the test fails on the bug and passes
+   with the fix.
+2. **Guard query-shape and differential contracts.** `AS MATERIALIZED` is
+   load-bearing only when measured query shape shows an inlinable CTE would
+   duplicate expensive work or otherwise change the intended plan. In PostgreSQL
+   12 and newer, side-effect-free CTEs referenced more than once are
+   materialized by default; single-reference side-effect-free CTEs are normally
+   folded unless explicitly marked materialized. Assert explicit materialization
+   in a query-shape test only when the measured shape makes that marker part of
+   the contract. Freeze a differential's expected query by DERIVING it from the
+   shipped query constant (truncate at a stable boundary marker, append a
+   read-only tail), never by hand-copying — a hand-frozen copy drifts and goes
+   false-green. Add a hermetic prefix guard asserting the derived string is a
+   byte-prefix of production. Done when prefix and shape guards pass.
+3. **Run affected storage tests and evidence checks.** Run affected
+   `go/internal/storage/postgres` tests and `git diff --check`; follow
+   `performance-rigor` for hot-path evidence markers and verify scripts:
 
-Done means the report states the exact slow or wrong layer, the evidence used,
-the rejected hypotheses, and why any SQL/index/transaction change is justified.
+   ```bash
+   (cd go && go test ./internal/storage/postgres/... -count=1)
+   git diff --check
+   ```
+
+   Done when the storage tests and diff check exit 0, and the report states the
+   exact slow or wrong layer, the evidence used, the rejected hypotheses, and
+   why any SQL/index/transaction change is justified.

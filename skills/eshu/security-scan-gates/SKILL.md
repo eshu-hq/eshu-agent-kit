@@ -17,24 +17,34 @@ not cost another multi-hour diagnosis.
 Local-vs-CI drift was the single biggest time sink. Before concluding a gate is
 clean:
 
-- **Match the pinned tool version.** `aquasecurity/trivy-action@<v>` pins a
-  specific trivy binary (e.g. v0.36.0 -> trivy 0.70.0; the run log prints
-  "current version is 0.70.0"). A brew/`@latest` trivy can rate the same rule
-  differently (its misconfig **checks bundle** is downloaded separately and
-  versioned independently). Install the pinned version to reproduce.
-- **Match the flags exactly**, including how they are passed (CLI flag vs the
-  action's env var). A CLI `--severity` filter behaves differently from the
-  action's `severity:` input — see the trivy trap below.
-- **CI scans the PR merge commit** (`refs/pull/<n>/merge`), which folds in
-  current `main`. Pull the exact findings from the uploaded SARIF:
-  `gh api -H "Accept: application/sarif+json" repos/eshu-hq/eshu/code-scanning/analyses/<id>`
-  and read each rule's `properties.security-severity` — the result `level`
-  (note/warning/error) compresses the real score.
-- A `-no-fail` local run does NOT prove the gate passes (it suppresses the exit
-  code). Verify the gate the way CI does. Exception: the gosec SARIF
-  count-gate in [gosec suppressions](references/gosec-nosec.md) is the one
-  sanctioned `-no-fail` use — there the gate is the `jq` result count, not
-  the exit code.
+1. **Match the pinned tool version.** `aquasecurity/trivy-action@<v>` pins a
+   specific trivy binary (e.g. v0.36.0 -> trivy 0.70.0; the run log prints
+   "current version is 0.70.0"). A brew/`@latest` trivy can rate the same rule
+   differently (its misconfig **checks bundle** is downloaded separately and
+   versioned independently). Install the pinned version to reproduce; done when
+   your local binary version matches the CI run log.
+2. **Match the flags exactly**, including how they are passed (CLI flag vs the
+   action's env var). A CLI `--severity` filter behaves differently from the
+   action's `severity:` input — see [Trivy](references/trivy.md). Done when
+   local flags mirror `.github/workflows/security-scan.yml`.
+3. **Inspect the CI merge-commit SARIF.** CI scans the PR merge commit
+   (`refs/pull/<n>/merge`), which folds in current `main`. Pull the exact
+   findings from the uploaded SARIF and read each rule's
+   `properties.security-severity` (the result `level` of note/warning/error
+   compresses the real score); done when every failing rule ID and score is
+   extracted:
+
+   ```bash
+   gh api -H "Accept: application/sarif+json" \
+     repos/eshu-hq/eshu/code-scanning/analyses/<id>
+   ```
+
+4. **Verify exit behavior the way CI does.** A `-no-fail` local run does NOT
+   prove the gate passes (it suppresses the exit code). Exception: the gosec
+   SARIF count-gate in [gosec suppressions](references/gosec-nosec.md) is the
+   one sanctioned `-no-fail` use — there the gate is the `jq` result count, not
+   the exit code. Done when the scanner exits 0 (or the gosec SARIF count is 0)
+   against the pinned tool and flags.
 
 Re-check the run logs after any toolchain bump; version pins below rot fast.
 

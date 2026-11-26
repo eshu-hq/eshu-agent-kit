@@ -114,6 +114,17 @@ The same rule holds without a rebase: a red gate on paths the diff never
 touches is reproduced on the bare base and recorded as an inherited-breakage
 disposition, never silently ignored.
 
+```bash
+# Run from repo root — pre-check PR body shape and select blocking gates for changed paths:
+bash .agents/skills/publish/scripts/check-shape.sh --pr <body-file>
+bash scripts/dev/select-gates.sh --base origin/main --tier pre-pr --explain
+
+# First-push promotion sequence after focused proof and clean preliminary review:
+ci-gates review-attest capture --verdict <verdict-file>
+make pre-push
+ci-gates review-attest verify
+```
+
 ## Rebase Waiver
 
 The owner set this rule on 2026-10-09 and widened it on 2026-10-24 and

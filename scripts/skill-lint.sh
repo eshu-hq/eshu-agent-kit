@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025-2026 eshu-hq
 #
-# skill-lint.sh - content linter for skills/**/SKILL.md (#81).
+# skill-lint.sh - content linter for skills/**/SKILL.md (#81, #102).
 #
-# Usage: bash scripts/skill-lint.sh [--baseline <file>] [<path> ...]
+# Usage: bash scripts/skill-lint.sh [--baseline <file>] [--json] [<path> ...]
 #
 # With no paths, scans skills/*/SKILL.md and skills/*/*/SKILL.md
 # (today: skills/eshu/*/SKILL.md; tomorrow also skills/core/*/SKILL.md).
@@ -27,6 +27,9 @@
 #             are out of scope.
 #   SKILL005  Size cap: at most 500 lines and 32768 bytes. Matches the
 #             repo 500-line cap; oversized skills split like code does.
+#   SKILL009  Description token budget (always-loaded catalog footprint):
+#             Tier 1 error above 600 chars (~150 est. tokens); Tier 2
+#             advisory above 400 chars (~100 est. tokens) through 600.
 #
 # Tier 2 (advisory): the Uber-distilled body shape. Printed, never
 # blocking. Existing skills carry per-skill exemptions with reasons in
@@ -40,14 +43,18 @@
 #             recovery, troubleshooting, failure, mistake, gotcha,
 #             fallback, or rollback path. A heading alone and a bare
 #             "try again" do not count.
+#   SKILL010  Progressive disclosure: SKILL.md over 200 lines with
+#             neither a references/ nor a scripts/ subdirectory.
 #
 # Output is shellcheck-style: <file>:<line>: <RULE> (<tier>): <detail>.
+# Pass --json to emit a single JSON summary object on stdout instead.
 set -euo pipefail
 export LC_ALL=C
 
 KIT_DIR="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null ||
 	(cd "$(dirname "$0")/.." && pwd))"
 BASELINE="${KIT_DIR}/scripts/skill-lint-baseline.tsv"
+json_mode=0
 
 targets=()
 while (($# > 0)); do
@@ -55,6 +62,10 @@ while (($# > 0)); do
 	--baseline)
 		BASELINE="${2:?--baseline needs a file}"
 		shift 2
+		;;
+	--json)
+		json_mode=1
+		shift
 		;;
 	-h | --help)
 		sed -n '5,8p' "$0" | sed 's/^# \{0,1\}//'
@@ -96,8 +107,21 @@ advisories=0
 suppressed=0
 checked=0
 
+json_records=""
+if ((json_mode == 1)); then
+	json_records="$(mktemp)"
+	trap 'rm -f "${json_records}"' EXIT
+fi
+jrec() {
+	printf '%s\0' "$@" >>"${json_records}"
+}
+
 err() { # file line rule detail
-	printf '%s:%s: %s (error): %s\n' "$1" "$2" "$3" "$4"
+	if ((json_mode == 1)); then
+		jrec E "$2" "$3" "$4"
+	else
+		printf '%s:%s: %s (error): %s\n' "$1" "$2" "$3" "$4"
+	fi
 	errors=$((errors + 1))
 }
 adv() { # skill file line rule detail
@@ -105,7 +129,11 @@ adv() { # skill file line rule detail
 		suppressed=$((suppressed + 1))
 		return 0
 	fi
-	printf '%s:%s: %s (advisory): %s\n' "$2" "$3" "$4" "$5"
+	if ((json_mode == 1)); then
+		jrec A "$3" "$4" "$5"
+	else
+		printf '%s:%s: %s (advisory): %s\n' "$2" "$3" "$4" "$5"
+	fi
 	advisories=$((advisories + 1))
 }
 norm_label() { # canonicalize a reference label the CommonMark way
@@ -117,6 +145,9 @@ for skill_file in "${files[@]}"; do
 	rel="${skill_file#"${KIT_DIR}"/}"
 	skill="$(basename "$(dirname "${skill_file}")")"
 	checked=$((checked + 1))
+	if ((json_mode == 1)); then
+		jrec S "${skill}" "${rel}"
+	fi
 
 	if [[ ! -f "${skill_file}" ]]; then
 		err "${rel}" 1 SKILL001 "no such SKILL.md"
@@ -128,20 +159,55 @@ for skill_file in "${files[@]}"; do
 	name=""
 	name_line=1
 	desc=""
+	desc_line=1
 	if [[ "$(head -n 1 "${skill_file}")" == "---" ]]; then
 		end="$(awk 'NR>1 && /^---$/{print NR; exit}' "${skill_file}")"
 		if [[ -n "${end}" ]]; then
 			body_start=$((end + 1))
 			name="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{sub(/^name:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
 			name_line="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{print NR; exit}' "${skill_file}")"
-			desc="$(awk -v e="${end}" 'NR>1 && NR<e && /^description:[[:space:]]*/{sub(/^description:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
+			desc="$(awk -v e="${end}" -v sq="'" '
+				NR>1 && NR<e {
+					if (in_desc) {
+						if (/^[[:space:]]*$/) { next }
+						if (/^[[:space:]]+/) {
+							line = $0
+							gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+							out = (out == "" ? line : out " " line)
+							next
+						}
+						exit
+					}
+					if (/^description:[[:space:]]*/) {
+						val = $0
+						sub(/^description:[[:space:]]*/, "", val)
+						sub(/[[:space:]]+$/, "", val)
+						if (val ~ /^[>|]([+-]?[0-9]*|[0-9]*[+-]?)$/ || val == "") {
+							in_desc = 1
+							next
+						}
+						sub(/^[>|]([+-]?[0-9]*|[0-9]*[+-]?)[[:space:]]+/, "", val)
+						if (length(val) >= 2 && ((substr(val, 1, 1) == "\"" && substr(val, length(val), 1) == "\"") || (substr(val, 1, 1) == sq && substr(val, length(val), 1) == sq))) {
+							val = substr(val, 2, length(val) - 2)
+						}
+						out = val
+						exit
+					}
+				}
+				END { print out }
+			' "${skill_file}")"
+			desc_line="$(awk -v e="${end}" 'NR>1 && NR<e && /^description:[[:space:]]*/{print NR; exit}' "${skill_file}")"
 		fi
 	fi
 	name="$(printf '%s' "${name}" | sed -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 	desc="$(printf '%s' "${desc}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 	[[ -z "${name_line}" ]] && name_line=1
+	[[ -z "${desc_line}" ]] && desc_line=1
+	desc_chars=${#desc}
+	est_desc_tokens=$(((desc_chars + 3) / 4))
 
-	# SKILL001 / SKILL002: frontmatter name and description present.
+	# SKILL001 / SKILL002 / SKILL009: frontmatter name, description, and
+	# always-loaded description token budget.
 	if [[ -z "${name}" ]]; then
 		err "${rel}" 1 SKILL001 "frontmatter carries no non-empty name: field"
 	else
@@ -152,6 +218,10 @@ for skill_file in "${files[@]}"; do
 	fi
 	if [[ -z "${desc}" ]]; then
 		err "${rel}" 1 SKILL002 "frontmatter carries no non-empty description: field"
+	elif ((desc_chars > 600)); then
+		err "${rel}" "${desc_line}" SKILL009 "frontmatter description is ${desc_chars} chars (~${est_desc_tokens} tokens, cap 600 chars): keep always-loaded descriptions tight"
+	elif ((desc_chars > 400)); then
+		adv "${skill}" "${rel}" "${desc_line}" SKILL009 "frontmatter description is ${desc_chars} chars (~${est_desc_tokens} tokens, target <=400 chars / ~100 tokens)"
 	fi
 
 	# SKILL004: every relative link target resolves, inline or
@@ -224,8 +294,20 @@ for skill_file in "${files[@]}"; do
 		err "${rel}" 1 SKILL005 "SKILL.md is ${lines} lines / ${bytes} bytes (cap 500 lines / 32768 bytes): split it"
 	fi
 
+	# SKILL010: progressive disclosure for longer skills.
+	skill_dir="$(dirname "${skill_file}")"
+	has_references=false
+	[[ -d "${skill_dir}/references" ]] && has_references=true
+	has_scripts=false
+	[[ -d "${skill_dir}/scripts" ]] && has_scripts=true
+	if ((lines > 200)) && [[ "${has_references}" == "false" && "${has_scripts}" == "false" ]]; then
+		adv "${skill}" "${rel}" 1 SKILL010 "SKILL.md is ${lines} lines with no references/ or scripts/ split: move reference tables or scripts on demand"
+	fi
+
 	# Tier 2 runs over the body only (after frontmatter).
 	body="$(tail -n +"${body_start}" "${skill_file}")"
+	body_bytes="$(tail -n +"${body_start}" "${skill_file}" | wc -c | tr -d ' ')"
+	est_body_tokens=$(((body_bytes + 3) / 4))
 
 	# SKILL006: at least one numbered step.
 	if ! printf '%s' "${body}" | rg -q '^[0-9]+\. '; then
@@ -243,8 +325,74 @@ for skill_file in "${files[@]}"; do
 	if [[ -z "${recovery_left}" || "${recovery_left}" == "0" ]]; then
 		adv "${skill}" "${rel}" 1 SKILL008 "no error-recovery section: name the failure path and the fix (\"try again\" does not count)"
 	fi
+
+	if ((json_mode == 1)); then
+		jrec M "${lines}" "${bytes}" "${desc_chars}" "${est_desc_tokens}" "${est_body_tokens}" "${has_references}" "${has_scripts}"
+	fi
 done
 
-printf 'skill-lint: %s files, %s errors, %s advisories (%s suppressed by baseline)\n' \
-	"${checked}" "${errors}" "${advisories}" "${suppressed}"
+if ((json_mode == 1)); then
+	python3 - "${json_records}" "${checked}" "${errors}" "${advisories}" "${suppressed}" <<'PY'
+import json
+import sys
+
+rec_path, checked, errors, advisories, suppressed = sys.argv[1:6]
+with open(rec_path, "rb") as fh:
+    raw = fh.read()
+tokens = [t.decode("utf-8", errors="replace") for t in raw.split(b"\x00")]
+if tokens and tokens[-1] == "":
+    tokens.pop()
+
+skills = []
+i = 0
+while i < len(tokens):
+    tag = tokens[i]
+    if tag == "S":
+        skills.append({
+            "skill": tokens[i + 1],
+            "path": tokens[i + 2],
+            "lines": 0,
+            "bytes": 0,
+            "desc_chars": 0,
+            "est_desc_tokens": 0,
+            "est_body_tokens": 0,
+            "has_references": False,
+            "has_scripts": False,
+            "errors": [],
+            "advisories": [],
+        })
+        i += 3
+    elif tag == "M":
+        cur = skills[-1]
+        cur["lines"] = int(tokens[i + 1])
+        cur["bytes"] = int(tokens[i + 2])
+        cur["desc_chars"] = int(tokens[i + 3])
+        cur["est_desc_tokens"] = int(tokens[i + 4])
+        cur["est_body_tokens"] = int(tokens[i + 5])
+        cur["has_references"] = tokens[i + 6] == "true"
+        cur["has_scripts"] = tokens[i + 7] == "true"
+        i += 8
+    elif tag in ("E", "A"):
+        key = "errors" if tag == "E" else "advisories"
+        skills[-1][key].append({
+            "line": int(tokens[i + 1]),
+            "rule": tokens[i + 2],
+            "detail": tokens[i + 3],
+        })
+        i += 4
+    else:
+        raise SystemExit(f"unexpected record tag: {tag!r}")
+
+print(json.dumps({
+    "checked": int(checked),
+    "errors": int(errors),
+    "advisories": int(advisories),
+    "suppressed": int(suppressed),
+    "skills": skills,
+}, indent=2))
+PY
+else
+	printf 'skill-lint: %s files, %s errors, %s advisories (%s suppressed by baseline)\n' \
+		"${checked}" "${errors}" "${advisories}" "${suppressed}"
+fi
 exit "$((errors > 0 ? 1 : 0))"

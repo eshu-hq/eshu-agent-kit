@@ -107,7 +107,12 @@ red result:
   `golden-corpus-rigor` for cassette/snapshot mechanics.
 
 Do not guess a gate's script name -- look up its `local.command` (and
-`test_command`) by `id` in `specs/ci-gates.v1.yaml` before running it.
+`test_command`) by `id` in `specs/ci-gates.v1.yaml` before running it:
+
+```bash
+(cd go && go test ./internal/reducer/... ./internal/projector/... ./internal/query/... -count=1)
+rg -n -A 8 'id: ifa-(materialized-edge-coverage|determinism|contract-layer)' specs/ci-gates.v1.yaml
+```
 
 ## Direct Graph Truth Checks
 
@@ -129,6 +134,12 @@ Do not infer truth from logs, confidence scores, or reducer completion alone.
 - Validating only one happy-path service repo
 - Accepting repo-name or namespace coincidence as deployment truth
 - Fixing API output while leaving the graph semantically wrong
+
+## Failure And Recovery
+
+- **When tests pass, but direct graph inspection or query output disagrees:** trace the record from extraction through correlation, admission, materialization, and projection; fix the owning stage rather than patching API output, then recover with a fresh compose run.
+- **When a stale container or reducer run hides a regression:** rebuild and restart compose from a clean state after the final logic patch before accepting graph or API output as proof.
+- **When `ifa-determinism` fails on retry while one-shot tests pass:** inspect the graph write for non-idempotent edge/node mutation or order-dependent state, fix the projection write, and rerun the gate's `local.command` from `specs/ci-gates.v1.yaml`.
 
 ## Done Criteria
 

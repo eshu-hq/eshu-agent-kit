@@ -68,24 +68,30 @@ When those disagree, the answer is "assume alive": leave it and keep working.
 Heads move while a request is in flight, so a request can arrive after the
 state it describes is gone. This applies across every playbook.
 
-- Put one line in every message that carries a verdict, handoff, ruling, or
-  request about a branch: `HEAD=<sha> BASE=<sha> RE:<request-id>`. Put it first,
-  after any status token the message must start with, such as `RULING:` or
-  `BLOCKED:`.
-- Name the branch in the same message. `HEAD` is `git rev-parse HEAD` in that
-  branch's worktree. `BASE` is `git merge-base HEAD origin/main`. A prefix of
-  10 or more characters matches.
-- Include the verified absolute worktree path from
-  `git worktree list --porcelain` in every subagent or review brief about a
-  branch; never pass a guessed `.worktrees/<branch>` path without verifying it
-  exists on disk. Done when the brief names a path present in
-  `git worktree list --porcelain`.
-- The sender chooses a short request id. The reply copies it.
-- If a request names a `HEAD` that is not the current tip of that branch,
-  reply `STALE` with the current tip. Do not start the work. If the named
-  worktree path does not exist on disk, check `git worktree list --porcelain`
-  (or reply `STALE` when read-only without shell access) instead of probing
-  guessed paths.
+1. **Resolve branch HEAD, BASE, and verified worktree path.** Measure `HEAD`,
+   `BASE`, and the live worktree path in the branch's worktree rather than
+   guessing `.worktrees/<branch>`:
+
+   ```bash
+   git rev-parse HEAD
+   git merge-base HEAD origin/main
+   git worktree list --porcelain
+   ```
+
+   Done when the brief names a path present in `git worktree list --porcelain`
+   and a 10+ character `HEAD` and `BASE` SHA.
+2. **Stamp the head line first.** Put one line in every message that carries a
+   verdict, handoff, ruling, or request about a branch:
+   `HEAD=<sha> BASE=<sha> RE:<request-id>`. Put it first, after any status token
+   the message must start with, such as `RULING:` or `BLOCKED:`, and name the
+   branch in the same message. Done when the sender picks a short request id and
+   the reply copies it.
+3. **Reject stale requests before starting work.** If a request names a `HEAD`
+   that is not the current tip of that branch, reply `STALE` with the current
+   tip and do not start the work. If the named worktree path does not exist on
+   disk, check `git worktree list --porcelain` (or reply `STALE` when read-only
+   without shell access) instead of probing guessed paths. Done when work begins
+   only on a live, matching tip and path.
 
 ## Common mistakes
 

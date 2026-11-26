@@ -153,6 +153,20 @@ design exists to protect (design doc section 1): a collector that renames or
 drops a payload key must produce a visible, classified failure instead of a
 wrong graph identity that looks fine until someone traces it back.
 
+## Workflow
+
+1. Confirm whether the change touches a fact kind, payload shape, `sdk/go/factschema`, `sdk/go/collector`, `specs/fact-kind-registry.v1.yaml`, or a fixture pack; if not, stop and skip this checklist.
+2. Classify the schema change as **Major**, **Minor**, or **Patch** against the policy above; done when any Major change includes a decode conversion shim in `sdk/go/factschema` and no reducer handler branches on `schema_version`.
+3. Update declarations and lockstep fixture packs (adding `golden-corpus-rigor` when cassettes or the B-12 snapshot also change), never hand-editing generated registry YAML; done when typed structs and `factschema.Decode*` seams match every changed field.
+4. Run the blocking contract gates below from the repo root; done when every touched gate exits 0 (if a cited script is absent in the checkout, stop and report which gate could not run):
+
+```bash
+bash scripts/verify-factschema-diff.sh
+bash scripts/verify-payload-usage-manifest.sh
+bash scripts/verify-fact-kind-registry.sh
+bash scripts/verify-contracttest.sh
+```
+
 ## Out of scope / related
 
 - Editing `go/internal/reducer` handler logic, collector internals, or

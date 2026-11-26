@@ -103,6 +103,14 @@ fixture.
 
 ## Validate
 
+1. Update the matching cassette under `testdata/cassettes/<collector>/` or
+   fixture under `tests/fixtures/ecosystems/` together with
+   `testdata/golden/e2e-20repo-snapshot.json` (and `-required-correlations` in
+   `scripts/verify-golden-corpus-gate.sh` for any new `rc-NN`) in the same
+   change. Done when code and golden fixtures reflect the same intended truth.
+2. Run the fast unit and static contract mirror, then the full live Docker B-7
+   gate on Neo4j:
+
 ```bash
 # unit + static contract (fast, no Docker) -- gate id: golden-corpus-mirror
 cd go && go test ./cmd/golden-corpus-gate/ -count=1
@@ -113,10 +121,23 @@ bash scripts/test-verify-golden-corpus-gate.sh
 ESHU_GRAPH_BACKEND=neo4j bash scripts/verify-golden-corpus-gate.sh
 ```
 
-The full run is the proof. Terminal shape is `N pass, 0 required-fail,
-0 advisory-warn` plus `PASS: B-7 golden corpus gate green`. Do not call a
-pipeline change done until the gate is green with your fixture update. Never
-`docker compose down -v` while a gate run is live (it kills the run's backends).
+3. Confirm the full live run prints `N pass, 0 required-fail, 0 advisory-warn`
+   and `PASS: B-7 golden corpus gate green`. Never run `docker compose down -v`
+   while a gate run is live (it kills the run's backends). Done when the live
+   gate exits 0 with your updated fixtures.
+
+## Failure And Recovery
+
+- **0-node gate failure:** inspect `fact_kind` verbatim spelling and cross-fact
+  literal join keys in the cassette before blaming the graph writer; fix the
+  mismatch and rerun `scripts/verify-golden-corpus-gate.sh`.
+- **New `rc-NN` silently skipped (false green):** add the correlation ID to both
+  `testdata/golden/e2e-20repo-snapshot.json` and `-required-correlations` in
+  `scripts/verify-golden-corpus-gate.sh`, then re-verify with the mirror and
+  live gate.
+- **Count or shape diff fails after a pipeline change:** determine whether the
+  code regressed or the snapshot drifted; fix the code or update the golden
+  fixture under review rather than loosening tolerances, then rerun until green.
 
 ## Out of scope / related
 
