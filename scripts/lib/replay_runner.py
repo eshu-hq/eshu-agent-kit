@@ -99,8 +99,10 @@ def isolated_workspace(workspace=None):
                     cleanup_err = RuntimeError("git worktree cleanup failed: %s" % (prn.stderr or rem.stderr or "").strip()[-200:])
         else:
             shutil.rmtree(parent, ignore_errors=True)
-        if cleanup_err is not None:
+        if cleanup_err is not None and sys.exc_info()[0] is None:
             raise cleanup_err
+        if cleanup_err is not None:
+            sys.stderr.write("replay-runner: %s\n" % cleanup_err)
 
 
 def build_harness_cmd(
@@ -432,19 +434,17 @@ def main(argv):
         if prompt_file and os.path.isfile(prompt_file):
             with open(prompt_file, encoding="utf-8") as fh:
                 prompt = fh.read()
-        iso_stub = workspace or "/tmp/replay-workspace"
-        pf_stub = prompt_file or "/tmp/replay-prompt.txt"
-        cmd, _, _ = build_harness_cmd(
-            harness, mode, skill, skill_path, prompt, iso_stub, pf_stub, model
-        )
-        payload = {"harness": harness, "mode": mode, "skill": skill, "skill_path": skill_path, "cmd": cmd}
-        print(json.dumps(payload, indent=2))
+        cmd, _, _ = build_harness_cmd(harness, mode, skill, skill_path, prompt, workspace or "/tmp/replay-workspace", prompt_file or "/tmp/replay-prompt.txt", model)
+        print(json.dumps({"harness": harness, "mode": mode, "skill": skill, "skill_path": skill_path, "cmd": cmd}, indent=2))
         return
 
     if not prompt_file or not out:
         _fail("need --prompt-file and --out (or pass --dry-run-cmd)", 2)
-    with open(prompt_file, encoding="utf-8") as fh:
-        prompt = fh.read()
+    try:
+        with open(prompt_file, encoding="utf-8") as fh:
+            prompt = fh.read()
+    except OSError as exc:
+        _fail("cannot read prompt file %s: %s" % (prompt_file, exc), 1)
 
     try:
         with isolated_workspace(workspace or None) as iso_dir:

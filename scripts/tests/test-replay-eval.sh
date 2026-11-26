@@ -486,6 +486,8 @@ PYEOF
 	git -C "${work}" init -q empty-repo &&
 	! bash "${RUNNER}" --harness claude --mode without-skill --skill code-review \
 		--workspace "${work}/empty-repo" --prompt-file "${work}/p.txt" --out "${work}/empty.json" 2>&1 | rg -q "Traceback" &&
+	! bash "${RUNNER}" --harness claude --mode without-skill --skill code-review \
+		--prompt-file "${work}/missing-prompt.txt" --out "${work}/miss.json" 2>&1 | rg -q "Traceback" &&
 	ok "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass" || no "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass"
 
 if [ "${failed}" -gt 0 ]; then
