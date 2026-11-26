@@ -75,9 +75,10 @@ Read `$WORK/aggregate.json` — it contains:
 - `meta` (totals, active days, git repo rollups, excluded fixtures)
 - `by_harness` (per-harness top/all sessions, facets, prompts, tool calls, errors)
 - `hooks` (`goal_done`, `goal_released`, `model_failures`, `nudge_blocked`)
-- `charts` (all 14 deterministic distributions, incl. prompt_distribution, + multi-agent parallel overlap + UTC hour counts)
+- `charts` (all 14 deterministic distributions, incl. prompt_distribution, + multi-agent parallel overlap + UTC hour counts; `median_response_gap_s_by_harness` sits beside the global median)
 - `interjections` (follow-up rates, per-harness medians, top steered sessions; zero-prompt sessions named so rates read as lower bounds)
-- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share)
+- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share, plus cost columns `attributed_tokens_in/out/total`, `attributed_errors`, `token_bearing_sessions`)
+- `skill_costs` (`per_skill` cost ranking, `by_harness` token rollup, explicit `unattributed` totals, `totals`, and equal-split caveats; sessions with no loaded skill land in `unattributed`; agy usage is not mined, Muse usage is subagent-observed; per-harness figures are never ranked against each other)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 
 ### Step 4: Synthesize Usage-Driven Recommendations & Render HTML
