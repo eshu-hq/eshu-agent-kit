@@ -69,7 +69,7 @@ bash "$KIT/scripts/debrief.sh" cache-write /path/to/batch-01-facets.json
 bash "$KIT/scripts/debrief.sh" aggregate --days 30 --repo "$PWD" --out "$WORK/aggregate.json"
 ```
 
-Pass `--log` for extra machine logs, additional `--repo` flags for other active repos, and the same `--since`/`--project`/`--harness` flags used in Step 1.
+Pass `--log` for extra machine logs, additional `--repo` flags for other active repos, and the same `--since`/`--project`/`--harness` flags used in Step 1. Pass `--papercuts FILE` with a snapshot exported via `gh issue list --label papercut --json number,title,body,state,stateReason > FILE` (aggregate itself makes no live `gh` calls); a later run on a fresh snapshot confirms a finding fixed when its issue closes.
 
 Read `$WORK/aggregate.json` — it contains:
 - `meta` (totals, active days, git repo rollups, excluded fixtures)
@@ -77,7 +77,8 @@ Read `$WORK/aggregate.json` — it contains:
 - `hooks` (`goal_done`, `goal_released`, `model_failures`, `nudge_blocked`)
 - `charts` (all 14 deterministic distributions, incl. prompt_distribution, + multi-agent parallel overlap + UTC hour counts; `median_response_gap_s_by_harness` sits beside the global median)
 - `interjections` (follow-up rates, per-harness medians, top steered sessions; zero-prompt sessions named so rates read as lower bounds)
-- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share, plus cost columns `attributed_tokens_in/out/total`, `attributed_errors`, `token_bearing_sessions`)
+- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share, plus cost columns `attributed_tokens_in/out/total`, `attributed_errors`, `token_bearing_sessions`, plus `papercut_filed`/`papercut_fixed` when `--papercuts` is passed)
+- `papercuts` (per-skill findings counts filed vs fixed joined on the `skill:` body line, plus totals and the unmatched-without-skill count; `null` without `--papercuts`)
 - `skill_costs` (`per_skill` cost ranking, `by_harness` token rollup, explicit `unattributed` totals, `totals`, and equal-split caveats; sessions with no loaded skill land in `unattributed`; agy usage is not mined, Muse usage is subagent-observed; per-harness figures are never ranked against each other)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 

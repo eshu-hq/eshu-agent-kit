@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import (  # noqa: E402
     atomic_write_json,
+    canon_skill,
     default_cache_dir,
     default_usage_log,
     read_json,
@@ -202,6 +203,61 @@ def interjection_stats(top_metas):
     }
 
 
+PAPERCUT_SKILL_RE = re.compile(r"^\s*skill\s*:\s*[`'\"]?([A-Za-z0-9_.:-]+)", re.IGNORECASE | re.MULTILINE)
+
+
+def papercut_stats(path):
+    """Per-skill papercut filed vs fixed from a caller-supplied snapshot file.
+
+    The snapshot is JSON exported out of band (e.g. ``gh issue list --label
+    papercut --json number,title,body,state,stateReason``), either a bare
+    array or ``{"issues": [...]}``. The join key is the required ``skill:``
+    body line the papercut template asks for; issues without one count as
+    unmatched, never as zero-skill findings. Fixed means CLOSED for a reason
+    other than NOT_PLANNED. This function makes no network calls: aggregate
+    stays offline and reproducible from the snapshot file.
+    """
+
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"aggregate: cannot read --papercuts snapshot {path!r}: {exc}")
+    if isinstance(raw, dict):
+        for key in ("issues", "papercuts"):
+            if isinstance(raw.get(key), list):
+                raw = raw[key]
+                break
+    if not isinstance(raw, list):
+        raise SystemExit(f"aggregate: --papercuts snapshot {path!r} must be a JSON array or {{\"issues\": [...]}}")
+    per_skill = {}
+    unmatched = 0
+    for rec in raw:
+        if not isinstance(rec, dict):
+            unmatched += 1
+            continue
+        match = PAPERCUT_SKILL_RE.search(str(rec.get("body") or ""))
+        skill = canon_skill(match.group(1)) if match else ""
+        if not skill:
+            unmatched += 1
+            continue
+        entry = per_skill.setdefault(skill, {"filed": 0, "fixed": 0})
+        entry["filed"] += 1
+        state = str(rec.get("state") or "").upper()
+        reason = str(rec.get("stateReason") or "").upper()
+        if state == "CLOSED" and reason != "NOT_PLANNED":
+            entry["fixed"] += 1
+    return {
+        "snapshot": path,
+        "total_filed": sum(e["filed"] for e in per_skill.values()),
+        "total_fixed": sum(e["fixed"] for e in per_skill.values()),
+        "unmatched_without_skill": unmatched,
+        "per_skill": dict(sorted(per_skill.items())),
+    }
+
+
 def cmd_aggregate(args):
     since_str, since_ep = resolve_since(args.since, args.days)
     harnesses = parse_harnesses(args.harness)
@@ -336,6 +392,13 @@ def cmd_aggregate(args):
     costs_by_skill = {r["skill"]: r for r in skill_costs["per_skill"]}
     skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills, costs_by_skill)
 
+    papercuts = papercut_stats(getattr(args, "papercuts", "") or "")
+    filed_by_skill = papercuts["per_skill"] if papercuts else {}
+    for row in skill_table:
+        counts = filed_by_skill.get(row["skill"], {"filed": 0, "fixed": 0})
+        row["papercut_filed"] = counts["filed"]
+        row["papercut_fixed"] = counts["fixed"]
+
     repos = [_collect_git_stats(r, since_str) for r in (args.repo or []) if r.strip()]
     today_iso = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     span_from = min(dates) if dates else since_str
@@ -385,6 +448,7 @@ def cmd_aggregate(args):
         "projects": dict(projects.most_common(12)),
         "skill_table": skill_table,
         "skill_costs": skill_costs,
+        "papercuts": papercuts,
         "interjections": interjections,
         "facet_summaries": facet_summaries,
         "not_tracked": [
