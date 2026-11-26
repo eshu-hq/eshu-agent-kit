@@ -5,6 +5,7 @@ import re
 from collections import Counter
 
 from debrief_common import (
+    META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
     epoch_to_iso,
@@ -185,6 +186,7 @@ def extract_session(path, mtime=0.0):
     error_cats = Counter()
     languages = Counter()
     skill_loads = set()
+    skill_first_turn = {}
     subagents = 0
     subagent_roles = Counter()
     session_models = Counter()
@@ -198,6 +200,8 @@ def extract_session(path, mtime=0.0):
     git_pushes = 0
     tokens_in = 0
     tokens_out = 0
+    tokens_cache_read = 0
+    tokens_cache_write = 0
 
     user_prompts = []
     assistant_tail = []
@@ -223,8 +227,14 @@ def extract_session(path, mtime=0.0):
             if isinstance(mdl, str) and mdl:
                 session_models[mdl[:60]] += 1
             usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
-            tokens_in += safe_int(usage.get("input_tokens"), 0)
-            tokens_out += safe_int(usage.get("output_tokens"), 0)
+            inp_tok = max(0, safe_int(usage.get("input_tokens"), 0))
+            cw_tok = max(0, safe_int(usage.get("cache_creation_input_tokens"), 0))
+            cr_tok = max(0, safe_int(usage.get("cache_read_input_tokens"), 0))
+            out_tok = max(0, safe_int(usage.get("output_tokens"), 0))
+            tokens_in += inp_tok + cw_tok + cr_tok
+            tokens_cache_write += cw_tok
+            tokens_cache_read += cr_tok
+            tokens_out += out_tok
             txt_parts = []
             blocks = msg.get("content")
             for block in (blocks if isinstance(blocks, list) else []):
@@ -252,6 +262,7 @@ def extract_session(path, mtime=0.0):
                         sk = canon_skill(inp.get("skill") or "")
                         if sk:
                             skill_loads.add(sk)
+                            skill_first_turn.setdefault(sk, assistants)
                     elif tname in ("Read", "Edit", "Write", "MultiEdit"):
                         fp = str(inp.get("file_path") or "")
                         if fp:
@@ -310,7 +321,12 @@ def extract_session(path, mtime=0.0):
                     user_prompts.append(clean_u)
 
     dur_min = round((last_ep - first_ep) / 60.0, 2) if (first_ep and last_ep and last_ep >= first_ep) else 0.0
+    turns_after_skill_load = {
+        sk: max(1, assistants - first_t + 1)
+        for sk, first_t in sorted(skill_first_turn.items())
+    }
     meta = {
+        "meta_version": META_SCHEMA_VERSION,
         "id": sess_id,
         "harness": "claude",
         "source_path": path,
@@ -344,6 +360,9 @@ def extract_session(path, mtime=0.0):
         "git_pushes": git_pushes,
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
+        "tokens_cache_read": tokens_cache_read,
+        "tokens_cache_write": tokens_cache_write,
+        "turns_after_skill_load": turns_after_skill_load,
     }
     digest = {
         "session_id": sess_id,

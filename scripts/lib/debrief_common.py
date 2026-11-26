@@ -2,10 +2,12 @@
 """Shared utilities, constants, and facet validation for the /debrief v2 pipeline."""
 import datetime
 import json
+import math
 import os
 import re
 import tempfile
 
+META_SCHEMA_VERSION = 2
 FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
 FIXTURE_SESSION_RE = re.compile(r"^t[0-9]{4,}$")
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -107,9 +109,10 @@ def safe_float(val, default=0.0):
     if isinstance(val, bool) or val is None:
         return default
     try:
-        return float(val)
+        num = float(val)
     except (TypeError, ValueError):
         return default
+    return num if math.isfinite(num) else default
 
 
 def resolve_since(since_str="", days=30):

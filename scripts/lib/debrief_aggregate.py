@@ -2,10 +2,9 @@
 """Debrief v2 aggregation: Stage 1 meta + Stage 2 facets + hook logs + git stats."""
 import datetime
 import json
+import math
 import os
-import re
 import statistics
-import subprocess
 import sys
 from collections import Counter, defaultdict
 
@@ -20,9 +19,16 @@ from debrief_common import (  # noqa: E402
     resolve_since,
     safe_int,
     safe_key,
+    ts_to_epoch,
 )
-from debrief_hooks import _aggregate_hooks, _read_hook_events  # noqa: E402
-from debrief_skill_costs import attribute_skill_costs, gap_stats  # noqa: E402
+from debrief_hooks import (  # noqa: E402
+    _aggregate_hooks,
+    _collect_git_stats,
+    _compute_overlap,
+    _read_hook_events,
+    papercut_stats,
+)
+from debrief_skill_costs import attribute_skill_costs, gap_stats, load_skill_sizes  # noqa: E402
 
 
 def parse_harnesses(raw):
@@ -75,75 +81,6 @@ def project_match(meta, want):
         if w in str(ws).lower():
             return True
     return False
-
-
-def _collect_git_stats(path, since_str):
-    if not os.path.isdir(os.path.join(path, ".git")):
-        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
-    cmd = ["git", "-C", path, "log", "--pretty=%H %P %s", "--numstat"]
-    if since_str:
-        w = since_str + "T00:00:00Z" if re.fullmatch(r"\d{4}-\d{2}-\d{2}", since_str) else since_str
-        cmd += ["--since=" + w]
-    try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
-    if out.returncode != 0:
-        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
-    commits = merges = reverts = files = added = deleted = 0
-    for line in out.stdout.splitlines():
-        parts = line.split("\t")
-        if len(parts) == 3 and parts[0].strip().isdigit() and parts[1].strip().isdigit():
-            added += int(parts[0].strip())
-            deleted += int(parts[1].strip())
-            files += 1
-        elif line and not line[0].isspace():
-            m = re.match(r"^[0-9a-f]{40}((?: [0-9a-f]{40})*) (.*)$", line)
-            if not m:
-                continue
-            commits += 1
-            if len(m.group(1).split()) >= 2:
-                merges += 1
-            if m.group(2).lower().startswith("revert"):
-                reverts += 1
-    return {
-        "path": path,
-        "name": os.path.basename(os.path.normpath(path)) or path,
-        "commits": commits,
-        "merges": merges,
-        "reverts": reverts,
-        "files": files,
-        "added": added,
-        "deleted": deleted,
-    }
-
-
-def _compute_overlap(metas):
-    """Detect parallel overlapping top-level sessions (Multi-Agenting)."""
-    intervals = []
-    for m in metas:
-        s, e = m.get("first_epoch"), m.get("last_epoch")
-        if isinstance(s, (int, float)) and isinstance(e, (int, float)) and e > s + 10:
-            intervals.append((s, e, safe_key(m["harness"], m["id"])))
-    intervals.sort()
-    involved = set()
-    overlap_events = 0
-    active = []
-    for s, e, k in intervals:
-        active = [(ae, ak) for ae, ak in active if ae > s]
-        if active:
-            overlap_events += 1
-            involved.add(k)
-            for _, ak in active:
-                involved.add(ak)
-        active.append((e, k))
-    total_msgs = sum(m.get("prompts", 0) for m in metas) or 1
-    ov_msgs = sum(m.get("prompts", 0) for m in metas if safe_key(m["harness"], m["id"]) in involved)
-    return {
-        "overlap_events": overlap_events,
-        "sessions_involved": len(involved),
-        "pct_of_messages": round(100.0 * ov_msgs / total_msgs),
-    }
 
 
 def _prompt_bucket(n):
@@ -203,59 +140,110 @@ def interjection_stats(top_metas):
     }
 
 
-PAPERCUT_SKILL_RE = re.compile(r"^\s*skill\s*:\s*[`'\"]?([A-Za-z0-9_.:-]+)", re.IGNORECASE | re.MULTILINE)
-
-
-def papercut_stats(path):
-    """Per-skill papercut filed vs fixed from a caller-supplied snapshot file.
-
-    The snapshot is JSON exported out of band (e.g. ``gh issue list --label
-    papercut --json number,title,body,state,stateReason``), either a bare
-    array or ``{"issues": [...]}``. The join key is the required ``skill:``
-    body line the papercut template asks for; issues without one count as
-    unmatched, never as zero-skill findings. Fixed means CLOSED for a reason
-    other than NOT_PLANNED. This function makes no network calls: aggregate
-    stays offline and reproducible from the snapshot file.
-    """
-
-    if not path:
+def _opt_float(val):
+    if isinstance(val, bool) or val is None:
         return None
     try:
-        with open(path, encoding="utf-8") as fh:
-            raw = json.load(fh)
-    except (OSError, ValueError) as exc:
-        raise SystemExit(f"aggregate: cannot read --papercuts snapshot {path!r}: {exc}")
-    if isinstance(raw, dict):
-        for key in ("issues", "papercuts"):
-            if isinstance(raw.get(key), list):
-                raw = raw[key]
-                break
-    if not isinstance(raw, list):
-        raise SystemExit(f"aggregate: --papercuts snapshot {path!r} must be a JSON array or {{\"issues\": [...]}}")
+        num = float(val)
+    except (TypeError, ValueError):
+        return None
+    return num if math.isfinite(num) else None
+
+
+def _opt_int(val):
+    if isinstance(val, bool) or val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _should_replace_eval(prev, cand):
+    old_ts, new_ts = prev.get("recorded_at") or "", cand.get("recorded_at") or ""
+    if old_ts and new_ts:
+        old_ep, new_ep = ts_to_epoch(old_ts), ts_to_epoch(new_ts)
+        if old_ep is not None and new_ep is not None:
+            return new_ep >= old_ep
+        if old_ep is not None and new_ep is None:
+            return False
+        if old_ep is None and new_ep is not None:
+            return True
+        return new_ts >= old_ts
+    return bool(new_ts) or not old_ts
+
+
+def eval_stats(paths):
+    """Per-skill replay-eval summary from offline JSON file(s) or directories.
+
+    Accepts a path or sequence of paths. Each file may hold a single JSON
+    object, a JSON array, or ``{"evals": [...]}``; directories expand to
+    sorted ``*.json`` files. Deduplicates per canonical skill keeping the
+    newest ``recorded_at`` (or last when tied/absent). Offline only.
+    """
+    if not paths:
+        return None
+    raw_paths = [paths] if isinstance(paths, str) else list(paths)
+    clean_paths = [p for p in raw_paths if p and str(p).strip()]
+    if not clean_paths:
+        return None
+    files = []
+    for p in clean_paths:
+        if os.path.isdir(p):
+            for fn in sorted(os.listdir(p)):
+                fp = os.path.join(p, fn)
+                if fn.endswith(".json") and os.path.isfile(fp):
+                    files.append(fp)
+        elif os.path.isfile(p):
+            files.append(p)
+        else:
+            raise SystemExit(f"aggregate: cannot read --evals path {p!r}: not found")
     per_skill = {}
-    unmatched = 0
-    for rec in raw:
-        if not isinstance(rec, dict):
-            unmatched += 1
-            continue
-        match = PAPERCUT_SKILL_RE.search(str(rec.get("body") or ""))
-        # Sentence-final periods are prose, not part of the name ("skill:
-        # debrief." joins debrief); other terminators already stop the capture.
-        skill = canon_skill(match.group(1).rstrip(".")) if match else ""
-        if not skill:
-            unmatched += 1
-            continue
-        entry = per_skill.setdefault(skill, {"filed": 0, "fixed": 0})
-        entry["filed"] += 1
-        state = str(rec.get("state") or "").upper()
-        reason = str(rec.get("stateReason") or "").upper()
-        if state == "CLOSED" and reason != "NOT_PLANNED":
-            entry["fixed"] += 1
+    loaded = skipped = 0
+    for fp in files:
+        try:
+            with open(fp, encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f"aggregate: cannot read --evals file {fp!r}: {exc}")
+        if isinstance(raw, list):
+            recs = raw
+        elif isinstance(raw, dict) and isinstance(raw.get("evals"), list):
+            recs = raw["evals"]
+        elif isinstance(raw, dict):
+            recs = [raw]
+        else:
+            raise SystemExit(f"aggregate: --evals file {fp!r} must be a JSON object, array, or {{\"evals\": [...]}}")
+        for rec in recs:
+            if not isinstance(rec, dict):
+                skipped += 1
+                continue
+            skill = canon_skill(str(rec.get("skill") or "").rstrip("."))
+            if not skill:
+                skipped += 1
+                continue
+            loaded += 1
+            entry = {
+                "skill": skill,
+                "win_rate": _opt_float(rec.get("win_rate")),
+                "noise_band": _opt_float(rec.get("noise_band")),
+                "pass_rate_with": _opt_float(rec.get("pass_rate_with")),
+                "pass_rate_without": _opt_float(rec.get("pass_rate_without")),
+                "cross_pairs": _opt_int(rec.get("cross_pairs")),
+                "cost_delta_in": _opt_float(rec.get("cost_delta_in")),
+                "cost_delta_out": _opt_float(rec.get("cost_delta_out")),
+                "latency_delta_s": _opt_float(rec.get("latency_delta_s")),
+                "harness": str(rec.get("harness") or ""),
+                "recorded_at": str(rec.get("recorded_at") or ""),
+            }
+            prev = per_skill.get(skill)
+            if prev is None or _should_replace_eval(prev, entry):
+                per_skill[skill] = entry
     return {
-        "snapshot": path,
-        "total_filed": sum(e["filed"] for e in per_skill.values()),
-        "total_fixed": sum(e["fixed"] for e in per_skill.values()),
-        "unmatched_without_skill": unmatched,
+        "sources": clean_paths,
+        "skills_evaluated": len(per_skill),
+        "records_loaded": loaded,
+        "records_skipped": skipped,
         "per_skill": dict(sorted(per_skill.items())),
     }
 
@@ -356,7 +344,7 @@ def cmd_aggregate(args):
 
     gap_buckets, med_gap, avg_gap, med_gap_by_harness = gap_stats(gaps_with_harness)
     prompt_dist, interjections = interjection_stats(top_metas)
-    skill_costs = attribute_skill_costs(metas.values())
+    skill_costs = attribute_skill_costs(metas.values(), skill_sizes=load_skill_sizes())
     mined_skills = Counter(skill_costs["mined_skills"])
 
     goal_cats = Counter()
@@ -396,10 +384,18 @@ def cmd_aggregate(args):
 
     papercuts = papercut_stats(getattr(args, "papercuts", "") or "")
     filed_by_skill = papercuts["per_skill"] if papercuts else {}
+    evals = eval_stats(getattr(args, "evals", None) or [])
+    evals_by_skill = evals["per_skill"] if evals else {}
     for row in skill_table:
-        counts = filed_by_skill.get(row["skill"], {"filed": 0, "fixed": 0})
+        counts = filed_by_skill.get(row["skill"], {"filed": 0, "open": 0, "fixed": 0})
         row["papercut_filed"] = counts["filed"]
+        row["papercut_open"] = counts.get("open", max(0, counts["filed"] - counts["fixed"]))
         row["papercut_fixed"] = counts["fixed"]
+        ev = evals_by_skill.get(row["skill"]) or {}
+        row["eval_win_rate"] = ev.get("win_rate")
+        row["eval_noise_band"] = ev.get("noise_band")
+        row["eval_pass_rate"] = ev.get("pass_rate_with")
+        row["eval_pairs"] = ev.get("cross_pairs")
 
     repos = [_collect_git_stats(r, since_str) for r in (args.repo or []) if r.strip()]
     today_iso = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
@@ -451,6 +447,7 @@ def cmd_aggregate(args):
         "skill_table": skill_table,
         "skill_costs": skill_costs,
         "papercuts": papercuts,
+        "evals": evals,
         "interjections": interjections,
         "facet_summaries": facet_summaries,
         "not_tracked": [

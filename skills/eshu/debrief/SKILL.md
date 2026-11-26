@@ -24,7 +24,7 @@ bash "$KIT/scripts/debrief.sh" prepare --days 30 --max-new 100 --batch-size 10
 ```
 
 Add `--since`, `--project`, or `--harness` if requested. `prepare`:
-- Extracts/caches Stage 1 metadata (`tools`, `error_categories`, `languages`, `response_gaps`, `message_hours`, `skill_loads`, `git_commits`, `subagents`) incrementally by file `mtime`.
+- Extracts/caches Stage 1 metadata (`tools`, `error_categories`, `languages`, `response_gaps`, `message_hours`, `skill_loads`, `turns_after_skill_load`, `git_commits`, `subagents`, and token/cache usage across all 3 harnesses: Claude `message.usage` + cache read/write, agy `PLANNER_RESPONSE` input/output/cache read, and Muse `model_completed` usage + `duration_ms` with fallback to `subagent.control.runtime_observed`) incrementally by file `mtime`.
 - Auto-imports existing `~/.claude/usage-data/facets/*.json` so Claude sessions are not re-classified.
 - Rolls Muse, `agy`, and Claude child subagents into their parent coordinator digest.
 - Skips trivial sessions (`prompts < 2` and `tool_calls < 3`).
@@ -69,7 +69,7 @@ bash "$KIT/scripts/debrief.sh" cache-write /path/to/batch-01-facets.json
 bash "$KIT/scripts/debrief.sh" aggregate --days 30 --repo "$PWD" --out "$WORK/aggregate.json"
 ```
 
-Pass `--log` for extra machine logs, additional `--repo` flags for other active repos, and the same `--since`/`--project`/`--harness` flags used in Step 1. Pass `--papercuts FILE` with a snapshot exported via `gh issue list --label papercut --json number,title,body,state,stateReason > FILE` (aggregate itself makes no live `gh` calls); a later run on a fresh snapshot confirms a finding fixed when its issue closes.
+Pass `--log` for extra machine logs, additional `--repo` flags for other active repos, and the same `--since`/`--project`/`--harness` flags used in Step 1. Pass `--papercuts FILE` with a snapshot exported via `gh issue list --label papercut --json number,title,body,state,stateReason > FILE` (aggregate itself makes no live `gh` calls); a later run on a fresh snapshot confirms a finding fixed when its issue closes. Pass repeatable `--evals PATH` (a JSON object, JSON array, `{"evals": ...}` wrapper, or directory of `*.json` replay-eval summaries; offline only) to join per-skill eval win rates, noise bands, pass rates, and pair counts (deduplicated per skill keeping newest `recorded_at`).
 
 Read `$WORK/aggregate.json` — it contains:
 - `meta` (totals, active days, git repo rollups, excluded fixtures)
@@ -77,9 +77,10 @@ Read `$WORK/aggregate.json` — it contains:
 - `hooks` (`goal_done`, `goal_released`, `model_failures`, `nudge_blocked`)
 - `charts` (all 14 deterministic distributions, incl. prompt_distribution, + multi-agent parallel overlap + UTC hour counts; `median_response_gap_s_by_harness` sits beside the global median)
 - `interjections` (follow-up rates, per-harness medians, top steered sessions; zero-prompt sessions named so rates read as lower bounds)
-- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share, plus cost columns `attributed_tokens_in/out/total`, `attributed_errors`, `token_bearing_sessions`, plus `papercut_filed`/`papercut_fixed` when `--papercuts` is passed)
-- `papercuts` (per-skill findings counts filed vs fixed joined on the `skill:` body line, plus totals and the unmatched-without-skill count; `null` without `--papercuts`)
-- `skill_costs` (`per_skill` cost ranking, `by_harness` token rollup, explicit `unattributed` totals, `totals`, and equal-split caveats; sessions with no loaded skill land in `unattributed`; agy usage is not mined, Muse usage is subagent-observed; per-harness figures are never ranked against each other)
+- `skill_table` (mined loads vs hook loads vs forced share vs goal stall share, cost columns `attributed_tokens_in/out/total`, `attributed_cache_read/write`, `attributed_errors`, `error_rate_per_session`, `token_bearing_sessions`, latency/tax `median_gap_s`, `median_duration_min`, `estimated_context_tax_tokens`, `papercut_filed`/`papercut_open`/`papercut_fixed` when `--papercuts` is passed, and `eval_win_rate`, `eval_noise_band`, `eval_pass_rate`, `eval_pairs` when `--evals` is passed)
+- `papercuts` (per-skill findings counts `filed`, `open`, and `fixed` joined on the `skill:` body line, plus `total_filed`, `total_open`, `total_fixed`, and `unmatched_without_skill`; `null` without `--papercuts`)
+- `evals` (per-skill replay-eval summaries with `win_rate`, `noise_band`, `pass_rate_with`, `pass_rate_without`, `cross_pairs`, cost/latency deltas, `harness`, `recorded_at`; `null` without `--evals`)
+- `skill_costs` (`per_skill` cost/tax/latency/error attribution, `by_harness` token rollup, explicit `unattributed` totals, `totals`, and equal-split caveats; Claude, agy `PLANNER_RESPONSE`, and Muse main-session `model_completed` tokens are mined while older sessions lacking usage fields report 0; per-harness figures are never ranked against each other)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 
 ### Step 4: Synthesize Usage-Driven Recommendations & Render HTML
@@ -156,7 +157,7 @@ bash "$KIT/scripts/debrief.sh" render \
   --synthesis "$WORK/synthesis.json"
 ```
 
-By default, `render` writes `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and updates `report-latest.html` (override with `--out PATH` when requested). Generated reports are offline (inline CSS/JS, system font stack, zero external requests) and have no artificial line cap.
+By default, `render` writes `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and updates `report-latest.html` (override with `--out PATH` when requested). Under Harnesses & Skill Effectiveness it renders a **Skill Quality Flywheel** summary card (total attributed tokens, top context-tax skill, open vs fixed papercuts when `--papercuts` is passed, and eval-covered skills count when `--evals` is passed) and the **Top Skills (Flywheel Scorecard)** table (`Skill | Mined | Hook | Forced | Cost (tok) | Context Tax | Latency | Errors | Papercuts | Eval Win Rate`). Generated reports are offline (inline CSS/JS, system font stack, zero external requests) and have no artificial line cap.
 
 ### Step 5: Chat Summary
 

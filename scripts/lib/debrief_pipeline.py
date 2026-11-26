@@ -15,6 +15,7 @@ from debrief_aggregate import (  # noqa: E402
     project_match,
 )
 from debrief_common import (  # noqa: E402
+    META_SCHEMA_VERSION,
     atomic_write_json,
     default_cache_dir,
     read_json,
@@ -44,7 +45,9 @@ def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache):
         cd = read_json(os.path.join(dig_dir, key + ".json"))
         if cm and cd:
             cached_mt = float(cm.get("source_mtime") or 0)
-            if abs(cached_mt - mtime) < 0.01 or cached_mt > mtime:
+            if cm.get("meta_version") == META_SCHEMA_VERSION and (
+                abs(cached_mt - mtime) < 0.01 or cached_mt > mtime
+            ):
                 return cm, cd
 
     if harness == "muse":
@@ -293,6 +296,8 @@ def main(argv=None):
     p_agg.add_argument("--repo", action="append", default=[])
     p_agg.add_argument("--papercuts", default="",
                        help="JSON snapshot of papercut issues (array or {\"issues\": [...]}) joined on the skill: body line; no live gh calls")
+    p_agg.add_argument("--evals", action="append", default=[],
+                       help="JSON file or directory of *.json replay-eval summaries joined per skill; offline only")
     p_agg.add_argument("--out", default="")
 
     args = ap.parse_args(argv)

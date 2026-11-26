@@ -127,6 +127,7 @@ cat >"${troot}/muse/parent-m/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168805000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"model_user_messages","messages":["Fix CI flakes in go/pkg/foo.go"]}}}
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168806000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c1","tool_name":"bash"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168807000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c1","outcome":{"kind":"failed","error":"exit status 1: permission denied"}}}}
+{"record_type":"event","payload_type":"runtime.session","recorded_at":1795168808000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"model_completed","duration_ms":1400,"usage":{"input_tokens":1200,"output_tokens":300,"cache_read_tokens":800,"cache_write_tokens":100}}}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168808000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"assistant_tool_calls_committed","tool_calls":[{"call_id":"c2","name":"read_skill","args":"{\"name\":\"eshu-code-review\"}"},{"call_id":"c3","name":"edit_file","args":"{\"path\":\"go/pkg/foo.go\"}"},{"call_id":"c4","name":"bash","args":"{\"command\":\"git commit -m fix && git push\"}"}]}}}
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168808000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"started","call_id":"c2","tool_name":"read_skill"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168809000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c2","outcome":{"kind":"completed"}}}}
@@ -134,6 +135,8 @@ cat >"${troot}/muse/parent-m/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168810000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"c3","outcome":{"kind":"completed"}}}}
 {"record_type":"event","payload_type":"subagent.control.spawn_accepted","recorded_at":1795168810000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"subagent_id":"sub1","role":"develop-eshu","depth":1}}}
 {"record_type":"event","payload_type":"subagent.control.child_session_bound","recorded_at":1795168811000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"child_session_id":"child-m"}}}
+{"record_type":"event","payload_type":"subagent.control.runtime_observed","recorded_at":1795168815000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"record":{"usage":{"input_tokens":9999,"output_tokens":8888,"cache_read_tokens":7777,"cache_write_tokens":6666}}}}
+{"record_type":"event","payload_type":"runtime.session","recorded_at":1795168829000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"model_completed","duration_ms":900,"usage":{"input_tokens":1500,"output_tokens":200,"cached_tokens":1000,"cache_write_tokens":0}}}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168830000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"assistant_message_committed","text":"Fixed foo.go and pushed."}}}
 {"record_type":"event","payload_type":"runtime.user_intent.accepted","recorded_at":1795168865000000,"stream":{"id":"parent-m","kind":"x"},"payload":{}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168865000000,"stream":{"id":"parent-m","kind":"x"},"payload":{"event":{"kind":"model_user_messages","messages":["Looks great, merge it"]}}}
@@ -142,6 +145,7 @@ EOF
 cat >"${troot}/muse/parent-m/subagent/child-m/session.jsonl" <<'EOF'
 {"record_type":"event","payload_type":"tool_batch.effect.started","recorded_at":1795168812000000,"stream":{"id":"child-m","kind":"x"},"payload":{"record":{"kind":"started","call_id":"sc1","tool_name":"bash"}}}
 {"record_type":"event","payload_type":"tool_batch.effect.terminal","recorded_at":1795168814000000,"stream":{"id":"child-m","kind":"x"},"payload":{"record":{"kind":"terminal","call_id":"sc1","outcome":{"kind":"completed"}}}}
+{"record_type":"event","payload_type":"subagent.control.runtime_observed","recorded_at":1795168814500000,"stream":{"id":"child-m","kind":"x"},"payload":{"record":{"usage":{"input_tokens":300,"output_tokens":100}}}}
 {"record_type":"event","payload_type":"runtime.session","recorded_at":1795168815000000,"stream":{"id":"child-m","kind":"x"},"payload":{"event":{"kind":"assistant_message_committed","text":"Subagent finished tests."}}}
 EOF
 
@@ -156,12 +160,12 @@ cat >"${troot}/agy-app/brain/conv-agy-1/.system_generated/logs/transcript.jsonl"
 EOF
 cat >"${troot}/agy-cli/brain/conv-agy-1/.system_generated/logs/transcript.jsonl" <<'EOF'
 {"created_at":"2026-11-20T10:00:10Z","type":"USER_INPUT","content":"Check python pipeline in scripts/app.py"}
-{"created_at":"2026-11-20T10:00:15Z","type":"PLANNER_RESPONSE","model":"gemini-flash","tool_calls":[{"name":"read_file","args":{"Path":"/repo/skills/eshu/publish/SKILL.md"}},{"name":"edit_file","args":{"Path":"/repo/alpha/scripts/app.py"}},{"name":"run_command","args":{"CommandLine":"pytest"}}],"response":"Checking app.py."}
+{"created_at":"2026-11-20T10:00:15Z","type":"PLANNER_RESPONSE","model":"gemini-flash","input_tokens":500,"output_tokens":120,"cache_read_tokens":2000,"tool_calls":[{"name":"read_file","args":{"Path":"/repo/skills/eshu/publish/SKILL.md"}},{"name":"edit_file","args":{"Path":"/repo/alpha/scripts/app.py"}},{"name":"run_command","args":{"CommandLine":"pytest"}}],"response":"Checking app.py."}
 {"created_at":"2026-11-20T10:00:16Z","type":"GENERIC","text":"ok"}
 {"created_at":"2026-11-20T10:00:17Z","type":"GENERIC","text":"ok"}
 {"created_at":"2026-11-20T10:00:25Z","type":"GENERIC","error":"Command exited with code 1"}
 {"created_at":"2026-11-20T10:00:50Z","type":"USER_INPUT","content":"Fix the assertion and re-run"}
-{"created_at":"2026-11-20T10:01:05Z","type":"PLANNER_RESPONSE","model":"gemini-flash","response":"All tests green now."}
+{"created_at":"2026-11-20T10:01:05Z","type":"PLANNER_RESPONSE","model":"gemini-flash","input_tokens":300,"output_tokens":80,"cache_read_tokens":2500,"response":"All tests green now."}
 EOF
 python3 - "${troot}/agy-cli/conversation_summaries.db" "${troot}/agy-app/brain/conv-agy-1/.system_generated/logs/transcript.jsonl" "${troot}/agy-cli/brain/conv-agy-1/.system_generated/logs/transcript.jsonl" <<'PYEOF'
 import os, sqlite3, sys
@@ -178,7 +182,7 @@ PYEOF
 # Claude parent (already has native facet) + child subagent under <parent>/subagents/
 cat >"${troot}/claude/proj-alpha/cl-parent.jsonl" <<'EOF'
 {"type":"user","message":{"role":"user","content":[{"type":"text","text":"Audit SQL query in query.sql"}]},"timestamp":"2026-11-20T10:00:20.000Z","sessionId":"cl-parent"}
-{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"cu1","name":"Read","input":{"file_path":"query.sql"}},{"type":"tool_use","id":"cu2","name":"Bash","input":{"command":"git commit -m sql"}},{"type":"tool_use","id":"cu3","name":"Skill","input":{"skill":"eshu-agent-kit:postgres-rigor"}}]},"timestamp":"2026-11-20T10:00:30.000Z","sessionId":"cl-parent"}
+{"type":"assistant","message":{"role":"assistant","usage":{"input_tokens":100,"cache_creation_input_tokens":400,"cache_read_input_tokens":1500,"output_tokens":250},"content":[{"type":"tool_use","id":"cu1","name":"Read","input":{"file_path":"query.sql"}},{"type":"tool_use","id":"cu2","name":"Bash","input":{"command":"git commit -m sql"}},{"type":"tool_use","id":"cu3","name":"Skill","input":{"skill":"eshu-agent-kit:postgres-rigor"}}]},"timestamp":"2026-11-20T10:00:30.000Z","sessionId":"cl-parent"}
 {"type":"user","message":{"role":"user","content":[{"type":"text","text":"Ship it"}]},"timestamp":"2026-11-20T10:00:55.000Z","sessionId":"cl-parent"}
 EOF
 cat >"${troot}/claude/proj-alpha/cl-parent/subagents/agent-child1.jsonl" <<'EOF'
@@ -195,22 +199,26 @@ prep_out="$(bash "${DEBRIEF}" prepare --since 2026-11-01 --max-new 10 --batch-si
 	--transcript-root "${troot}/agy-app/brain" \
 	--transcript-root "${troot}/agy-cli/brain" \
 	--transcript-root "${troot}/claude")" && rc=0 || rc=1
-[ "${rc}" -eq 0 ] && python3 - "${prep_out}" <<'PYEOF' && ok "prepare extracts all 3 harnesses, rolls children, skips trivial, imports Claude facets" || no "prepare extracts all 3 harnesses, rolls children, skips trivial, imports Claude facets"
-import json, sys
+[ "${rc}" -eq 0 ] && python3 - "${prep_out}" "${cache}/meta" <<'PYEOF' && ok "prepare extracts all 3 harnesses, tokens/cache, turns, children, and Claude facets" || no "prepare extracts all 3 harnesses, tokens/cache, turns, children, and Claude facets"
+import json, os, sys
 m = json.loads(sys.argv[1])
-assert m["claude_native_imported"] == 1, m
-assert m["rolled_up_children"] == 2, m
-assert m["skipped_trivial"] == 1, m
-assert m["facets_already_cached"] == 1, m
-assert m["facets_queued"] == 2, m
-assert len(m["batch_files"]) == 2, m
-digs = []
-for bf in m["batch_files"]:
-    digs.extend(json.load(open(bf))["digests"])
+assert m["claude_native_imported"] == 1 and m["rolled_up_children"] == 2 and m["skipped_trivial"] == 1, m
+assert m["facets_already_cached"] == 1 and m["facets_queued"] == 2 and len(m["batch_files"]) == 2, m
+digs = [d for bf in m["batch_files"] for d in json.load(open(bf))["digests"]]
 by_h = {d["harness"]: d for d in digs}
-assert set(by_h) == {"muse", "agy"}, by_h
-assert by_h["muse"]["rolled_up_children"] == 1, by_h["muse"]
-assert by_h["agy"]["project"] == "/repo/alpha", by_h["agy"]
+assert set(by_h) == {"muse", "agy"} and by_h["muse"]["rolled_up_children"] == 1 and by_h["agy"]["project"] == "/repo/alpha", by_h
+mdir = sys.argv[2]
+am = json.load(open(os.path.join(mdir, "agy__conv-agy-1.json")))
+assert am["meta_version"] == 2 and am["tokens_in"] == 5300 and am["tokens_out"] == 200 and am["tokens_cache_read"] == 4500 and am["tokens_cache_write"] == 0, am
+assert am["turns_after_skill_load"] == {"publish": 2}, am
+cm = json.load(open(os.path.join(mdir, "claude__cl-parent.json")))
+assert cm["meta_version"] == 2 and cm["tokens_in"] == 2000 and cm["tokens_out"] == 250 and cm["tokens_cache_read"] == 1500 and cm["tokens_cache_write"] == 400, cm
+assert cm["turns_after_skill_load"] == {"postgres-rigor": 1}, cm
+mm = json.load(open(os.path.join(mdir, "muse__parent-m.json")))
+assert mm["meta_version"] == 2 and mm["tokens_in"] == 2700 and mm["tokens_out"] == 500 and mm["tokens_cache_read"] == 1800 and mm["tokens_cache_write"] == 100 and mm["model_duration_ms"] == 2300, mm
+assert mm["turns_after_skill_load"] == {"code-review": 2}, mm
+mc = json.load(open(os.path.join(mdir, "muse__child-m.json")))
+assert mc["meta_version"] == 2 and mc["tokens_in"] == 300 and mc["tokens_out"] == 100 and mc["model_duration_ms"] == 0, mc
 PYEOF
 
 # Test cache-write: valid facets + invalid facet rejection
@@ -268,36 +276,50 @@ cat >"${work}/hooks.jsonl" <<'EOF'
 {"harness":"muse","session":"goal2","ts":"2026-11-20T12:00:00+00:00","type":"goal-done","detail":{}}
 EOF
 
+mkdir -p "${work}/evals"
+cat >"${work}/evals/old.json" <<'EOF'
+{"skill":"eshu-agent-kit:publish","win_rate":0.50,"noise_band":0.20,"pass_rate_with":0.60,"pass_rate_without":0.50,"cross_pairs":6,"cost_delta_in":100,"cost_delta_out":20,"latency_delta_s":1.2,"harness":"muse","recorded_at":"2026-11-18T10:00:00Z"}
+EOF
+cat >"${work}/evals/new.json" <<'EOF'
+{"evals":[
+  {"skill":"publish","win_rate":0.82,"noise_band":0.08,"pass_rate_with":0.90,"pass_rate_without":0.55,"cross_pairs":12,"cost_delta_in":150,"cost_delta_out":30,"latency_delta_s":0.5,"harness":"muse","recorded_at":"2026-11-20T12:00:00Z"},
+  {"skill":"eshu-code-review","win_rate":0.75,"noise_band":0.10,"pass_rate_with":0.85,"pass_rate_without":0.60,"cross_pairs":10,"harness":"muse","recorded_at":"2026-11-20T11:00:00Z"}
+]}
+EOF
+cat >"${work}/eval-extra.json" <<'EOF'
+[{"skill":"postgres-rigor","win_rate":0.90,"noise_band":0.05,"pass_rate_with":0.95,"pass_rate_without":0.65,"cross_pairs":8,"harness":"claude","recorded_at":"2026-11-20T13:00:00Z"}]
+EOF
+
 TZ=UTC+5 bash "${DEBRIEF}" aggregate --since "${since_day}" --cache-dir "${cache}" \
 	--log "${work}/hooks.jsonl" --repo "${grepo}" --repo "${work}/missing-repo" \
+	--evals "${work}/evals" --evals "${work}/eval-extra.json" \
 	--out "${work}/agg.json" >/dev/null && rc=0 || rc=1
-[ "${rc}" -eq 0 ] && python3 - "${work}/agg.json" "${grepo}" <<'PYEOF' && ok "aggregate merges facets, hooks, fixture exclusion, overlap, and UTC git --since" || no "aggregate merges facets, hooks, fixture exclusion, overlap, and UTC git --since"
+[ "${rc}" -eq 0 ] && python3 - "${work}/agg.json" "${grepo}" <<'PYEOF' && ok "aggregate merges facets, hooks, evals, cost/tax/latency, overlap, and UTC git --since" || no "aggregate merges facets, hooks, evals, cost/tax/latency, overlap, and UTC git --since"
 import json, sys
 d = json.load(open(sys.argv[1]))
-assert d["meta"]["facets_analyzed"] == 3, d["meta"]
-assert d["meta"]["fixtures_excluded"] == 3, d["meta"]
+assert d["meta"]["facets_analyzed"] == 3 and d["meta"]["fixtures_excluded"] == 3, d["meta"]
 assert set(d["by_harness"]) == {"muse", "agy", "claude"}, d["by_harness"]
 assert d["charts"]["multi_agent_overlap"]["overlap_events"] >= 1, d["charts"]["multi_agent_overlap"]
 assert d["charts"]["languages"].get("Go", 0) >= 1 and d["charts"]["languages"].get("Python", 0) >= 1, d["charts"]["languages"]
 assert d["charts"]["satisfaction"] == {"satisfied": 2, "likely_satisfied": 1}, d["charts"]["satisfaction"]
 assert d["charts"]["primary_friction_types"] == {"hook_or_env_retry": 1, "buggy_code": 1}, d["charts"]["primary_friction_types"]
 by_sk = {r["skill"]: r for r in d["skill_table"]}
-assert "postgres-rigor" in by_sk and by_sk["postgres-rigor"]["forced_pct"] == 100, by_sk
-assert by_sk["performance-rigor"]["no_progress_share_pct"] == 100, by_sk
+assert by_sk["postgres-rigor"]["forced_pct"] == 100 and by_sk["performance-rigor"]["no_progress_share_pct"] == 100, by_sk
+assert by_sk["publish"]["estimated_context_tax_tokens"] > 0 and by_sk["publish"]["median_gap_s"] == 35.0, by_sk["publish"]
+assert by_sk["publish"]["median_duration_min"] is not None and by_sk["publish"]["error_rate_per_session"] == 1.0, by_sk["publish"]
+assert by_sk["publish"]["eval_win_rate"] == 0.82 and by_sk["publish"]["eval_noise_band"] == 0.08 and by_sk["publish"]["eval_pairs"] == 12, by_sk["publish"]
+assert by_sk["postgres-rigor"]["eval_win_rate"] == 0.90 and by_sk["code-review"]["eval_win_rate"] == 0.75, by_sk
+assert d["evals"]["skills_evaluated"] == 3 and d["evals"]["per_skill"]["publish"]["win_rate"] == 0.82, d["evals"]
+assert d["skill_costs"]["by_harness"]["agy"]["attributed_tokens_in"] == 5300 and d["skill_costs"]["by_harness"]["agy"]["attributed_tokens_out"] == 200, d["skill_costs"]
 assert d["hooks"]["goal_done"] == 1 and d["hooks"]["model_failures"] == {}, d["hooks"]
 repos = {r["path"]: r for r in d["meta"]["repos"]}
 g = repos[sys.argv[2]]
-assert g["commits"] == 5 and g["merges"] == 1 and g["reverts"] == 1, g
-assert any(r.get("unreadable") for r in d["meta"]["repos"]), d["meta"]["repos"]
+assert g["commits"] == 5 and g["merges"] == 1 and g["reverts"] == 1 and any(r.get("unreadable") for r in d["meta"]["repos"]), d["meta"]["repos"]
 assert d["charts"]["prompt_distribution"] == {"1": 1, "2-3": 3, "4-9": 0, "10+": 0}, d["charts"].get("prompt_distribution")
 ij = d["interjections"]
-assert ij["prompt_bearing_sessions"] == 4 and ij["zero_prompt_sessions"] == 0, ij
-assert ij["follow_up_rate_pct"] == 75.0, ij
-assert ij["by_harness"]["muse"]["median_prompts"] == 1.5, ij["by_harness"]
-assert ij["by_harness"]["agy"]["median_prompts"] == 2.0, ij["by_harness"]
-assert ij["by_harness"]["claude"]["median_prompts"] == 2.0, ij["by_harness"]
-steered_ids = {s["session_id"] for s in ij["top_steered"]}
-assert steered_ids == {"parent-m", "conv-agy-1", "cl-parent"}, steered_ids
+assert ij["prompt_bearing_sessions"] == 4 and ij["zero_prompt_sessions"] == 0 and ij["follow_up_rate_pct"] == 75.0, ij
+assert ij["by_harness"]["muse"]["median_prompts"] == 1.5 and ij["by_harness"]["agy"]["median_prompts"] == 2.0 and ij["by_harness"]["claude"]["median_prompts"] == 2.0, ij["by_harness"]
+assert {s["session_id"] for s in ij["top_steered"]} == {"parent-m", "conv-agy-1", "cl-parent"}, ij["top_steered"]
 assert all(s["prompts"] == 2 and "content" not in s and "text" not in s for s in ij["top_steered"]), ij["top_steered"]
 PYEOF
 
@@ -306,29 +328,14 @@ python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "interjection stats handle
 import sys
 sys.path.insert(0, sys.argv[1])
 from debrief_aggregate import interjection_stats, _prompt_bucket
-bounds = {0: "1", 1: "1", 2: "2-3", 3: "2-3", 4: "4-9", 9: "4-9", 10: "10+", 11: "10+", 500: "10+"}
-for n, want in bounds.items():
+for n, want in {0: "1", 1: "1", 2: "2-3", 3: "2-3", 4: "4-9", 9: "4-9", 10: "10+", 11: "10+", 500: "10+"}.items():
     assert _prompt_bucket(n) == want, (n, _prompt_bucket(n))
 dist, ij = interjection_stats([])
-assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
-assert ij["follow_up_rate_pct"] is None and ij["prompt_bearing_sessions"] == 0, ij
-assert ij["by_harness"] == {} and ij["top_steered"] == [], ij
-bearing_metas = [
-    {"id": "s%d" % n, "harness": "muse", "prompts": n, "tool_calls": 1}
-    for n in (1, 2, 3, 4, 9, 10, 11)
-]
-dist2, ij2 = interjection_stats(bearing_metas)
-assert dist2 == {"1": 1, "2-3": 2, "4-9": 2, "10+": 2}, dist2
-assert ij2["follow_up_rate_pct"] == round(100.0 * 6 / 7, 1), ij2
-assert ij2["by_harness"]["muse"]["median_prompts"] == 4.0, ij2["by_harness"]
-metas = [
-    {"id": "a1", "harness": "muse", "prompts": 0, "tool_calls": 5},
-    {"id": "b2", "harness": "muse", "prompts": 0, "tool_calls": 7},
-]
-dist, ij = interjection_stats(metas)
-assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
-assert ij["follow_up_rate_pct"] is None and ij["zero_prompt_sessions"] == 2, ij
-assert ij["by_harness"]["muse"]["median_prompts"] is None, ij["by_harness"]
+assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0} and ij["follow_up_rate_pct"] is None and ij["by_harness"] == {} and ij["top_steered"] == [], (dist, ij)
+dist2, ij2 = interjection_stats([{"id": "s%d" % n, "harness": "muse", "prompts": n, "tool_calls": 1} for n in (1, 2, 3, 4, 9, 10, 11)])
+assert dist2 == {"1": 1, "2-3": 2, "4-9": 2, "10+": 2} and ij2["follow_up_rate_pct"] == round(100.0 * 6 / 7, 1) and ij2["by_harness"]["muse"]["median_prompts"] == 4.0, (dist2, ij2)
+dist3, ij3 = interjection_stats([{"id": "a1", "harness": "muse", "prompts": 0, "tool_calls": 5}, {"id": "b2", "harness": "muse", "prompts": 0, "tool_calls": 7}])
+assert dist3 == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0} and ij3["follow_up_rate_pct"] is None and ij3["zero_prompt_sessions"] == 2 and ij3["by_harness"]["muse"]["median_prompts"] is None, (dist3, ij3)
 PYEOF
 
 # --- Part C1c: Claude owner-turn filter (harness records are not prompts) ---
@@ -336,30 +343,18 @@ python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "claude extractor counts o
 import sys
 sys.path.insert(0, sys.argv[1])
 from debrief_extract_claude import _is_owner_turn as owner
-human = {"turnOrigin": "human", "origin": {"kind": "human"}, "promptSource": "typed"}
-assert owner(human, "9884 is merged, i merged it", False) is True
-assert owner({}, "Ship it", False) is True
-assert owner({"turnOrigin": "task_notification"}, "anything", False) is False
-assert owner({"promptSource": "system"}, "anything", False) is False
-assert owner({}, "Audit SQL", True) is False
-assert owner({}, "", False) is False
-system_texts = [
-    "Base directory for this skill: /x/eshu-issue-driver\n# Eshu Issue Driver",
-    "<local-command-caveat>The command below was run directly</local-command-caveat>",
-    "<command-name>/login</command-name>",
-    "Stop hook feedback: | You are stopping with an active goal",
-    "[Cross-session delivery notice] Your message was held",
-    "Goal check-in: the goal is still active",
-    "A session-scoped Stop hook is now active with condition: x",
-    "Another Claude session sent a message: | <teammate-message",
-    "Skill /eshu-postgres-rigor was loaded earlier (see above)",
-    "Skill /eshu-postgres-rigor is already loaded above; unchanged.",
-    "<task-notification> | <task-id>b6c0</task-id>",
-    "This session is being continued from a previous conversation",
-    "<artifact-content-authored-by-others/>\nThe summarized conversation",
-    "<bash-input>k6 run -e BASE_URL=https://x",
-]
-for t in system_texts:
+assert owner({"turnOrigin": "human", "origin": {"kind": "human"}, "promptSource": "typed"}, "9884 is merged, i merged it", False) is True
+assert owner({}, "Ship it", False) is True and owner({"turnOrigin": "task_notification"}, "anything", False) is False
+assert owner({"promptSource": "system"}, "anything", False) is False and owner({}, "Audit SQL", True) is False and owner({}, "", False) is False
+for t in (
+    "Base directory for this skill: /x/eshu-issue-driver\n# Eshu", "<local-command-caveat>run directly</local-command-caveat>",
+    "<command-name>/login</command-name>", "Stop hook feedback: | You are stopping with an active goal",
+    "[Cross-session delivery notice] Your message was held", "Goal check-in: the goal is still active",
+    "A session-scoped Stop hook is now active with condition: x", "Another Claude session sent a message: | <teammate-message",
+    "Skill /eshu-postgres-rigor was loaded earlier (see above)", "Skill /eshu-postgres-rigor is already loaded above; unchanged.",
+    "<task-notification> | <task-id>b6c0</task-id>", "This session is being continued from a previous conversation",
+    "<artifact-content-authored-by-others/>\nThe summarized conversation", "<bash-input>k6 run -e BASE_URL=https://x",
+):
     assert owner({}, t, False) is False, t[:60]
 PYEOF
 
@@ -452,26 +447,33 @@ assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html, "escaped text missing"
 assert not re.search(r'https?://', html), "external URL found in offline HTML!"
 assert "copyAllCheckedRules" in html and "timezone-select" in html and "rawUtcHours" in html
 assert "&amp;middot;" not in html, "double-escaped middot!"
-assert "Cost (tok)" in html, "cost column missing from render!"
+assert "Cost (tok)" in html and "Context Tax" in html and "Latency" in html and "Errors" in html and "Papercuts" in html and "Eval Win Rate" in html
+assert "Top Skills (Flywheel Scorecard)" in html and "Skill Quality Flywheel" in html and "Eval-Covered Skills" in html
 assert "Median Response Gap by Harness" in html, "per-harness gap table missing from render!"
-assert "not mined" in html, "agy not-mined marker missing from render!"
+assert "not mined" not in html and "5.3k in / 200 out" in html, "agy real tokens missing from render!"
+assert "82% (±8%)" in html and "35.0s" in html and "1 (1.00/s)" in html, "eval/latency/error cells missing from render!"
 PYEOF
 
-# --- Part E: Per-skill cost/latency/error attribution (issue #80) ---
-python3 -B - "${KIT_DIR}/scripts/lib" "${work}/agg.json" <<'PYEOF' && ok "skill costs attribute tokens/errors, per-harness medians, totals reconcile" || no "skill costs attribute tokens/errors, per-harness medians, totals reconcile"
+# --- Part E: Per-skill cost, context tax, latency, and error attribution (issues #80, #100) ---
+python3 -B - "${KIT_DIR}/scripts/lib" "${work}/agg.json" <<'PYEOF' && ok "skill costs attribute tokens/cache/tax/latency/errors and reconcile" || no "skill costs attribute tokens/cache/tax/latency/errors and reconcile"
 import json, sys
 sys.path.insert(0, sys.argv[1])
 from debrief_skill_costs import attribute_skill_costs, gap_stats
 metas = [
-    {"id": "c1", "harness": "claude", "tokens_in": 9000, "tokens_out": 3000, "errors": {"Bash": 2}, "skill_loads": ["expensive-skill"], "response_gaps": [10.0, 11.0]},
-    {"id": "c2", "harness": "claude", "tokens_in": 100, "tokens_out": 50, "errors": {}, "skill_loads": ["cheap-skill"], "response_gaps": [14.0]},
-    {"id": "m1", "harness": "muse", "tokens_in": 400, "tokens_out": 200, "errors": {"Edit": 1}, "skill_loads": ["expensive-skill", "cheap-skill"], "response_gaps": [5.0]},
+    {"id": "c1", "harness": "claude", "tokens_in": 9000, "tokens_out": 3000, "tokens_cache_read": 6000, "tokens_cache_write": 1000, "errors": {"Bash": 2}, "skill_loads": ["expensive-skill"], "response_gaps": [10.0, 11.0], "duration_minutes": 4.0, "assistant_messages": 5, "turns_after_skill_load": {"expensive-skill": 3}},
+    {"id": "c2", "harness": "claude", "tokens_in": 100, "tokens_out": 50, "tokens_cache_read": 40, "tokens_cache_write": 0, "errors": {}, "skill_loads": ["cheap-skill"], "response_gaps": [14.0], "duration_minutes": 1.0, "assistant_messages": 4},
+    {"id": "m1", "harness": "muse", "tokens_in": 400, "tokens_out": 200, "tokens_cache_read": 200, "tokens_cache_write": 50, "errors": {"Edit": 1}, "skill_loads": ["expensive-skill", "cheap-skill"], "response_gaps": [5.0], "duration_minutes": 2.0, "assistant_messages": 2},
     {"id": "a1", "harness": "agy", "tokens_in": 0, "tokens_out": 0, "errors": {}, "skill_loads": [], "response_gaps": [120.0, 180.0]},
 ]
-costs = attribute_skill_costs(metas)
+c0 = attribute_skill_costs(metas)
+assert {r["skill"]: r["estimated_context_tax_tokens"] for r in c0["per_skill"]} == {"expensive-skill": 0.0, "cheap-skill": 0.0}
+costs = attribute_skill_costs(metas, skill_sizes={"expensive-skill": 4000, "cheap-skill": 800})
 by_sk = {r["skill"]: r for r in costs["per_skill"]}
 assert by_sk["expensive-skill"]["attributed_tokens_total"] > by_sk["cheap-skill"]["attributed_tokens_total"], by_sk
-assert by_sk["expensive-skill"]["attributed_errors"] == 2.5, by_sk
+assert by_sk["expensive-skill"]["attributed_errors"] == 2.5 and by_sk["expensive-skill"]["error_rate_per_session"] == 1.25, by_sk
+assert by_sk["expensive-skill"]["attributed_cache_read"] == 6100.0 and by_sk["expensive-skill"]["attributed_cache_write"] == 1025.0, by_sk
+assert by_sk["expensive-skill"]["median_gap_s"] == 10.0 and by_sk["expensive-skill"]["median_duration_min"] == 4.0, by_sk
+assert by_sk["expensive-skill"]["estimated_context_tax_tokens"] == 5000.0 and by_sk["cheap-skill"]["estimated_context_tax_tokens"] == 1200.0, by_sk
 assert costs["unattributed"]["sessions"] == 1 and costs["totals"]["tokens_in"] == 9500, costs
 tin = sum(r["attributed_tokens_in"] for r in costs["per_skill"]) + costs["unattributed"]["tokens_in"]
 tout = sum(r["attributed_tokens_out"] for r in costs["per_skill"]) + costs["unattributed"]["tokens_out"]
@@ -479,9 +481,8 @@ assert abs(tin - costs["totals"]["tokens_in"]) < 0.01 and abs(tout - costs["tota
 _, med, _, med_by_h = gap_stats([(g, m["harness"]) for m in metas for g in m["response_gaps"]])
 assert med == 14.0 and med_by_h == {"agy": 180.0, "claude": 11.0, "muse": 5.0}, (med, med_by_h)
 d = json.load(open(sys.argv[2]))
-assert d["skill_costs"]["totals"]["sessions"] == d["meta"]["total_sessions"], d["skill_costs"]
-assert "median_response_gap_s_by_harness" in d["charts"], sorted(d["charts"])
-assert all("attributed_tokens_total" in r for r in d["skill_table"]), d["skill_table"][:1]
+assert d["skill_costs"]["totals"]["sessions"] == d["meta"]["total_sessions"] and "median_response_gap_s_by_harness" in d["charts"]
+assert all("attributed_tokens_total" in r and "estimated_context_tax_tokens" in r and "eval_win_rate" in r for r in d["skill_table"])
 PYEOF
 
 printf '\ndebrief: %s passed, %s failed\n' "${passed}" "${failed}"
