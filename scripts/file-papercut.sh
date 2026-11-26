@@ -62,9 +62,9 @@ def detect_repo():
         return DEFAULT_REPO
     url = (res.stdout or "").strip() if res.returncode == 0 else ""
     for pat in (
-        r"^git@github\.com:([^/]+/[^/]+?)(?:\.git)?$",
-        r"^ssh://git@github\.com/([^/]+/[^/]+?)(?:\.git)?$",
-        r"^https?://github\.com/([^/]+/[^/]+?)(?:\.git)?$",
+        r"^git@github\.com:([^/]+/[^/]+?)(?:\.git)?/?$",
+        r"^ssh://(?:[^/@]+@)?github\.com/([^/]+/[^/]+?)(?:\.git)?/?$",
+        r"^https?://(?:[^/@]+@)?github\.com/([^/]+/[^/]+?)(?:\.git)?/?$",
     ):
         m = re.match(pat, url)
         if m:
@@ -88,8 +88,7 @@ def format_title(skill, raw_title, happened):
         lines = str(happened or "").strip().splitlines()
         summary = re.sub(r"\s+", " ", lines[0]).strip()[:72] if lines else ""
     summary = re.sub(r"^\[papercut\]\s*", "", summary, flags=re.IGNORECASE).strip()
-    if summary.lower().startswith(f"{skill}:"):
-        summary = summary[len(skill) + 1:].strip()
+    summary = re.sub(rf"^(?:eshu-)?{re.escape(skill)}\s*:\s*", "", summary, flags=re.IGNORECASE).strip()
     return f"[papercut] {skill}: {summary}" if summary else f"[papercut] {skill}"
 
 
@@ -106,8 +105,18 @@ def format_body(skill, tried, expected, happened, fix):
 def norm_title(title, skill):
     t = re.sub(r"^\[papercut\]\s*", "", str(title or "").strip(), flags=re.IGNORECASE)
     if skill:
-        t = re.sub(rf"^{re.escape(skill)}\s*:\s*", "", t, flags=re.IGNORECASE)
+        t = re.sub(rf"^(?:eshu-)?{re.escape(skill)}\s*:\s*", "", t, flags=re.IGNORECASE)
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+
+def _parse_issue_number(raw_num):
+    if isinstance(raw_num, bool) or raw_num is None:
+        return None
+    try:
+        num = int(raw_num)
+    except (TypeError, ValueError):
+        return None
+    return num if num > 0 else None
 
 
 def find_duplicate(issues, skill, new_title):
@@ -116,7 +125,7 @@ def find_duplicate(issues, skill, new_title):
     if not isinstance(issues, list):
         die(1, "dedupe JSON must be a list of issues")
     want_norm = norm_title(new_title, skill)
-    want_tok = {w for w in want_norm.split() if len(w) >= 3 and w not in STOPWORDS}
+    want_tok = {w for w in want_norm.split() if len(w) >= 3 and w not in STOPWORDS and w not in GENERIC_WORDS}
     matches = []
     for rec in issues:
         if not isinstance(rec, dict) or str(rec.get("state") or "OPEN").upper() != "OPEN":
@@ -124,15 +133,21 @@ def find_duplicate(issues, skill, new_title):
         m = SKILL_RE.search(str(rec.get("body") or ""))
         if not m or canon_skill(m.group(1)) != skill:
             continue
+        num = _parse_issue_number(rec.get("number"))
+        if num is None:
+            continue
         cand_title = str(rec.get("title") or "")
         cand_norm = norm_title(cand_title, skill)
-        cand_tok = {w for w in cand_norm.split() if len(w) >= 3 and w not in STOPWORDS}
+        cand_tok = {w for w in cand_norm.split() if len(w) >= 3 and w not in STOPWORDS and w not in GENERIC_WORDS}
         inter = want_tok & cand_tok
         exact = bool(want_norm and cand_norm and want_norm == cand_norm)
-        overlap = len(inter) >= 2 or (len(inter) == 1 and min(len(want_tok), len(cand_tok)) == 1 and not (inter <= GENERIC_WORDS))
-        if (exact or overlap) and rec.get("number") is not None:
-            matches.append((int(rec["number"]), cand_title))
-    return sorted(matches, key=lambda item: item[0])[0] if matches else None
+        overlap = len(inter) >= 2 or (len(inter) == 1 and min(len(want_tok), len(cand_tok)) == 1)
+        if exact or overlap:
+            matches.append((not exact, -len(inter), num, cand_title))
+    if not matches:
+        return None
+    best = sorted(matches)[0]
+    return (best[2], best[3])
 
 
 def cmd_file(ns):
@@ -147,7 +162,7 @@ def cmd_file(ns):
     body = format_body(skill, ns.tried, ns.expected, ns.happened, ns.fix)
 
     dup = None
-    if ns.dedupe_file:
+    if ns.dedupe_file and not ns.no_dedupe:
         try:
             with open(ns.dedupe_file, encoding="utf-8") as fh:
                 issues = json.load(fh)
@@ -227,8 +242,8 @@ def build_parser():
         ("--dedupe-file", "Offline JSON array of issues for duplicate check."),
     ):
         pf.add_argument(opt, default="", help=hlp)
-    pf.add_argument("--dry-run", action="store_true", help="Print formatted issue or duplicate hit without filing.")
-    pf.add_argument("--no-dedupe", action="store_true", help="Skip live duplicate lookup.")
+    pf.add_argument("--dry-run", action="store_true", help="Print formatted issue or offline --dedupe-file hit without calling gh.")
+    pf.add_argument("--no-dedupe", action="store_true", help="Skip both live and --dedupe-file duplicate lookup.")
     ps = sub.add_parser("snapshot", help="Export papercut issues atomically for /debrief.")
     ps.add_argument("--out", default="", help="Destination JSON file path (required).")
     ps.add_argument("--repo", default="", help="GitHub owner/repo (default: git origin or eshu-hq/eshu-agent-kit).")

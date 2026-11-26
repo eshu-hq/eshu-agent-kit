@@ -200,11 +200,12 @@ late both came from treating a filed issue as finished work. Settle these first:
    several.
 
 Small in-session friction (a skill, hook, script, or doc that misled the session)
-takes the `papercut` skill (`../papercut/SKILL.md`) instead of a full issue so
-the `skill: <name>` join-key stays canonical for `/debrief`:
+takes the [papercut](../papercut/SKILL.md) skill instead of a full issue so
+the `skill: <name>` join-key stays canonical for `/debrief` (resolve `$KIT` per
+that skill):
 
 ```bash
-bash scripts/file-papercut.sh file --skill <name> --title "<summary>" \
+bash "$KIT/scripts/file-papercut.sh" file --skill <name> --title "<summary>" \
   --tried "<action>" --expected "<promised>" \
   --happened "<observed>" --fix "<smallest fix>"
 ```

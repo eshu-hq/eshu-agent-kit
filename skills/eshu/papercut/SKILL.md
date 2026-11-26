@@ -7,7 +7,7 @@ description: Use on any harness whenever a skill, hook, script, or doc misleads 
 
 File small in-session friction so `/debrief` tracks each report to its owning skill and confirms when it closes. Do not bundle unrelated bugs into one papercut, and fix trivial one-line defects inline when they fit the files your current PR already edits.
 
-Scope: portable across Claude, Codex, Muse, Antigravity, and OpenCode. Resolve `$KIT` from this file's directory (`readlink -f` up three levels from `skills/eshu/papercut/SKILL.md` to the kit root holding `scripts/file-papercut.sh`).
+Scope: portable across Claude, Codex, Muse, Antigravity, and OpenCode. Resolve `$KIT` from this file's directory (`readlink -f` up three levels from `skills/eshu/papercut/SKILL.md` to the kit root holding `scripts/file-papercut.sh`). If copied without a symlink (such as a repo alias wrapper), resolve under your harness user skills directory or pass the kit checkout path.
 
 ## Workflow
 
@@ -41,7 +41,7 @@ bash "$KIT/scripts/file-papercut.sh" file \
 
 ```bash
 bash "$KIT/scripts/file-papercut.sh" snapshot \
-  --out /tmp/papercuts.json \
+  --out "${TMPDIR:-/tmp}/papercuts.json" \
   --limit 200
 ```
 

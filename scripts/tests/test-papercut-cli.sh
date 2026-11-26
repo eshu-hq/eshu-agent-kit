@@ -290,5 +290,69 @@ else
 	no "snapshot JSON joins cleanly with debrief.sh aggregate --papercuts (rc=${rc})"
 fi
 
+# 6. Regression coverage for review findings F1, F5, F6, F7.
+# F1: generic-word-only overlap (e.g. "missing error") must NOT falsely dedupe.
+cat >"${work}/generic-issues.json" <<'EOF'
+[
+  {"number": 51, "title": "[papercut] debrief: missing error on bad date", "state": "OPEN", "body": "skill: debrief\nold"},
+  {"number": true, "title": "[papercut] debrief: cache collision", "state": "OPEN", "body": "skill: debrief\nbool num"},
+  {"number": "#99", "title": "[papercut] debrief: cache collision", "state": "OPEN", "body": "skill: debrief\nstr num"},
+  {"number": -1, "title": "[papercut] debrief: cache collision", "state": "OPEN", "body": "skill: debrief\nneg num"}
+]
+EOF
+gen_out="$(bash "${CLI}" file --skill debrief --title "missing error on empty cache" \
+	--tried "Ran aggregate." --expected "Clean output." --happened "Errored." --fix "Handle empty." \
+	--dry-run --dedupe-file "${work}/generic-issues.json" 2>&1)" && rc=0 || rc=$?
+if [ "${rc}" -eq 0 ] && printf '%s' "${gen_out}" | grep -q '^title: \[papercut\] debrief: missing error on empty cache$'; then
+	ok "generic-word-only overlap does not falsely dedupe (F1)"
+else
+	no "generic-word-only overlap does not falsely dedupe (rc=${rc}: ${gen_out})"
+fi
+
+# F5: bool, non-numeric, and negative issue numbers are ignored without crash.
+badnum_out="$(bash "${CLI}" file --skill debrief --title "cache collision" \
+	--tried "Ran prepare." --expected "Clean cache." --happened "Collision." --fix "Key by mtime." \
+	--dry-run --dedupe-file "${work}/generic-issues.json" 2>&1)" && rc=0 || rc=$?
+if [ "${rc}" -eq 0 ] && printf '%s' "${badnum_out}" | grep -q '^title: \[papercut\] debrief: cache collision$'; then
+	ok "invalid issue numbers (bool, string, negative) are safely ignored (F5)"
+else
+	no "invalid issue numbers (bool, string, negative) are safely ignored (rc=${rc}: ${badnum_out})"
+fi
+
+# F6: detect_repo matches authenticated HTTPS origin with trailing slash.
+authrepo="${work}/auth-origin"
+git init -qb main "${authrepo}"
+git -C "${authrepo}" remote add origin "https://x-access-token:secret@github.com/acme/demo-kit.git/"
+repo_out="$(cd "${authrepo}" && bash "${CLI}" file --skill debrief \
+	--tried "Ran \`cmd\` with \$(uname) and \"quotes\"" --expected "No injection" \
+	--happened $'First line fallback title\nskill: other-skill' --fix "Escape safely" \
+	--dry-run --no-dedupe 2>&1)" && rc=0 || rc=$?
+if [ "${rc}" -eq 0 ] &&
+	printf '%s' "${repo_out}" | grep -q '^repo: acme/demo-kit$' &&
+	printf '%s' "${repo_out}" | grep -q '^title: \[papercut\] debrief: First line fallback title$' &&
+	printf '%s' "${repo_out}" | grep -qF '$(uname)'; then
+	ok "authenticated HTTPS origin, omitted --title fallback, and metacharacters stay safe (F6/F7)"
+else
+	no "authenticated HTTPS origin, omitted --title fallback, and metacharacters stay safe (rc=${rc}: ${repo_out})"
+fi
+
+# F7: invalid --limit, malformed --dedupe-file, and gh failure fail cleanly.
+if bash "${CLI}" snapshot --out "${work}/x.json" --limit 0 >/dev/null 2>&1; then
+	no "snapshot rejects --limit 0"
+else
+	ok "snapshot rejects --limit 0"
+fi
+printf '{not json' >"${work}/bad.json"
+if bash "${CLI}" file --skill debrief --tried a --expected b --happened c --fix d --dry-run --dedupe-file "${work}/bad.json" >/dev/null 2>&1; then
+	no "file rejects malformed --dedupe-file"
+else
+	ok "file rejects malformed --dedupe-file"
+fi
+if PATH="/usr/bin:/bin" bash "${CLI}" snapshot --out "${work}/no-gh.json" --repo "eshu-hq/eshu-agent-kit" >/dev/null 2>&1; then
+	no "snapshot fails cleanly when gh is unavailable"
+else
+	ok "snapshot fails cleanly when gh is unavailable"
+fi
+
 printf '\npapercut-cli: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
