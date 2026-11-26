@@ -407,14 +407,23 @@ assert d["checked"] == 2 and d["errors"] == 0 and d["advisories"] == 0 and d["su
 by_name = {s["skill"]: s for s in d["skills"]}
 assert set(by_name) == {"good", "long-skill"}
 assert by_name["good"]["has_references"] is False and by_name["long-skill"]["has_references"] is True
+raw = open(sys.argv[1], "rb").read()
+text = raw.decode("utf-8").splitlines(True)
+fm_end = next(i for i in range(1, len(text)) if text[i].strip() == "---")
+body_bytes = sum(len(l.encode("utf-8")) for l in text[fm_end + 1 :])
+desc = next(l.split("description:", 1)[1].strip() for l in text[1:fm_end] if l.startswith("description:"))
+g = by_name["good"]
+assert g["lines"] == raw.count(b"\n") and g["bytes"] == len(raw) and g["lines"] != g["bytes"]
+assert g["desc_chars"] == len(desc) and g["est_desc_tokens"] == (len(desc) + 3) // 4
+assert g["est_body_tokens"] == (body_bytes + 3) // 4 and g["has_scripts"] is False
 for s in by_name.values():
     for k in ("path", "lines", "bytes", "desc_chars", "est_desc_tokens", "est_body_tokens", "has_scripts", "errors", "advisories"):
         assert k in s, f"missing {k}"
     assert s["est_desc_tokens"] > 0 and s["est_body_tokens"] > 0
-' <<<"${json_ok}"; then
-	ok "--json emits valid JSON with token counts, has_references, and skills list"
+' "${good}" <<<"${json_ok}"; then
+	ok "--json emits exact metric values (lines, bytes, desc_chars, token estimates) and skills list"
 else
-	no "--json emits valid JSON with token counts, has_references, and skills list"
+	no "--json emits exact metric values (lines, bytes, desc_chars, token estimates) and skills list"
 fi
 
 json_err="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${desc_err}" 2>&1)"
@@ -433,12 +442,7 @@ fi
 
 json_adv="$(bash "${LINT}" --baseline "${fixture_base}" --json "${bare}" 2>&1)"
 code=$?
-if [ "${code}" = "0" ] && python3 -c '
-import json, sys
-d = json.loads(sys.stdin.read())
-assert d["errors"] == 0 and d["advisories"] >= 1 and d["suppressed"] >= 1
-assert len(d["skills"][0]["advisories"]) == d["advisories"]
-' <<<"${json_adv}"; then
+if [ "${code}" = "0" ] && python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); assert d["errors"]==0 and d["advisories"]>=1 and d["suppressed"]>=1 and len(d["skills"][0]["advisories"])==d["advisories"]' <<<"${json_adv}"; then
 	ok "--json advisory path reports advisories>=1 and suppressed>=1 with baseline"
 else
 	no "--json advisory path reports advisories>=1 and suppressed>=1 with baseline (exit ${code})"
@@ -446,22 +450,10 @@ fi
 
 hostile="${work}/hostile/SKILL.md"
 mkdir -p "${work}/hostile"
-cat >"${hostile}" <<'EOF'
----
-name: bad"name\slash
-description: Hostile "quotes" and \backslash\ in description.
----
-
-# Hostile
-EOF
+printf -- '---\nname: bad"name\\slash\ndescription: Hostile "quotes" and \\backslash\\ in description.\n---\n\n# Hostile\n' >"${hostile}"
 json_hostile="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${hostile}" 2>&1)"
 code=$?
-if [ "${code}" = "1" ] && python3 -c '
-import json, sys
-d = json.loads(sys.stdin.read())
-detail = d["skills"][0]["errors"][0]["detail"]
-assert "\"" in detail and "\\" in detail
-' <<<"${json_hostile}"; then
+if [ "${code}" = "1" ] && python3 -c 'import json,sys; s=json.loads(sys.stdin.read())["skills"][0]["errors"][0]["detail"]; assert "\"" in s and "\\" in s' <<<"${json_hostile}"; then
 	ok "--json preserves hostile quotes and backslashes as valid JSON"
 else
 	no "--json preserves hostile quotes and backslashes as valid JSON (exit ${code})"
@@ -469,15 +461,20 @@ fi
 
 json_miss="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${work}/missing/SKILL.md" 2>&1)"
 code=$?
-if [ "${code}" = "1" ] && python3 -c '
-import json, sys
-d = json.loads(sys.stdin.read())
-assert d["checked"] == 1 and d["errors"] == 1
-assert d["skills"][0]["errors"][0]["rule"] == "SKILL001"
-' <<<"${json_miss}"; then
+if [ "${code}" = "1" ] && python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); assert d["checked"]==1 and d["errors"]==1 and d["skills"][0]["errors"][0]["rule"]=="SKILL001"' <<<"${json_miss}"; then
 	ok "--json on missing file exits 1 with valid JSON"
 else
 	no "--json on missing file exits 1 with valid JSON (exit ${code})"
+fi
+
+same_line="${work}/same-line/SKILL.md"
+mkdir -p "${work}/same-line"
+printf -- '---\nname: same-line\ndescription: > %s\n---\n\n1. Step.\n\n```sh\ntrue\n```\n\nRecovery: fix if failed.\n' "$(printf 'a%.0s' {1..600})" >"${same_line}"
+json_same="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${same_line}" 2>&1)"
+if [ "$?" = "0" ] && python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); assert d["errors"]==0 and d["skills"][0]["desc_chars"]==600' <<<"${json_same}"; then
+	ok "same-line block scalar strips marker before counting desc_chars (600 chars stays clean)"
+else
+	no "same-line block scalar strips marker before counting desc_chars"
 fi
 
 printf '\nskill-lint mirror: %s passed, %s failed\n' "${passed}" "${failed}"

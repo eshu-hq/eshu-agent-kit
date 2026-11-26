@@ -186,6 +186,7 @@ for skill_file in "${files[@]}"; do
 							in_desc = 1
 							next
 						}
+						sub(/^[>|]([+-]?[0-9]*|[0-9]*[+-]?)[[:space:]]+/, "", val)
 						if (length(val) >= 2 && ((substr(val, 1, 1) == "\"" && substr(val, length(val), 1) == "\"") || (substr(val, 1, 1) == sq && substr(val, length(val), 1) == sq))) {
 							val = substr(val, 2, length(val) - 2)
 						}
