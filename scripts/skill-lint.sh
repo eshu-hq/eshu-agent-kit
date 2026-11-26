@@ -155,7 +155,9 @@ for skill_file in "${files[@]}"; do
 	fi
 
 	# SKILL004: every relative link target resolves, inline or
-	# reference-style. An optional quoted title is not part of the target.
+	# reference-style. An optional quoted title is not part of the target,
+	# and neither is whitespace before the closing paren: CommonMark
+	# strips surrounding whitespace, so the destination never carries it.
 	# Known boundary (not checked): a quoted title containing ")" truncates
 	# the target at the first paren, since the inline extractor stops there.
 	while IFS= read -r hit; do
@@ -164,7 +166,7 @@ for skill_file in "${files[@]}"; do
 		case "${target}" in
 		http://* | https://* | mailto:* | \#* | /*) continue ;;
 		esac
-		target="$(printf '%s' "${target}" | sed -e "s/[[:space:]][[:space:]]*\"[^\"]*\"$//" -e "s/[[:space:]][[:space:]]*'[^']*'$//")"
+		target="$(printf '%s' "${target}" | sed -e 's/[[:space:]][[:space:]]*$//' -e "s/[[:space:]][[:space:]]*\"[^\"]*\"$//" -e "s/[[:space:]][[:space:]]*'[^']*'$//")"
 		target="${target%%\#*}"
 		[[ -z "${target}" ]] && continue
 		if [[ ! -e "$(dirname "${skill_file}")/${target}" ]]; then
