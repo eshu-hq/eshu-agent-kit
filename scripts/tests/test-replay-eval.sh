@@ -454,7 +454,17 @@ PATH="${FAKE_BIN}:${PATH}" bash "${RUNNER}" --harness muse --mode with-skill --s
 		bash "${RUNNER}" --mode without-skill --skill code-review --timeout -1 --dry-run-cmd >/dev/null 2>&1
 		[ "$?" -eq 2 ]
 	) &&
-	ok "muse isolation, mismatched seal fail-fast, OSError guard, and --timeout validation pass" || no "muse isolation, mismatched seal fail-fast, OSError guard, and --timeout validation pass"
+	python3 -B - "${LIB}" "${repo}" <<'PYEOF' &&
+import os, shutil, subprocess, sys
+sys.path.insert(0, sys.argv[1])
+import replay_runner as rr
+with rr.isolated_workspace(sys.argv[2]) as iso:
+    assert os.path.isfile(os.path.join(iso, "f.txt"))
+    shutil.rmtree(iso)
+wt_list = subprocess.check_output(["git", "-C", sys.argv[2], "worktree", "list", "--porcelain"], text=True)
+assert iso not in wt_list, f"stale worktree entry remained: {wt_list}"
+PYEOF
+	ok "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass" || no "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass"
 
 if [ "${failed}" -gt 0 ]; then
 	printf 'FAIL replay-eval: %d of %d checks failed\n' "${failed}" "$((passed + failed))" >&2

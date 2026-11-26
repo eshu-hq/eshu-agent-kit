@@ -86,12 +86,21 @@ def isolated_workspace(workspace=None):
             os.makedirs(iso_dir, exist_ok=True)
         yield iso_dir
     finally:
+        cleanup_err = None
         if used_wt and workspace:
-            subprocess.run(
+            rem = subprocess.run(
                 ["git", "-C", workspace, "worktree", "remove", "--force", iso_dir],
                 capture_output=True, text=True,
             )
-        shutil.rmtree(parent, ignore_errors=True)
+            shutil.rmtree(parent, ignore_errors=True)
+            if rem.returncode != 0:
+                prn = subprocess.run(["git", "-C", workspace, "worktree", "prune"], capture_output=True, text=True)
+                if prn.returncode != 0:
+                    cleanup_err = RuntimeError("git worktree cleanup failed: %s" % (prn.stderr or rem.stderr or "").strip()[-200:])
+        else:
+            shutil.rmtree(parent, ignore_errors=True)
+        if cleanup_err is not None:
+            raise cleanup_err
 
 
 def build_harness_cmd(

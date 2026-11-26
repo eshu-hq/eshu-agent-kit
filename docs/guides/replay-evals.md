@@ -45,7 +45,8 @@ under [evals/README.md](../../evals/README.md).
      `--append-system-prompt-file <SKILL.md>` only in `with-skill` mode.
    - `agy`: passes `--output-format json --disable-slash-commands -p=<prompt>`,
      prepending `SKILL.md` only in `with-skill` mode.
-   - `muse`: passes `muse exec --json --no-session-log --no-foreign-personal-context
+   - `muse`: passes `muse exec --json --no-session-log --disable-web-tools
+     --disable-reminders --disable-request-user-input --no-foreign-personal-context
      --approval-mode never --trust-workspace --workspace <iso_dir> --prompt-file <file>`
      on both arms (writing the prompt file outside `<iso_dir>` so the worktree
      stays clean and both arms have identical workspace tool access). In
