@@ -124,7 +124,7 @@ out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${good}" 2>&1)"
 code=$?
 [ "${code}" = "0" ] && ok "good fixture passes" || no "good fixture passes (exit ${code}: ${out:0:150})"
 case "${out}" in
-*"advisories (0 suppressed"*) ok "good fixture prints no advisories" ;;
+*"0 errors, 0 advisories (0 suppressed"*) ok "good fixture prints no advisories" ;;
 *) no "good fixture prints no advisories (got: ${out:0:150})" ;;
 esac
 
@@ -149,7 +149,65 @@ case "${out}" in
 *) no "dangling link cites SKILL004 at the link line (got: ${out:0:150})" ;;
 esac
 
-# 6. Size RED: a line-count oversized skill fires SKILL005.
+# 6. Links RED: a dangling reference-style link target fires SKILL004.
+bad_ref="${work}/bad-ref/SKILL.md"
+mkdir -p "${work}/bad-ref"
+cat >"${bad_ref}" <<'EOF'
+---
+name: bad-ref
+description: Points at a reference definition that does not exist.
+---
+
+# Bad
+
+See [the missing doc][rf] for details.
+
+[rf]: references/missing.md
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${bad_ref}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "dangling reference target fails" || no "dangling reference target fails (exit 0)"
+case "${out}" in
+*":10: SKILL004"*) ok "dangling reference target cites SKILL004 at the definition line" ;;
+*) no "dangling reference target cites SKILL004 at the definition line (got: ${out:0:150})" ;;
+esac
+
+# 7. Links GREEN: a titled link to an existing file passes Tier 1.
+titled="${work}/titled/SKILL.md"
+mkdir -p "${work}/titled/references"
+printf -- '# Guide\n' >"${work}/titled/references/guide.md"
+cat >"${titled}" <<'EOF'
+---
+name: titled
+description: Titled link to a file that exists.
+---
+
+# Titled
+
+See [the guide](references/guide.md "Guide title") for details.
+
+## Workflow
+
+1. Do the thing with one objective.
+2. Check the result before moving on.
+
+```bash
+run-the-thing
+```
+
+## Error recovery
+
+If it fails, read the log and fix the cited line.
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${titled}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "titled link to existing file passes" || no "titled link to existing file passes (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "titled link to existing file fires no SKILL004 (got: ${out:0:150})" ;;
+*) ok "titled link to existing file fires no SKILL004" ;;
+esac
+
+# 8. Size RED: a line-count oversized skill fires SKILL005.
 big="${work}/big/SKILL.md"
 mkdir -p "${work}/big"
 {
@@ -164,7 +222,7 @@ case "${out}" in
 *) no "oversized skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 7. Size RED: narrow lines but over the byte cap still fires SKILL005.
+# 9. Size RED: narrow lines but over the byte cap still fires SKILL005.
 wide="${work}/wide/SKILL.md"
 mkdir -p "${work}/wide"
 {
@@ -182,7 +240,7 @@ case "${out}" in
 *) no "byte-heavy skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 8. Verification RED: no numbered steps and no fences print advisories
+# 10. Verification RED: no numbered steps and no fences print advisories
 # but stay exit 0 (Tier 2 never blocks).
 bare="${work}/bare/SKILL.md"
 mkdir -p "${work}/bare"
@@ -206,7 +264,7 @@ for rule in SKILL006 SKILL007 SKILL008; do
 	esac
 done
 
-# 9. Recovery RED: a body whose only recovery advice is "try again" still
+# 11. Recovery RED: a body whose only recovery advice is "try again" still
 # fires SKILL008, and a real recovery section clears it.
 retry="${work}/retry/SKILL.md"
 mkdir -p "${work}/retry"
@@ -242,7 +300,7 @@ case "${out}" in
 *) ok "retry fixture fires only SKILL008" ;;
 esac
 
-# 10. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
+# 12. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
 # while Tier 1 still fires for a listed skill.
 fixture_base="${work}/baseline.tsv"
 printf 'bare\tSKILL006\tFixture exemption for the suite.\n' >"${fixture_base}"
@@ -264,7 +322,7 @@ case "${out}" in
 *) no "Tier 1 is never suppressed by the baseline (got: ${out:0:150})" ;;
 esac
 
-# 11. Baseline hygiene: every shipped exemption names a skill that exists,
+# 13. Baseline hygiene: every shipped exemption names a skill that exists,
 # so NEW skills cannot arrive pre-exempted.
 stale=0
 while IFS=$'\t' read -r skill _rule _reason; do

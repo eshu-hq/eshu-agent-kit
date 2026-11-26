@@ -150,20 +150,26 @@ for skill_file in "${files[@]}"; do
 		err "${rel}" 1 SKILL002 "frontmatter carries no non-empty description: field"
 	fi
 
-	# SKILL004: every relative link target resolves.
+	# SKILL004: every relative link target resolves, inline or
+	# reference-style. An optional quoted title is not part of the target.
 	while IFS= read -r hit; do
 		lnum="${hit%%:*}"
 		target="${hit#*:}"
 		case "${target}" in
 		http://* | https://* | mailto:* | \#* | /*) continue ;;
 		esac
+		target="$(printf '%s' "${target}" | sed -e 's/ ["'\''][^"'\'']*["'\'']$//')"
 		target="${target%%\#*}"
 		[[ -z "${target}" ]] && continue
 		if [[ ! -e "$(dirname "${skill_file}")/${target}" ]]; then
 			err "${rel}" "${lnum}" SKILL004 "link target '${target}' resolves to nothing"
 		fi
-	done < <(rg -n --no-heading -o '\]\(([^)]+)\)' "${skill_file}" 2>/dev/null |
-		sed -e 's/:](\(.*\))$/:\1/' || true)
+	done < <({
+		rg -n --no-heading -o '\]\(([^)]+)\)' "${skill_file}" 2>/dev/null |
+			sed -e 's/:](\(.*\))$/:\1/'
+		rg -n --no-heading -o '^[[:space:]]*\[[^]]+\]:[[:space:]]*[^[:space:]]+' "${skill_file}" 2>/dev/null |
+			sed -e 's/^\([0-9][0-9]*\):\[[^]]*\]:[[:space:]]*\(.*\)$/\1:\2/'
+	} || true)
 
 	# SKILL005: size cap.
 	lines="$(wc -l <"${skill_file}" | tr -d ' ')"
