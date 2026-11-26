@@ -48,12 +48,13 @@ def _render_bars(data, color, title_case=True, left_col="", right_col=""):
     return "\n".join(out)
 
 
-def _render_chart_card(title, data, color, title_case=True, footer="", left_col="", right_col=""):
+def _render_chart_card(title, data, color, title_case=True, footer="", left_col="", right_col="", hint=""):
+    hint_html = f'<div style="font-size:12px;color:#64748b;margin:-6px 0 10px">{_e(hint)}</div>' if hint else ""
     foot = f'<div style="font-size:12px;color:#64748b;margin-top:8px">{footer}</div>' if footer else ""
     return (
         f'<div class="chart-card">'
         f'<div class="chart-title">{_e(title)}</div>'
-        f'{_render_bars(data, color, title_case=title_case, left_col=left_col, right_col=right_col)}{foot}</div>'
+        f'{hint_html}{_render_bars(data, color, title_case=title_case, left_col=left_col, right_col=right_col)}{foot}</div>'
     )
 
 
@@ -285,11 +286,11 @@ def render_html(agg, syn):
     <div class="key-insight"><strong>Key pattern:</strong> {_e(key_ins)}</div>
   </div>
 
-  {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot, left_col="Wait between replies", right_col="Turns")}
+  {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot, left_col="Time until your next reply", right_col="Replies", hint="How long you took to reply after an agent finished a turn. Fast (2s–1m) = live back-and-forth; 1–5m = reviewing output or switching agents; >5m = async / parallel delegation (average includes overnight pauses — look at median for active pace).")}
 
   {gap_harness_table}
 
-  {_render_chart_card("Prompts Per Session (Interjections)", prompt_dist_disp, "#0ea5e9", title_case=False, footer=ij_foot, left_col="Prompts in session", right_col="Sessions")}
+  {_render_chart_card("Prompts Per Session (Interjections)", prompt_dist_disp, "#0ea5e9", title_case=False, footer=ij_foot, left_col="Prompts in session", right_col="Sessions", hint="How many messages you sent in a single main chat. 1 prompt = autonomous one-shot; 2–3 = light nudge; 4+ = interactive iteration or heavy steering.")}
 
   <div class="chart-card" style="margin:20px 0">
     <div class="chart-title">Multi-Agent Parallelism (Overlapping Sessions Across Harnesses)</div>
