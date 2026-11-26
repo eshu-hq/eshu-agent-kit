@@ -33,6 +33,10 @@ EOF
 cat >"${ROOT}/t0001/session.jsonl" <<'EOF'
 {"recorded_at":"2026-11-21T10:00:00+00:00","payload_type":"runtime.session.nested","payload":{"event":{"kind":"model_user_messages","messages":["fixture prompt that must be skipped"]}}}
 EOF
+mkdir -p "${ROOT}/sess-real-1/subagent/child-a"
+cat >"${ROOT}/sess-real-1/subagent/child-a/session.jsonl" <<'EOF'
+{"recorded_at":"2026-11-20T10:05:00+00:00","payload_type":"runtime.session.nested","payload":{"event":{"kind":"model_user_messages","messages":["child prompt that must be skipped"]}}}
+EOF
 
 # 1. mine re-mines the FIRST prompt only from raw transcripts, skips fixtures.
 bash "${REPLAY}" mine --sessions-root "${ROOT}" --out "${work}/evals.json" >/dev/null &&
@@ -45,6 +49,7 @@ assert by_id.get("sess-real-1") == "Fix the slow graph query on the dashboard", 
 assert by_id.get("sess-real-2") == "Add retry with backoff to the queue worker", by_id
 assert all("Also update the docs" not in e["prompt"] for e in evals), "second prompt leaked"
 assert all("fixture" not in e["prompt"] for e in evals), "fixture session leaked"
+assert all("child prompt" not in e["prompt"] for e in evals), "subagent child leaked"
 PYEOF
 
 # 2. mine documents the refresh path (re-mine as new sessions accrue).
@@ -133,7 +138,7 @@ bash "${REPLAY}" replay --evals "${work}/evals.json" --runner "${work}/runner.sh
 	--repeats 2 >/dev/null &&
 	bash "${REPLAY}" judge --runs "${work}/pairs-aa.json" --out "${work}/verdict-aa.json" >/dev/null &&
 	bash "${REPLAY}" report --verdict "${work}/verdict.json" --aa-verdict "${work}/verdict-aa.json" \
-	--seal "${work}/seal.json" --aa-seal "${work}/seal-aa.json" \
+	--seal "${work}/seal.json" \
 	>"${work}/report.txt" &&
 	rg -q "win rate" "${work}/report.txt" && rg -q "noise band" "${work}/report.txt" &&
 	rg -q "cost delta" "${work}/report.txt" &&
@@ -173,6 +178,62 @@ aa = [c for c in v["comparisons"] if c.get("kind") == "aa"]
 assert aa, v
 assert any(c["winner"] != "tie" for c in aa), aa
 PYEOF
+
+
+# 9. strip-proof gate catches arm identity embedded in longer strings.
+python3 - "${work}/pairs.json" "${work}/embedded.json" <<'PYEOF2'
+import json, sys
+pairs = json.load(open(sys.argv[1]))
+pairs[0]["traj_a"]["transcript"] = "ran in mode with-skill for this task"
+json.dump(pairs, open(sys.argv[2], "w"))
+PYEOF2
+bash "${REPLAY}" judge --runs "${work}/embedded.json" --out "${work}/bad2.json" >/dev/null 2>&1 &&
+	no "judge refuses embedded arm identity" || ok "judge refuses embedded arm identity"
+
+# 10. blind scrub covers underscore arm tokens in runner transcripts.
+cat >"${work}/leaky.sh" <<'EOF2'
+#!/usr/bin/env bash
+mode=""; prompt_file=""; out=""
+while [ "$#" -gt 0 ]; do case "$1" in
+	--mode) mode="$2"; shift 2;;
+	--prompt-file) prompt_file="$2"; shift 2;;
+	--out) out="$2"; shift 2;;
+	*) shift;;
+esac; done
+python3 - "${out}" "${mode}" <<'PYEOF2'
+import json, sys
+json.dump({"transcript": "ran in " + sys.argv[2].replace("-", "_") + " mode ok",
+	"tools": [], "skills": [],
+	"errors": 0, "tokens_in": 10, "tokens_out": 10},
+	open(sys.argv[1], "w"))
+PYEOF2
+EOF2
+chmod +x "${work}/leaky.sh"
+bash "${REPLAY}" replay --evals "${work}/evals.json" --runner "${work}/leaky.sh" \
+	--skill performance-rigor --out "${work}/pairs-leaky.json" --seal "${work}/seal-leaky.json" >/dev/null &&
+	python3 - "${work}/pairs-leaky.json" <<'PYEOF2' && ok "blind scrub covers underscore arm tokens" || no "blind scrub covers underscore arm tokens"
+import json, sys
+raw = open(sys.argv[1]).read()
+banned = ("with-skill", "without-skill", "with_skill", "without_skill")
+assert not any(b in raw for b in banned), raw
+PYEOF2
+
+
+# 11. an external --judge-cmd decides the winner (stub prints A unconditionally).
+cat >"${work}/stub-judge.sh" <<'EOF2'
+#!/usr/bin/env bash
+python3 -c "import json,sys; json.load(sys.stdin)"
+printf 'A'
+EOF2
+chmod +x "${work}/stub-judge.sh"
+bash "${REPLAY}" judge --runs "${work}/pairs.json" --judge-cmd "${work}/stub-judge.sh" \
+	--out "${work}/verdict-ext.json" >/dev/null &&
+	python3 - "${work}/verdict-ext.json" <<'PYEOF2' && ok "external judge-cmd decides the winner" || no "external judge-cmd decides the winner"
+import json, sys
+v = json.load(open(sys.argv[1]))
+assert v["comparisons"], v
+assert all(c["winner"] == "A" for c in v["comparisons"]), v
+PYEOF2
 
 if [ "${failed}" -gt 0 ]; then
 	printf 'FAIL replay-eval: %d of %d checks failed\n' "${failed}" "$((passed + failed))" >&2

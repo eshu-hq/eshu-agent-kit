@@ -30,7 +30,8 @@ BANNED_KEYS = frozenset({
     "mode", "arm", "skill", "skills", "with_skill", "without_skill",
     "with-skill", "without-skill",
 })
-BANNED_VALUES = frozenset({"with-skill", "without-skill"})
+BANNED_VALUES = frozenset({"with-skill", "without-skill",
+                                 "with_skill", "without_skill"})
 STOPWORDS = frozenset(
     "the a an and or for with from that this what how add use via per our your "
     "are was were been does did doing than then into over under again once here "
@@ -305,8 +306,10 @@ def _taint_scan(node):
             if hit:
                 return hit
     elif isinstance(node, str):
-        if node.strip() in BANNED_VALUES:
-            return "banned arm value %r" % node.strip()
+        lowered = node.strip().lower()
+        for banned in BANNED_VALUES:
+            if banned in lowered:
+                return "banned arm value %r" % banned
     return ""
 
 

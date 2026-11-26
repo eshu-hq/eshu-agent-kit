@@ -20,7 +20,7 @@ Examples:
   bash scripts/replay-eval.sh mine --sessions-root "$XDG_DATA_HOME/muse/sessions" --out evals.json
   bash scripts/replay-eval.sh replay --evals evals.json --runner ./run-once.sh --skill performance-rigor --out pairs.json --seal seal.json --repeats 3
   bash scripts/replay-eval.sh judge --runs pairs.json --out verdict.json
-  bash scripts/replay-eval.sh report --verdict verdict.json --aa-verdict verdict-aa.json --seal seal.json --aa-seal seal-aa.json
+  bash scripts/replay-eval.sh report --verdict verdict.json --aa-verdict verdict-aa.json --seal seal.json
 EOF
 }
 

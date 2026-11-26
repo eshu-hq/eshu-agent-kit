@@ -103,10 +103,10 @@ def cmd_report(args):
     import getopt
     try:
         opts, _ = getopt.getopt(args, "", ["verdict=", "aa-verdict=", "seal=",
-                                            "aa-seal=", "help"])
+                                            "help"])
     except getopt.GetoptError as exc:
         fail(str(exc), 2)
-    verdict = aa_verdict = seal = aa_seal = None
+    verdict = aa_verdict = seal = None
     for key, val in opts:
         if key == "--verdict":
             verdict = val
@@ -114,8 +114,6 @@ def cmd_report(args):
             aa_verdict = val
         elif key == "--seal":
             seal = val
-        elif key == "--aa-seal":
-            aa_seal = val
         elif key == "--help":
             print("report: win rate (needs --seal), noise band, cost delta.")
             return
