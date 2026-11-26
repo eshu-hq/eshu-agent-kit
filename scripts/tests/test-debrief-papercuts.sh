@@ -30,7 +30,9 @@ cache="${work}/cache"
 mkdir -p "${cache}"
 
 # Snapshot v1: two debrief findings (one open, one closed), one closed
-# issue-driver finding, one papercut without a skill line.
+# issue-driver finding, one papercut without a skill line, one CLOSED as
+# NOT_PLANNED (filed but never fixed), and one joining via a trailing
+# period in the skill line.
 cat >"${work}/papercuts-v1.json" <<'EOF'
 [
   {"number": 101, "title": "[papercut] gap table off by one", "state": "OPEN",
@@ -40,7 +42,11 @@ cat >"${work}/papercuts-v1.json" <<'EOF'
   {"number": 103, "title": "[papercut] filing path unclear", "state": "CLOSED",
    "body": "Tried filing. Expected template. Got free text.\nskill: issue-driver\nFix: add template."},
   {"number": 104, "title": "[papercut] vague report", "state": "OPEN",
-   "body": "No skill line in this body at all."}
+   "body": "No skill line in this body at all."},
+  {"number": 105, "title": "[papercut] out of scope", "state": "CLOSED", "stateReason": "NOT_PLANNED",
+   "body": "Tried Q. Expected R. Happened S.\nskill: debrief\nFix: none planned."},
+  {"number": 106, "title": "[papercut] join on sentence-final skill", "state": "OPEN",
+   "body": "Tried T. Expected U. Happened V.\nskill: debrief.\nFix: normalize the join key."}
 ]
 EOF
 
@@ -56,13 +62,14 @@ bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${cache}" \
 import json, sys
 d = json.load(open(sys.argv[1]))
 pc = d["papercuts"]
-assert pc["total_filed"] == 3, pc
+assert pc["total_filed"] == 5, pc
 assert pc["total_fixed"] == 2, pc
 assert pc["unmatched_without_skill"] == 1, pc
-assert pc["per_skill"]["debrief"] == {"filed": 2, "fixed": 1}, pc["per_skill"]
+assert pc["per_skill"]["debrief"] == {"filed": 4, "fixed": 1}, pc["per_skill"]
 assert pc["per_skill"]["issue-driver"] == {"filed": 1, "fixed": 1}, pc["per_skill"]
+assert "debrief." not in pc["per_skill"], pc["per_skill"]
 by_sk = {r["skill"]: r for r in d["skill_table"]}
-assert by_sk["debrief"]["papercut_filed"] == 2, by_sk["debrief"]
+assert by_sk["debrief"]["papercut_filed"] == 4, by_sk["debrief"]
 assert by_sk["debrief"]["papercut_fixed"] == 1, by_sk["debrief"]
 PYEOF
 
@@ -102,8 +109,8 @@ bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${cache}" \
 import json, sys
 before = json.load(open(sys.argv[1]))["papercuts"]["per_skill"]["debrief"]
 after = json.load(open(sys.argv[2]))["papercuts"]["per_skill"]["debrief"]
-assert before == {"filed": 2, "fixed": 1}, before
-assert after == {"filed": 2, "fixed": 2}, after
+assert before == {"filed": 4, "fixed": 1}, before
+assert after == {"filed": 4, "fixed": 2}, after
 PYEOF
 
 # Missing snapshot fails fast instead of silently reporting zeros.

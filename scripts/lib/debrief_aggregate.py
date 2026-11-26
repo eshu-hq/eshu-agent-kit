@@ -239,7 +239,9 @@ def papercut_stats(path):
             unmatched += 1
             continue
         match = PAPERCUT_SKILL_RE.search(str(rec.get("body") or ""))
-        skill = canon_skill(match.group(1)) if match else ""
+        # Sentence-final periods are prose, not part of the name ("skill:
+        # debrief." joins debrief); other terminators already stop the capture.
+        skill = canon_skill(match.group(1).rstrip(".")) if match else ""
         if not skill:
             unmatched += 1
             continue

@@ -239,6 +239,28 @@ assert v["comparisons"], v
 assert all(c["winner"] == "A" for c in v["comparisons"]), v
 PYEOF2
 
+# 12. an external --judge-cmd printing TIE decodes as a tie, not a win.
+cat >"${work}/tie-judge.sh" <<'EOF2'
+#!/usr/bin/env bash
+python3 -c "import json,sys; json.load(sys.stdin)"
+printf 'TIE'
+EOF2
+chmod +x "${work}/tie-judge.sh"
+bash "${REPLAY}" judge --runs "${work}/pairs.json" --judge-cmd "${work}/tie-judge.sh" \
+	--out "${work}/verdict-tie.json" >/dev/null &&
+	python3 - "${work}/verdict-tie.json" <<'PYEOF2' && ok "external TIE verdict stored as tie" || no "external TIE verdict stored as tie"
+import json, sys
+v = json.load(open(sys.argv[1]))
+assert v["comparisons"], v
+assert all(c["winner"] == "tie" for c in v["comparisons"]), v
+PYEOF2
+bash "${REPLAY}" report --verdict "${work}/verdict-tie.json" \
+	--aa-verdict "${work}/verdict-aa.json" --seal "${work}/seal.json" \
+	>"${work}/report-tie.txt" &&
+	rg -q "0 decisive" "${work}/report-tie.txt" &&
+	rg -q "disagreement\): 0/" "${work}/report-tie.txt" &&
+	ok "TIE report shows 0 decisive and zero noise" || no "TIE report shows 0 decisive and zero noise"
+
 if [ "${failed}" -gt 0 ]; then
 	printf 'FAIL replay-eval: %d of %d checks failed\n' "${failed}" "$((passed + failed))" >&2
 	exit 1
