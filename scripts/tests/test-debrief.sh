@@ -305,11 +305,22 @@ PYEOF
 python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "interjection stats handle zero-prompt and empty windows" || no "interjection stats handle zero-prompt and empty windows"
 import sys
 sys.path.insert(0, sys.argv[1])
-from debrief_aggregate import interjection_stats
+from debrief_aggregate import interjection_stats, _prompt_bucket
+bounds = {0: "1", 1: "1", 2: "2-3", 3: "2-3", 4: "4-9", 9: "4-9", 10: "10+", 11: "10+", 500: "10+"}
+for n, want in bounds.items():
+    assert _prompt_bucket(n) == want, (n, _prompt_bucket(n))
 dist, ij = interjection_stats([])
 assert dist == {"1": 0, "2-3": 0, "4-9": 0, "10+": 0}, dist
 assert ij["follow_up_rate_pct"] is None and ij["prompt_bearing_sessions"] == 0, ij
 assert ij["by_harness"] == {} and ij["top_steered"] == [], ij
+bearing_metas = [
+    {"id": "s%d" % n, "harness": "muse", "prompts": n, "tool_calls": 1}
+    for n in (1, 2, 3, 4, 9, 10, 11)
+]
+dist2, ij2 = interjection_stats(bearing_metas)
+assert dist2 == {"1": 1, "2-3": 2, "4-9": 2, "10+": 2}, dist2
+assert ij2["follow_up_rate_pct"] == round(100.0 * 6 / 7, 1), ij2
+assert ij2["by_harness"]["muse"]["median_prompts"] == 4.0, ij2["by_harness"]
 metas = [
     {"id": "a1", "harness": "muse", "prompts": 0, "tool_calls": 5},
     {"id": "b2", "harness": "muse", "prompts": 0, "tool_calls": 7},

@@ -75,7 +75,8 @@ Read `$WORK/aggregate.json` — it contains:
 - `meta` (totals, active days, git repo rollups, excluded fixtures)
 - `by_harness` (per-harness top/all sessions, facets, prompts, tool calls, errors)
 - `hooks` (`goal_done`, `goal_released`, `model_failures`, `nudge_blocked`)
-- `charts` (all 13 deterministic distributions + multi-agent parallel overlap + UTC hour counts)
+- `charts` (all 14 deterministic distributions, incl. prompt_distribution, + multi-agent parallel overlap + UTC hour counts)
+- `interjections` (follow-up rates, per-harness medians, top steered sessions; zero-prompt sessions named so rates read as lower bounds)
 - `skill_table` (mined loads vs hook loads vs forced share vs goal stall share)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 
