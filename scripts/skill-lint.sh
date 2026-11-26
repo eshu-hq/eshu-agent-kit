@@ -243,14 +243,14 @@ for skill_file in "${files[@]}"; do
 			err "${rel}" "${lnum}" SKILL004 "link target '${target}' resolves to nothing"
 		fi
 	done < <({
-		rg -n --no-heading -o '\]\(([^)]+)\)' "${skill_file}" 2>/dev/null |
+		grep -Eno '\]\(([^)]+)\)' "${skill_file}" 2>/dev/null |
 			sed -e 's/:](\(.*\))$/:\1/'
-		rg -n --no-heading -o '^[[:space:]]*\[[^]]+\]:[[:space:]]*[^[:space:]]+' "${skill_file}" 2>/dev/null |
+		grep -Eno '^[[:space:]]*\[[^]]+\]:[[:space:]]*[^[:space:]]+' "${skill_file}" 2>/dev/null |
 			sed -e 's/^\([0-9][0-9]*\):\[[^]]*\]:[[:space:]]*\(.*\)$/\1:\2/'
 	} || true)
 	# SKILL004, reference uses: [text][label], [label][], and shortcut
 	# [label] each need a matching [label]: definition (case-insensitive).
-	defined_labels="$(rg --no-heading -o '^[[:space:]]*\[[^]]+\]:' "${skill_file}" 2>/dev/null |
+	defined_labels="$(grep -Eo '^[[:space:]]*\[[^]]+\]:' "${skill_file}" 2>/dev/null |
 		sed -e 's/^[[:space:]]*\[//' -e 's/\]:$//' |
 		while IFS= read -r raw; do norm_label "${raw}"; done || true)"
 	while IFS= read -r use; do
@@ -263,10 +263,10 @@ for skill_file in "${files[@]}"; do
 		[[ -z "${label}" ]] && label="${text}"
 		[[ -z "${label}" ]] && continue
 		label="$(norm_label "${label}")"
-		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
+		if ! printf '%s\n' "${defined_labels}" | grep -qxF -- "${label}" 2>/dev/null; then
 			err "${rel}" "${ulnum}" SKILL004 "reference '[${label}]' has no matching definition"
 		fi
-	done < <(rg -n --no-heading -o '\[[^]]*\]\[[^]]*\]' "${skill_file}" 2>/dev/null || true)
+	done < <(grep -Eno '\[[^]]*\]\[[^]]*\]' "${skill_file}" 2>/dev/null || true)
 	# Bare [label] cannot prove link intent ([fill-in: ...], [string], and
 	# quoted prose all use bare brackets without referencing anything), so
 	# an undefined shortcut is advisory, not blocking. Full and collapsed
@@ -282,10 +282,10 @@ for skill_file in "${files[@]}"; do
 		inner="${inner#\[}"
 		[[ -z "${inner}" ]] && continue
 		label="$(norm_label "${inner}")"
-		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
+		if ! printf '%s\n' "${defined_labels}" | grep -qxF -- "${label}" 2>/dev/null; then
 			adv "${skill}" "${rel}" "${ulnum}" SKILL004 "possible shortcut reference '[${label}]' has no matching definition"
 		fi
-	done < <(rg -n --no-heading -o '.?\[[^]]+\].?' "${skill_file}" 2>/dev/null || true)
+	done < <(grep -Eno '.?\[[^]]+\].?' "${skill_file}" 2>/dev/null || true)
 
 	# SKILL005: size cap.
 	lines="$(wc -l <"${skill_file}" | tr -d ' ')"
@@ -310,18 +310,18 @@ for skill_file in "${files[@]}"; do
 	est_body_tokens=$(((body_bytes + 3) / 4))
 
 	# SKILL006: at least one numbered step.
-	if ! printf '%s' "${body}" | rg -q '^[0-9]+\. '; then
+	if ! printf '%s' "${body}" | grep -Eq '^[0-9]+\. '; then
 		adv "${skill}" "${rel}" 1 SKILL006 "no numbered steps: write the workflow as N. one-objective steps"
 	fi
 
 	# SKILL007: at least one fenced command block.
-	if ! printf '%s' "${body}" | rg -q '^[[:space:]]*```'; then
+	if ! printf '%s' "${body}" | grep -Eq '^[[:space:]]*```'; then
 		adv "${skill}" "${rel}" 1 SKILL007 "no fenced command block: give each step a concrete command or check to run"
 	fi
 
 	# SKILL008: an error-recovery section with real content: headings alone
 	# and bare "try again" lines are ignored.
-	recovery_left="$(printf '%s' "${body}" | rg -v -i 'try again' | rg -v '^[[:space:]]*#' | rg -i -c 'recover|troubleshoot|failure|mistake|gotcha|fallback|rollback|when .*fail|if .*fail' || true)"
+	recovery_left="$(printf '%s' "${body}" | grep -Evi 'try again' | grep -Ev '^[[:space:]]*#' | grep -Eic 'recover|troubleshoot|failure|mistake|gotcha|fallback|rollback|when .*fail|if .*fail' || true)"
 	if [[ -z "${recovery_left}" || "${recovery_left}" == "0" ]]; then
 		adv "${skill}" "${rel}" 1 SKILL008 "no error-recovery section: name the failure path and the fix (\"try again\" does not count)"
 	fi
