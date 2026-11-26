@@ -293,6 +293,8 @@ def main(argv=None):
     p_agg.add_argument("--repo", action="append", default=[])
     p_agg.add_argument("--papercuts", default="",
                        help="JSON snapshot of papercut issues (array or {\"issues\": [...]}) joined on the skill: body line; no live gh calls")
+    p_agg.add_argument("--evals", action="append", default=[],
+                       help="JSON file or directory of *.json replay-eval summaries joined per skill; offline only")
     p_agg.add_argument("--out", default="")
 
     args = ap.parse_args(argv)

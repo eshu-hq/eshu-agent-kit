@@ -5,7 +5,10 @@ Moved out of ``debrief_aggregate.py`` to keep that module under the 500-line
 limit. Joins hook ``skill-load`` windows with mined skill loads and folds
 per-skill attributed cost fields (issue #80) into each skill-table row.
 """
+import json
 import os
+import re
+import subprocess
 from collections import Counter, defaultdict
 
 from debrief_common import (  # noqa: E402
@@ -13,6 +16,7 @@ from debrief_common import (  # noqa: E402
     is_fixture_session,
     load_json_lines,
     safe_int,
+    safe_key,
 )
 
 
@@ -115,8 +119,14 @@ def _aggregate_hooks(hook_events, mined_skills, skill_costs_by_skill=None):
             "attributed_tokens_in": cost.get("attributed_tokens_in", 0.0),
             "attributed_tokens_out": cost.get("attributed_tokens_out", 0.0),
             "attributed_tokens_total": cost.get("attributed_tokens_total", 0.0),
+            "attributed_cache_read": cost.get("attributed_cache_read", 0.0),
+            "attributed_cache_write": cost.get("attributed_cache_write", 0.0),
             "attributed_errors": cost.get("attributed_errors", 0.0),
+            "error_rate_per_session": cost.get("error_rate_per_session", 0.0),
             "token_bearing_sessions": cost.get("token_bearing_sessions", 0),
+            "median_gap_s": cost.get("median_gap_s"),
+            "median_duration_min": cost.get("median_duration_min"),
+            "estimated_context_tax_tokens": cost.get("estimated_context_tax_tokens", 0.0),
         })
 
     hooks_summary = {
@@ -129,3 +139,126 @@ def _aggregate_hooks(hook_events, mined_skills, skill_costs_by_skill=None):
         "model_failures": dict(model_failures.most_common(12)),
     }
     return skill_table, hooks_summary
+
+
+PAPERCUT_SKILL_RE = re.compile(r"^\s*skill\s*:\s*[`'\"]?([A-Za-z0-9_.:-]+)", re.IGNORECASE | re.MULTILINE)
+
+
+def papercut_stats(path):
+    """Per-skill papercut filed vs fixed from a caller-supplied snapshot file.
+
+    The snapshot is JSON exported out of band (e.g. ``gh issue list --label
+    papercut --json number,title,body,state,stateReason``), either a bare
+    array or ``{"issues": [...]}``. The join key is the required ``skill:``
+    body line the papercut template asks for; issues without one count as
+    unmatched, never as zero-skill findings. Fixed means CLOSED for a reason
+    other than NOT_PLANNED. Offline only: no network calls.
+    """
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"aggregate: cannot read --papercuts snapshot {path!r}: {exc}")
+    if isinstance(raw, dict):
+        for key in ("issues", "papercuts"):
+            if isinstance(raw.get(key), list):
+                raw = raw[key]
+                break
+    if not isinstance(raw, list):
+        raise SystemExit(f"aggregate: --papercuts snapshot {path!r} must be a JSON array or {{\"issues\": [...]}}")
+    per_skill = {}
+    unmatched = 0
+    for rec in raw:
+        if not isinstance(rec, dict):
+            unmatched += 1
+            continue
+        match = PAPERCUT_SKILL_RE.search(str(rec.get("body") or ""))
+        # Sentence-final periods are prose, not part of the name ("skill: debrief." joins debrief).
+        skill = canon_skill(match.group(1).rstrip(".")) if match else ""
+        if not skill:
+            unmatched += 1
+            continue
+        entry = per_skill.setdefault(skill, {"filed": 0, "fixed": 0})
+        entry["filed"] += 1
+        state = str(rec.get("state") or "").upper()
+        reason = str(rec.get("stateReason") or "").upper()
+        if state == "CLOSED" and reason != "NOT_PLANNED":
+            entry["fixed"] += 1
+    return {
+        "snapshot": path,
+        "total_filed": sum(e["filed"] for e in per_skill.values()),
+        "total_fixed": sum(e["fixed"] for e in per_skill.values()),
+        "unmatched_without_skill": unmatched,
+        "per_skill": dict(sorted(per_skill.items())),
+    }
+
+
+def _collect_git_stats(path, since_str):
+    if not os.path.isdir(os.path.join(path, ".git")):
+        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
+    cmd = ["git", "-C", path, "log", "--pretty=%H %P %s", "--numstat"]
+    if since_str:
+        w = since_str + "T00:00:00Z" if re.fullmatch(r"\d{4}-\d{2}-\d{2}", since_str) else since_str
+        cmd += ["--since=" + w]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
+    if out.returncode != 0:
+        return {"path": path, "name": os.path.basename(os.path.normpath(path)) or path, "unreadable": True}
+    commits = merges = reverts = files = added = deleted = 0
+    for line in out.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[0].strip().isdigit() and parts[1].strip().isdigit():
+            added += int(parts[0].strip())
+            deleted += int(parts[1].strip())
+            files += 1
+        elif line and not line[0].isspace():
+            m = re.match(r"^[0-9a-f]{40}((?: [0-9a-f]{40})*) (.*)$", line)
+            if not m:
+                continue
+            commits += 1
+            if len(m.group(1).split()) >= 2:
+                merges += 1
+            if m.group(2).lower().startswith("revert"):
+                reverts += 1
+    return {
+        "path": path,
+        "name": os.path.basename(os.path.normpath(path)) or path,
+        "commits": commits,
+        "merges": merges,
+        "reverts": reverts,
+        "files": files,
+        "added": added,
+        "deleted": deleted,
+    }
+
+
+def _compute_overlap(metas):
+    """Detect parallel overlapping top-level sessions (Multi-Agenting)."""
+    intervals = []
+    for m in metas:
+        s, e = m.get("first_epoch"), m.get("last_epoch")
+        if isinstance(s, (int, float)) and isinstance(e, (int, float)) and e > s + 10:
+            intervals.append((s, e, safe_key(m["harness"], m["id"])))
+    intervals.sort()
+    involved = set()
+    overlap_events = 0
+    active = []
+    for s, e, k in intervals:
+        active = [(ae, ak) for ae, ak in active if ae > s]
+        if active:
+            overlap_events += 1
+            involved.add(k)
+            for _, ak in active:
+                involved.add(ak)
+        active.append((e, k))
+    total_msgs = sum(m.get("prompts", 0) for m in metas) or 1
+    ov_msgs = sum(m.get("prompts", 0) for m in metas if safe_key(m["harness"], m["id"]) in involved)
+    return {
+        "overlap_events": overlap_events,
+        "sessions_involved": len(involved),
+        "pct_of_messages": round(100.0 * ov_msgs / total_msgs),
+    }

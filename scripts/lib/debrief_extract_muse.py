@@ -88,6 +88,13 @@ def _skill_from_read_skill(args):
     return canon_skill(name)
 
 
+def _usage_cache_read(usage):
+    val = usage.get("cache_read_tokens")
+    if val is None:
+        val = usage.get("cached_tokens")
+    return max(0, safe_int(val, 0))
+
+
 def extract_session(path, mtime=0.0):
     """Return (meta_dict, digest_dict) for one Muse session.jsonl."""
     sess_id = None
@@ -106,6 +113,8 @@ def extract_session(path, mtime=0.0):
     subagent_roles = Counter()
     session_models = Counter()
     skill_loads = set()
+    skill_first_model_turn = {}
+    skill_first_asst = {}
     hook_blocks = Counter()
     msg_hours = Counter()
     fallback_hours = Counter()
@@ -117,8 +126,11 @@ def extract_session(path, mtime=0.0):
     last_assistant_ep = None
     git_commits = 0
     git_pushes = 0
-    tokens_in = 0
-    tokens_out = 0
+    model_turns = 0
+    has_model_completed = False
+    mc_tokens_in = mc_tokens_out = mc_cache_read = mc_cache_write = 0
+    fb_tokens_in = fb_tokens_out = fb_cache_read = fb_cache_write = 0
+    model_duration_ms = 0
     max_depth = 0
 
     user_prompts = []
@@ -202,8 +214,10 @@ def extract_session(path, mtime=0.0):
                 subagent_runs.append({"role": "subagent", "summary": summ, "error_kind": errk})
         elif pt == "subagent.control.runtime_observed":
             usage = inner.get("usage") if isinstance(inner.get("usage"), dict) else {}
-            tokens_in += safe_int(usage.get("input_tokens"), 0)
-            tokens_out += safe_int(usage.get("output_tokens"), 0)
+            fb_tokens_in += max(0, safe_int(usage.get("input_tokens"), 0))
+            fb_tokens_out += max(0, safe_int(usage.get("output_tokens"), 0))
+            fb_cache_read += _usage_cache_read(usage)
+            fb_cache_write += max(0, safe_int(usage.get("cache_write_tokens"), 0))
         elif pt == "tool_batch.effect.started":
             cid = inner.get("call_id")
             if cid:
@@ -234,6 +248,15 @@ def extract_session(path, mtime=0.0):
                             hr = epoch_to_utc_hour(ep)
                             if hr is not None:
                                 fallback_hours[str(hr)] += 1
+            elif ek == "model_completed":
+                has_model_completed = True
+                model_turns += 1
+                usage = ev.get("usage") if isinstance(ev.get("usage"), dict) else {}
+                mc_tokens_in += max(0, safe_int(usage.get("input_tokens"), 0))
+                mc_tokens_out += max(0, safe_int(usage.get("output_tokens"), 0))
+                mc_cache_read += _usage_cache_read(usage)
+                mc_cache_write += max(0, safe_int(usage.get("cache_write_tokens"), 0))
+                model_duration_ms += max(0, safe_int(ev.get("duration_ms"), 0))
             elif ek == "assistant_message_committed":
                 assistants += 1
                 if ep is not None:
@@ -247,6 +270,8 @@ def extract_session(path, mtime=0.0):
                 sk = canon_skill(ev.get("skill_id") or "")
                 if sk:
                     skill_loads.add(sk)
+                    skill_first_model_turn.setdefault(sk, max(1, model_turns))
+                    skill_first_asst.setdefault(sk, assistants)
             elif ek == "hook_run_terminal":
                 ec = ev.get("exit_code")
                 if isinstance(ec, int) and ec != 0:
@@ -271,6 +296,8 @@ def extract_session(path, mtime=0.0):
                             sk = _skill_from_read_skill(args)
                             if sk:
                                 skill_loads.add(sk)
+                                skill_first_model_turn.setdefault(sk, max(1, model_turns))
+                                skill_first_asst.setdefault(sk, assistants)
                     elif tname in ("read_file", "edit_file", "write_file"):
                         fp = _extract_path_from_args(args)
                         if fp:
@@ -294,6 +321,20 @@ def extract_session(path, mtime=0.0):
         if not msg_hours:
             msg_hours.update(fallback_hours)
     dur_min = round((last_ep - first_ep) / 60.0, 2) if (first_ep and last_ep and last_ep >= first_ep) else 0.0
+    if has_model_completed:
+        tokens_in, tokens_out = mc_tokens_in, mc_tokens_out
+        tokens_cache_read, tokens_cache_write = mc_cache_read, mc_cache_write
+    else:
+        tokens_in, tokens_out = fb_tokens_in, fb_tokens_out
+        tokens_cache_read, tokens_cache_write = fb_cache_read, fb_cache_write
+    turns_after_skill_load = {
+        sk: (
+            max(1, model_turns - skill_first_model_turn.get(sk, 1) + 1)
+            if model_turns > 0
+            else max(1, assistants - skill_first_asst.get(sk, 0))
+        )
+        for sk in sorted(skill_loads)
+    }
 
     meta = {
         "id": sess_id,
@@ -329,6 +370,10 @@ def extract_session(path, mtime=0.0):
         "git_pushes": git_pushes,
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
+        "tokens_cache_read": tokens_cache_read,
+        "tokens_cache_write": tokens_cache_write,
+        "model_duration_ms": model_duration_ms,
+        "turns_after_skill_load": turns_after_skill_load,
     }
     digest = {
         "session_id": sess_id,

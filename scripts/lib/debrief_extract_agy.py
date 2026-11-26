@@ -14,6 +14,7 @@ from debrief_common import (
     epoch_to_utc_hour,
     lang_from_path,
     load_json_lines,
+    safe_int,
     truncate_text,
     ts_to_epoch,
 )
@@ -162,6 +163,7 @@ def extract_session(path, mtime=0.0, db_cache=None):
     error_cats = Counter()
     languages = Counter()
     skill_loads = set()
+    skill_first_turn = {}
     subagents = 0
     subagent_roles = Counter()
     session_models = Counter()
@@ -175,6 +177,9 @@ def extract_session(path, mtime=0.0, db_cache=None):
     last_model = None
     git_commits = 0
     git_pushes = 0
+    tokens_in = 0
+    tokens_out = 0
+    tokens_cache_read = 0
     nesting = int(smeta.get("nesting_depth") or 0)
     max_depth = nesting
 
@@ -197,6 +202,12 @@ def extract_session(path, mtime=0.0, db_cache=None):
             assistants += 1
             if ep is not None:
                 last_assistant_ep = ep
+            inp_tok = max(0, safe_int(rec.get("input_tokens"), 0))
+            out_tok = max(0, safe_int(rec.get("output_tokens"), 0))
+            cr_tok = max(0, safe_int(rec.get("cache_read_tokens"), 0))
+            tokens_in += inp_tok + cr_tok
+            tokens_out += out_tok
+            tokens_cache_read += cr_tok
             model = rec.get("model")
             if isinstance(model, str) and model:
                 mc = model[:60]
@@ -224,6 +235,7 @@ def extract_session(path, mtime=0.0, db_cache=None):
                         sk = _skill_from_path(fp)
                         if sk:
                             skill_loads.add(sk)
+                            skill_first_turn.setdefault(sk, assistants)
                         lang = lang_from_path(fp)
                         if lang:
                             languages[lang] += 1
@@ -274,6 +286,10 @@ def extract_session(path, mtime=0.0, db_cache=None):
             pending_idx = 0
 
     dur_min = round((last_ep - first_ep) / 60.0, 2) if (first_ep and last_ep and last_ep >= first_ep) else 0.0
+    turns_after_skill_load = {
+        sk: max(1, assistants - first_t + 1)
+        for sk, first_t in sorted(skill_first_turn.items())
+    }
     meta = {
         "id": cid,
         "harness": "agy",
@@ -307,8 +323,11 @@ def extract_session(path, mtime=0.0, db_cache=None):
         "hook_blocks": {},
         "git_commits": git_commits,
         "git_pushes": git_pushes,
-        "tokens_in": 0,
-        "tokens_out": 0,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "tokens_cache_read": tokens_cache_read,
+        "tokens_cache_write": 0,
+        "turns_after_skill_load": turns_after_skill_load,
     }
     digest = {
         "session_id": cid,

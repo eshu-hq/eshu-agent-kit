@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import default_reports_dir, read_json, safe_float, safe_int  # noqa: E402
 from debrief_html_assets import REPORT_CSS, REPORT_JS  # noqa: E402
+from debrief_render_skills import render_harness_skill_section  # noqa: E402
 
 
 def _e(val):
@@ -139,79 +140,6 @@ def _render_horizon(items):
             f'{tip_html}{pr_html}</div>'
         )
     return '<div class="horizon-section">' + "\n".join(cards) + "</div>"
-
-
-def _fmt_tokens(val):
-    """Compact token figure: thousands with one decimal (12.5k) or plain ints."""
-    try:
-        num = float(val or 0)
-    except (TypeError, ValueError):
-        return "—"
-    if num >= 1000:
-        return f"{num / 1000.0:.1f}k"
-    if num == int(num):
-        return str(int(num))
-    return f"{num:.2f}"
-
-
-def _render_harness_skill_section(agg):
-    costs_by_harness = ((agg.get("skill_costs") or {}).get("by_harness") or {})
-    tok_cells = []
-    for h in sorted((agg.get("by_harness") or {})):
-        if h == "agy":
-            tok_cells.append((h, "not mined"))
-            continue
-        c = costs_by_harness.get(h)
-        if c is None:
-            tok_cells.append((h, "—"))
-            continue
-        tin = _fmt_tokens(c.get("attributed_tokens_in"))
-        tout = _fmt_tokens(c.get("attributed_tokens_out"))
-        tag = " *" if h == "muse" else ""
-        tok_cells.append((h, f"{tin} in / {tout} out{tag}"))
-    tok_by_h = dict(tok_cells)
-    h_rows = []
-    for h, info in sorted((agg.get("by_harness") or {}).items()):
-        h_rows.append(
-            f'<tr><td><code>{_e(h)}</code></td>'
-            f'<td class="num">{int(info.get("top_sessions", 0))} / {int(info.get("sessions", 0))}</td>'
-            f'<td class="num">{int(info.get("facets", 0))}</td>'
-            f'<td class="num">{int(info.get("prompts", 0)):,}</td>'
-            f'<td class="num">{int(info.get("tool_calls", 0)):,}</td>'
-            f'<td class="num">{int(info.get("errors", 0)):,}</td>'
-            f'<td class="num">{_e(tok_by_h.get(h, "—"))}</td></tr>'
-        )
-    harness_tok_foot = ("* Muse tokens are subagent-observed only; agy token usage is "
-                        "not mined. Figures are per-harness rollups, never ranked.")
-    s_rows = []
-    for row in (agg.get("skill_table") or [])[:15]:
-        fp = f'{row["forced_pct"]}% ({row["forced"]}/{row["hook_loads"]})' if row.get("forced_pct") is not None else "—"
-        cost = _fmt_tokens(row.get("attributed_tokens_total"))
-        s_rows.append(
-            f'<tr><td><code>{_e(row["skill"])}</code></td>'
-            f'<td class="num">{_e(row["mined_loads"])}</td>'
-            f'<td class="num">{_e(row["hook_loads"])}</td>'
-            f'<td class="num">{_e(fp)}</td>'
-            f'<td class="num">{_e(cost)}</td></tr>'
-        )
-    cost_foot = ("Cost splits each session's tokens equally among its own skills; "
-                 "sessions with no loaded skill are unattributed.")
-    return (
-        '<h2 id="section-harnesses">Harnesses &amp; Skill Effectiveness</h2>'
-        '<div class="charts-row">'
-        '<div class="chart-card"><div class="chart-title">Per-Harness Activity</div>'
-        '<table><thead><tr><th>Harness</th><th class="num">Top / All</th><th class="num">Facets</th>'
-        '<th class="num">Prompts</th><th class="num">Tools</th><th class="num">Errors</th>'
-        '<th class="num">Attributed tokens</th></tr></thead>'
-        f'<tbody>{"".join(h_rows)}</tbody></table>'
-        f'<div style="font-size:12px;color:#64748b;margin-top:8px">{_e(harness_tok_foot)}</div></div>'
-        '<div class="chart-card"><div class="chart-title">Top Skills (Mined vs Hook Forced)</div>'
-        '<table><thead><tr><th>Skill</th><th class="num">Mined</th><th class="num">Hook</th>'
-        '<th class="num">Forced</th><th class="num">Cost (tok)</th></tr></thead>'
-        f'<tbody>{"".join(s_rows) or "<tr><td colspan=5>No skill loads in window.</td></tr>"}</tbody></table>'
-        f'<div style="font-size:12px;color:#64748b;margin-top:8px">{_e(cost_foot)}</div></div>'
-        '</div>'
-    )
 
 
 def render_html(agg, syn):
@@ -391,7 +319,7 @@ def render_html(agg, syn):
     {_render_chart_card("Tool Errors Encountered", charts.get("tool_error_categories"), "#dc2626", title_case=False)}
   </div>
 
-  {_render_harness_skill_section(agg)}
+  {render_harness_skill_section(agg)}
 
   <h2 id="section-wins">Impressive Things You Did</h2>
   <p class="section-intro">{_e(syn.get("wins_intro"))}</p>

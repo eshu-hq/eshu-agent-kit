@@ -121,16 +121,43 @@ else
 	ok "missing papercut snapshot fails fast"
 fi
 
-# No flag, no section: backward compatible, skill rows still carry zeros.
+# No flag, no section: backward compatible, skill rows still carry zeros/nulls.
 bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${cache}" \
 	--log "${work}/hooks.jsonl" --out "${work}/agg-plain.json" >/dev/null && rc=0 || rc=1
-[ "${rc}" -eq 0 ] && python3 - "${work}/agg-plain.json" <<'PYEOF' && ok "aggregate without --papercuts stays backward compatible" || no "aggregate without --papercuts stays backward compatible"
+[ "${rc}" -eq 0 ] && python3 - "${work}/agg-plain.json" <<'PYEOF' && ok "aggregate without --papercuts or --evals stays backward compatible" || no "aggregate without --papercuts or --evals stays backward compatible"
 import json, sys
 d = json.load(open(sys.argv[1]))
-assert d["papercuts"] is None, d["papercuts"]
+assert d["papercuts"] is None and d["evals"] is None, (d["papercuts"], d["evals"])
 by_sk = {r["skill"]: r for r in d["skill_table"]}
-assert by_sk["debrief"]["papercut_filed"] == 0, by_sk["debrief"]
-assert by_sk["debrief"]["papercut_fixed"] == 0, by_sk["debrief"]
+assert by_sk["debrief"]["papercut_filed"] == 0 and by_sk["debrief"]["papercut_fixed"] == 0, by_sk["debrief"]
+assert by_sk["debrief"]["eval_win_rate"] is None and by_sk["debrief"]["eval_pairs"] is None, by_sk["debrief"]
+PYEOF
+
+if bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${cache}" \
+	--evals "${work}/no-such-evals.json" --out "${work}/agg-bad-eval.json" >/dev/null 2>&1; then
+	no "missing --evals path fails fast"
+else
+	ok "missing --evals path fails fast"
+fi
+
+# HTML rendering: open/fixed counts render with --papercuts and dash without.
+cat >"${work}/syn.json" <<'EOF'
+{"at_a_glance":{"working":"Good","hindering":"None","quick_wins":"None","ambitious":"None"},"project_areas":[],"narrative_paragraphs":[],"key_insight":"Ok","wins_intro":"","big_wins":[],"friction_intro":"","friction_categories":[],"agents_md_additions":[],"features_to_try":[],"usage_patterns":[],"horizon_intro":"","horizon_workflows":[]}
+EOF
+bash "${DEBRIEF}" render --aggregate "${work}/agg-v1.json" --synthesis "${work}/syn.json" --out "${work}/r-v1.html" >/dev/null &&
+	bash "${DEBRIEF}" render --aggregate "${work}/agg-v2.json" --synthesis "${work}/syn.json" --out "${work}/r-v2.html" >/dev/null &&
+	bash "${DEBRIEF}" render --aggregate "${work}/agg-plain.json" --synthesis "${work}/syn.json" --out "${work}/r-plain.html" >/dev/null && rc=0 || rc=1
+[ "${rc}" -eq 0 ] && python3 - "${work}/r-v1.html" "${work}/r-v2.html" "${work}/r-plain.html" <<'PYEOF' && ok "HTML renderer shows open/fixed papercuts and flywheel summary" || no "HTML renderer shows open/fixed papercuts and flywheel summary"
+import re, sys
+h1 = open(sys.argv[1], encoding="utf-8").read()
+h2 = open(sys.argv[2], encoding="utf-8").read()
+hp = open(sys.argv[3], encoding="utf-8").read()
+assert "Top Skills (Flywheel Scorecard)" in h1 and "Skill Quality Flywheel" in h1
+assert "3 open / 2 fixed" in h1 and ">3/1<" in h1, "v1 papercut render mismatch"
+assert "2 open / 3 fixed" in h2 and ">2/2<" in h2, "v2 papercut render mismatch"
+assert "open /" not in hp and ">0/0<" not in hp and ">—<" in hp, "plain render should show dash"
+for h in (h1, h2, hp):
+    assert not re.search(r"https?://", h), "external URL found in offline HTML!"
 PYEOF
 
 printf '\ndebrief-papercuts: %s passed, %s failed\n' "${passed}" "${failed}"
