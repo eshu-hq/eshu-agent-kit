@@ -21,6 +21,7 @@ from replay_eval import _taint_scan, fail, rubric_score  # noqa: E402
 from replay_runner import VALID_HARNESSES, parse_harness_output  # noqa: E402
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
+JUDGE_MAX_TRANSCRIPT_CHARS = 12000
 
 
 def _traj_tokens(traj):
@@ -80,6 +81,11 @@ def grade_expectations(traj, expectations):
     return {"passed": all(c["passed"] for c in checks) if checks else True, "checks": checks, "failures": failures}
 
 
+def _bound_transcript(text, limit=JUDGE_MAX_TRANSCRIPT_CHARS):
+    s = str(text or "")
+    return s if len(s) <= limit else (s[:limit] + "\n...[truncated]")
+
+
 def build_judge_prompt(pair):
     """Build a strictly blind A/B judge prompt with zero arm identity."""
     ta, tb = pair["traj_a"], pair["traj_b"]
@@ -98,8 +104,8 @@ def build_judge_prompt(pair):
         '"rationale": "concise justification"}'
     ) % (
         pair.get("prompt") or "",
-        ", ".join(ta.get("tools") or []) or "none", max(0, safe_int(ta.get("errors"), 0)), ta.get("transcript") or "",
-        ", ".join(tb.get("tools") or []) or "none", max(0, safe_int(tb.get("errors"), 0)), tb.get("transcript") or "",
+        ", ".join(ta.get("tools") or []) or "none", max(0, safe_int(ta.get("errors"), 0)), _bound_transcript(ta.get("transcript")),
+        ", ".join(tb.get("tools") or []) or "none", max(0, safe_int(tb.get("errors"), 0)), _bound_transcript(tb.get("transcript")),
     )
 
 
@@ -113,16 +119,33 @@ def _extract_json_object(raw_text):
             return obj
     except ValueError:
         pass
-    m = _FENCE_RE.search(text)
-    if m:
-        obj = json.loads(m.group(1))
-        if isinstance(obj, dict):
+    fenced = []
+    for m in _FENCE_RE.finditer(text):
+        try:
+            obj = json.loads(m.group(1))
+            if isinstance(obj, dict):
+                fenced.append(obj)
+        except ValueError:
+            continue
+    for obj in fenced:
+        if "winner" in obj:
             return obj
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end > start:
-        obj = json.loads(text[start:end + 1])
-        if isinstance(obj, dict):
+    if fenced:
+        return fenced[0]
+    decoder, found, idx = json.JSONDecoder(), [], text.find("{")
+    while idx != -1:
+        try:
+            obj, end = decoder.raw_decode(text, idx)
+            if isinstance(obj, dict):
+                found.append(obj)
+            idx = text.find("{", end)
+        except ValueError:
+            idx = text.find("{", idx + 1)
+    for obj in found:
+        if "winner" in obj:
             return obj
+    if found:
+        return found[0]
     raise ValueError("no JSON object found in judge output")
 
 
@@ -160,7 +183,8 @@ def _invoke_judge_harness(harness, model, prompt_text, timeout=180):
             cmd = [
                 "muse", "exec", "--json", "--no-session-log", "--disable-web-tools",
                 "--disable-reminders", "--disable-request-user-input",
-                "--no-foreign-personal-context", "--approval-mode", "never", "--workspace", tmpdir,
+                "--no-foreign-personal-context", "--trust-workspace",
+                "--approval-mode", "never", "--workspace", tmpdir,
             ]
             if model:
                 cmd += ["--model", model]
@@ -173,6 +197,8 @@ def _invoke_judge_harness(harness, model, prompt_text, timeout=180):
             fail("judge harness %s timed out after %ds" % (harness, timeout))
         except FileNotFoundError:
             fail("judge harness binary not found on PATH: %s" % cmd[0])
+        except OSError as exc:
+            fail("judge harness %s could not execute: %s" % (harness, exc))
         if proc.returncode != 0:
             fail("judge harness %s failed: %s" % (harness, (proc.stderr or proc.stdout).strip()[-400:]))
         parsed = parse_harness_output(harness, proc.stdout, 0.0)
@@ -200,7 +226,13 @@ def judge_pair(pair, judge_cmd=None, judge_harness=None, judge_model="", timeout
             "B": grade_expectations(pair["traj_b"], exp),
         }
     if judge_cmd:
-        proc = subprocess.run([judge_cmd], input=json.dumps(pair), capture_output=True, text=True, timeout=max(60, timeout))
+        cmd_timeout = max(60, timeout)
+        try:
+            proc = subprocess.run([judge_cmd], input=json.dumps(pair), capture_output=True, text=True, timeout=cmd_timeout)
+        except subprocess.TimeoutExpired:
+            fail("judge command %s timed out after %ds" % (judge_cmd, cmd_timeout))
+        except OSError as exc:
+            fail("judge command %s could not execute: %s" % (judge_cmd, exc))
         if proc.returncode != 0:
             fail("judge command failed: %s" % proc.stderr.strip()[-300:])
         verdict = proc.stdout.strip().upper()
@@ -254,6 +286,8 @@ def cmd_judge(args):
             return
     if not runs or not out:
         fail("judge needs --runs and --out", 2)
+    if timeout < 1:
+        fail("--timeout must be >= 1", 2)
     if judge_cmd and judge_harness:
         fail("use either --judge-cmd or --judge-harness, not both", 2)
     if judge_harness and judge_harness not in VALID_HARNESSES:
@@ -325,6 +359,10 @@ def cmd_report(args):
     else:
         aa = [c for c in all_comps if c.get("kind") == "aa"]
     seal_map, seal_meta = _load_seal(seal)
+    if seal:
+        missing = [str(c.get("pair_id")) for c in cross if seal_map.get(c.get("pair_id")) not in ("A", "B")]
+        if missing:
+            fail("seal %s is missing valid A/B arm mapping for cross pair(s): %s" % (seal, ", ".join(missing[:10])))
     skill = skill_opt or str(seal_meta.get("skill") or "unknown")
     harness = str(seal_meta.get("harness") or "unknown")
     decisive = [c for c in cross if c.get("winner") != "tie"]

@@ -16,7 +16,7 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from debrief_common import canon_skill, safe_float  # noqa: E402
+from debrief_common import canon_skill, safe_float, safe_int  # noqa: E402
 
 VALID_HARNESSES = ("claude", "agy", "muse")
 VALID_MODES = ("with-skill", "without-skill")
@@ -108,7 +108,8 @@ def build_harness_cmd(
     if harness == "claude":
         cmd = [
             "claude", "-p",
-            "--output-format", "json",
+            "--output-format", "stream-json",
+            "--verbose",
             "--no-session-persistence",
             "--disable-slash-commands",
         ]
@@ -151,6 +152,8 @@ def build_harness_cmd(
             "--approval-mode", "never",
             "--workspace", iso_dir,
         ]
+        if mode == "with-skill":
+            cmd.append("--trust-workspace")
         if model:
             cmd += ["--model", model]
         cmd += ["--prompt-file", prompt_file]
@@ -183,26 +186,54 @@ def _load_last_json_obj(raw):
 
 
 def _parse_claude_output(stdout, wall_time_s):
-    data = _load_last_json_obj(stdout)
-    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    text = (stdout or "").strip()
+    records = []
+    if text:
+        try:
+            single = json.loads(text)
+            if isinstance(single, dict):
+                records = [single]
+        except ValueError:
+            for line in text.splitlines():
+                s = line.strip()
+                if s.startswith("{"):
+                    try:
+                        obj = json.loads(s)
+                        if isinstance(obj, dict):
+                            records.append(obj)
+                    except ValueError:
+                        continue
+    tools, result_rec = [], None
+    for rec in records:
+        rtype = rec.get("type")
+        if rtype == "assistant":
+            msg = rec.get("message") if isinstance(rec.get("message"), dict) else {}
+            for blk in (msg.get("content") if isinstance(msg.get("content"), list) else []):
+                if isinstance(blk, dict) and blk.get("type") == "tool_use" and blk.get("name"):
+                    tools.append(str(blk["name"]))
+        if rtype == "result" or ("result" in rec and rtype is None):
+            result_rec = rec
+    if result_rec is None:
+        return {
+            "transcript": "", "tools": tools, "errors": 1,
+            "tokens_in": 0.0, "tokens_out": 0.0, "cache_read_tokens": 0.0,
+            "wall_time_s": round(max(0.0, safe_float(wall_time_s, 0.0)), 3), "cost_usd": 0.0,
+        }
+    usage = result_rec.get("usage") if isinstance(result_rec.get("usage"), dict) else {}
     cache_read = safe_float(usage.get("cache_read_input_tokens"), 0.0)
     cache_create = safe_float(usage.get("cache_creation_input_tokens"), 0.0)
     tin = safe_float(usage.get("input_tokens"), 0.0) + cache_create + cache_read
     tout = safe_float(usage.get("output_tokens"), 0.0)
-    dur_ms = safe_float(data.get("duration_api_ms"), 0.0)
-    if dur_ms <= 0:
-        dur_ms = safe_float(data.get("duration_ms"), 0.0)
+    dur_ms = safe_float(result_rec.get("duration_api_ms"), 0.0) or safe_float(result_rec.get("duration_ms"), 0.0)
     dur = (dur_ms / 1000.0) if dur_ms > 0 else max(0.0, safe_float(wall_time_s, 0.0))
-    tools = [str(t) for t in data["tools"]] if isinstance(data.get("tools"), list) else []
+    if not tools and isinstance(result_rec.get("tools"), list):
+        tools = [str(t) for t in result_rec["tools"]]
     return {
-        "transcript": str(data.get("result") or ""),
-        "tools": tools,
-        "errors": 1 if data.get("is_error") else 0,
-        "tokens_in": max(0.0, tin),
-        "tokens_out": max(0.0, tout),
-        "cache_read_tokens": max(0.0, cache_read),
+        "transcript": str(result_rec.get("result") or ""), "tools": tools,
+        "errors": 1 if result_rec.get("is_error") else 0,
+        "tokens_in": max(0.0, tin), "tokens_out": max(0.0, tout), "cache_read_tokens": max(0.0, cache_read),
         "wall_time_s": round(max(0.0, dur), 3),
-        "cost_usd": round(max(0.0, safe_float(data.get("total_cost_usd"), 0.0)), 6),
+        "cost_usd": round(max(0.0, safe_float(result_rec.get("total_cost_usd"), 0.0)), 6),
     }
 
 
@@ -230,15 +261,13 @@ def _parse_agy_output(stdout, wall_time_s):
 
 
 def _parse_muse_output(stdout, wall_time_s):
-    parts = []
-    tools = []
-    started = {}
-    errors = 0
+    parts, deltas, tools, started = [], [], [], {}
+    terminal_text, parsed_any, errors = "", False, 0
     tin = tout = cache_read = cost_usd = dur_total = 0.0
 
     for line in (stdout or "").splitlines():
         s = line.strip()
-        if not s:
+        if not s or not s.startswith("{"):
             continue
         try:
             rec = json.loads(s)
@@ -246,19 +275,35 @@ def _parse_muse_output(stdout, wall_time_s):
             continue
         if not isinstance(rec, dict):
             continue
+        parsed_any = True
         pl = rec.get("payload") if isinstance(rec.get("payload"), dict) else {}
         inner = pl.get("record") if isinstance(pl.get("record"), dict) else (pl or rec)
         ev = pl.get("event") if isinstance(pl.get("event"), dict) else rec.get("event")
         ev = ev if isinstance(ev, dict) else {}
         pt = str(rec.get("payload_type") or rec.get("type") or rec.get("kind") or "")
+        pk = str(pl.get("kind") or "")
         ek = str(ev.get("kind") or ev.get("type") or "")
 
         if ek == "assistant_message_committed" or pt == "assistant_message_committed":
-            txt = ev.get("text") if ek == "assistant_message_committed" else (
-                inner.get("text") or rec.get("text")
-            )
+            txt = ev.get("text") if ek == "assistant_message_committed" else (inner.get("text") or rec.get("text"))
             if isinstance(txt, str) and txt.strip():
                 parts.append(txt.strip())
+        elif pt == "run.output.delta" or pk == "run_output_delta":
+            if isinstance(pl.get("text"), str):
+                deltas.append(pl["text"])
+        elif pt.startswith("run.terminal.") or pk == "run_terminal":
+            if isinstance(pl.get("text"), str) and pl["text"].strip():
+                terminal_text = pl["text"].strip()
+            term = str(pl.get("terminal") or "")
+            if term and term != "completed":
+                errors += 1
+        elif pt == "run.usage" or pk == "run_usage":
+            for m in (pl.get("models") if isinstance(pl.get("models"), list) else []):
+                if isinstance(m, dict):
+                    cache_read += safe_float(m.get("cached_tokens"), 0.0)
+                    tin += safe_float(m.get("input_tokens"), 0.0)
+                    tout += safe_float(m.get("output_tokens"), 0.0)
+            errors += max(0, safe_int(pl.get("failed_calls"), 0))
         elif pt == "tool_batch.effect.started" or ek == "tool_batch.effect.started":
             src = ev if ek == "tool_batch.effect.started" else inner
             cid = str(src.get("call_id") or "")
@@ -267,8 +312,7 @@ def _parse_muse_output(stdout, wall_time_s):
         elif pt == "tool_batch.effect.terminal" or ek == "tool_batch.effect.terminal":
             src = ev if ek == "tool_batch.effect.terminal" else inner
             cid = str(src.get("call_id") or "")
-            tname = str(src.get("tool_name") or started.get(cid) or "unknown")
-            tools.append(tname)
+            tools.append(str(src.get("tool_name") or started.get(cid) or "unknown"))
             outcome = src.get("outcome")
             kind = outcome.get("kind") if isinstance(outcome, dict) else outcome
             if kind != "completed":
@@ -276,32 +320,22 @@ def _parse_muse_output(stdout, wall_time_s):
         elif ek == "model_completed" or pt == "model_completed":
             src = ev if ek == "model_completed" else inner
             usage = src.get("usage") if isinstance(src.get("usage"), dict) else {}
-            cr = safe_float(usage.get("cache_read_tokens"), 0.0)
-            if cr <= 0:
-                cr = safe_float(usage.get("cache_read_input_tokens"), 0.0)
+            cr = safe_float(usage.get("cache_read_tokens"), 0.0) or safe_float(usage.get("cache_read_input_tokens"), 0.0)
             cache_read += cr
             tin += safe_float(usage.get("input_tokens"), 0.0) + cr
             tout += safe_float(usage.get("output_tokens"), 0.0)
-            cost_usd += safe_float(src.get("cost_usd"), 0.0) or safe_float(
-                usage.get("cost_usd"), 0.0
-            )
-            ds = safe_float(src.get("duration_seconds"), 0.0)
-            dm = safe_float(src.get("duration_ms"), 0.0)
-            if ds > 0:
-                dur_total += ds
-            elif dm > 0:
-                dur_total += dm / 1000.0
+            cost_usd += safe_float(src.get("cost_usd"), 0.0) or safe_float(usage.get("cost_usd"), 0.0)
+            ds, dm = safe_float(src.get("duration_seconds"), 0.0), safe_float(src.get("duration_ms"), 0.0)
+            dur_total += ds if ds > 0 else ((dm / 1000.0) if dm > 0 else 0.0)
 
+    if not parsed_any:
+        errors = max(errors, 1)
+    transcript = terminal_text or ("\n".join(parts) if parts else "".join(deltas).strip())
     dur = dur_total if dur_total > 0 else max(0.0, safe_float(wall_time_s, 0.0))
     return {
-        "transcript": "\n".join(parts),
-        "tools": tools,
-        "errors": max(0, errors),
-        "tokens_in": max(0.0, tin),
-        "tokens_out": max(0.0, tout),
-        "cache_read_tokens": max(0.0, cache_read),
-        "wall_time_s": round(max(0.0, dur), 3),
-        "cost_usd": round(max(0.0, cost_usd), 6),
+        "transcript": transcript, "tools": tools, "errors": max(0, errors),
+        "tokens_in": max(0.0, tin), "tokens_out": max(0.0, tout), "cache_read_tokens": max(0.0, cache_read),
+        "wall_time_s": round(max(0.0, dur), 3), "cost_usd": round(max(0.0, cost_usd), 6),
     }
 
 
@@ -378,6 +412,8 @@ def main(argv):
             "|".join(VALID_HARNESSES), harness), 2)
     if not skill:
         _fail("--skill is required", 2)
+    if timeout < 1:
+        _fail("--timeout must be >= 1", 2)
 
     skill_path = resolve_skill_path(kit_dir, skill) if mode == "with-skill" else ""
     if mode == "with-skill" and not skill_path:
@@ -409,7 +445,14 @@ def main(argv):
         prompt = fh.read()
 
     with isolated_workspace(workspace or None) as iso_dir:
-        eff_pf = os.path.join(iso_dir, ".replay-eff-prompt.txt")
+        eff_pf = os.path.join(os.path.dirname(iso_dir), ".replay-eff-prompt.txt")
+        if harness == "muse" and mode == "without-skill":
+            skills_dir = os.path.join(iso_dir, ".agents", "skills")
+            if os.path.lexists(skills_dir):
+                if os.path.isdir(skills_dir) and not os.path.islink(skills_dir):
+                    shutil.rmtree(skills_dir)
+                else:
+                    os.unlink(skills_dir)
         cmd, stdin_text, pf_text = build_harness_cmd(
             harness, mode, skill, skill_path, prompt, iso_dir, eff_pf, model
         )
@@ -426,6 +469,8 @@ def main(argv):
             _fail("harness %s timed out after %ds" % (harness, timeout), 1)
         except FileNotFoundError:
             _fail("harness binary not found on PATH: %s" % cmd[0], 1)
+        except OSError as exc:
+            _fail("harness %s could not execute: %s" % (harness, exc), 1)
         wall = time.monotonic() - t0
         if proc.returncode != 0:
             _fail("harness %s failed (exit %d): %s" % (
@@ -434,6 +479,7 @@ def main(argv):
             ))
         traj = parse_harness_output(harness, proc.stdout, wall)
 
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(traj, fh, indent=1)
         fh.write("\n")

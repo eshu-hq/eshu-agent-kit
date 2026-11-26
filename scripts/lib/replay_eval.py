@@ -19,6 +19,7 @@ import random
 import re
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import debrief_extract_agy as agy_mod  # noqa: E402
@@ -236,9 +237,15 @@ def run_runner(runner, mode, skill, prompt, prompt_file, out_path,
     for flag, val in (("--model", model), ("--workspace", workspace), ("--kit-dir", kit_dir)):
         if val:
             cmd += [flag, val]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=max(60, timeout + 60))
+    label = runner or ("replay-runner.sh(%s)" % harness)
+    run_timeout = max(60, timeout + 60)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=run_timeout)
+    except subprocess.TimeoutExpired:
+        fail("runner %s timed out for mode %s after %ds" % (label, mode, run_timeout))
+    except OSError as exc:
+        fail("runner %s could not execute for mode %s: %s" % (label, mode, exc))
     if proc.returncode != 0:
-        label = runner or ("replay-runner.sh(%s)" % harness)
         fail("runner %s failed for mode %s: %s" % (label, mode, (proc.stderr or proc.stdout).strip()[-500:]))
     try:
         with open(out_path, encoding="utf-8") as fh:
@@ -322,63 +329,59 @@ def cmd_replay(args):
         fail("replay needs --evals, --skill, --out, and --seal", 2)
     if repeats < 1:
         fail("--repeats must be >= 1", 2)
+    if timeout < 1:
+        fail("--timeout must be >= 1", 2)
     with open(evals_path, encoding="utf-8") as fh:
         evals = json.load(fh)
     if not isinstance(evals, list):
         fail("evals file must be a JSON array")
     rng = random.Random()
-    tmp = os.path.dirname(os.path.abspath(out)) or "."
     pairs, arms_map = [], {}
-    for idx, item in enumerate(evals):
-        prompt = item.get("prompt") or ""
-        if not prompt:
-            fail("eval %d has no prompt" % idx)
-        with_runs, without_runs = [], []
-        for rep in range(repeats):
-            pf = os.path.join(tmp, ".replay-prompt-%d-%d" % (idx, rep))
-            for mode, bucket in (("with-skill", with_runs), ("without-skill", without_runs)):
-                op = os.path.join(tmp, ".replay-traj-%d-%d-%s" % (idx, rep, mode))
-                traj = run_runner(
-                    runner, mode, skill, prompt, pf, op, harness=harness,
-                    model=model, workspace=workspace, kit_dir=kit_dir, timeout=timeout,
-                )
-                bucket.append(blind_traj(traj))
-                try:
-                    os.remove(op)
-                except OSError:
-                    pass
-            try:
-                os.remove(pf)
-            except OSError:
-                pass
-        pid = "p%d" % idx
-        order = ["with", "without"]
-        rng.shuffle(order)
-        trajs = {"with": with_runs[0], "without": without_runs[0]}
-        pair = {
-            "pair_id": pid, "kind": "cross",
-            "category": str(item.get("category") or "production"),
-            "prompt": prompt, "session_id": item.get("session_id", ""),
-        }
-        if isinstance(item.get("expectations"), dict):
-            pair["expectations"] = item["expectations"]
-        for pos, arm in zip(("traj_a", "traj_b"), order):
-            pair[pos] = trajs[arm]
-            if arm == "with":
-                arms_map[pid] = pos[-1].upper()
-        pairs.append(pair)
-        for rep in range(1, repeats):
-            for bucket in (with_runs, without_runs):
-                apid = "p%d-aa%d" % (idx, len(arms_map))
-                aa = [bucket[0], bucket[rep]]
-                rng.shuffle(aa)
-                pairs.append({
-                    "pair_id": apid, "kind": "aa",
-                    "category": str(item.get("category") or "production"),
-                    "prompt": prompt, "session_id": item.get("session_id", ""),
-                    "traj_a": aa[0], "traj_b": aa[1],
-                })
-                arms_map[apid] = "A"
+    with tempfile.TemporaryDirectory(prefix="replay-run-") as run_tmp:
+        for idx, item in enumerate(evals):
+            prompt = item.get("prompt") or ""
+            if not prompt:
+                fail("eval %d has no prompt" % idx)
+            with_runs, without_runs = [], []
+            for rep in range(repeats):
+                pf = os.path.join(run_tmp, "prompt-%d-%d.txt" % (idx, rep))
+                for mode, bucket in (("with-skill", with_runs), ("without-skill", without_runs)):
+                    op = os.path.join(run_tmp, "traj-%d-%d-%s.json" % (idx, rep, mode))
+                    traj = run_runner(
+                        runner, mode, skill, prompt, pf, op, harness=harness,
+                        model=model, workspace=workspace, kit_dir=kit_dir, timeout=timeout,
+                    )
+                    bucket.append(blind_traj(traj))
+            pid = "p%d" % idx
+            order = ["with", "without"]
+            rng.shuffle(order)
+            trajs = {"with": with_runs[0], "without": without_runs[0]}
+            pair = {
+                "pair_id": pid, "kind": "cross",
+                "category": str(item.get("category") or "production"),
+                "prompt": prompt, "session_id": item.get("session_id", ""),
+            }
+            if isinstance(item.get("expectations"), dict):
+                pair["expectations"] = item["expectations"]
+            for pos, arm in zip(("traj_a", "traj_b"), order):
+                pair[pos] = trajs[arm]
+                if arm == "with":
+                    arms_map[pid] = pos[-1].upper()
+            pairs.append(pair)
+            for rep in range(1, repeats):
+                for bucket in (with_runs, without_runs):
+                    apid = "p%d-aa%d" % (idx, len(arms_map))
+                    aa = [bucket[0], bucket[rep]]
+                    rng.shuffle(aa)
+                    pairs.append({
+                        "pair_id": apid, "kind": "aa",
+                        "category": str(item.get("category") or "production"),
+                        "prompt": prompt, "session_id": item.get("session_id", ""),
+                        "traj_a": aa[0], "traj_b": aa[1],
+                    })
+                    arms_map[apid] = "A"
+    for target in (out, seal):
+        os.makedirs(os.path.dirname(os.path.abspath(target)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
@@ -392,7 +395,8 @@ def cmd_replay(args):
 def _taint_scan(node):
     if isinstance(node, dict):
         for key, val in node.items():
-            if key in BANNED_KEYS:
+            k_low = str(key).strip().lower()
+            if k_low in BANNED_KEYS or "skill_count" in k_low or any(b in k_low for b in BANNED_VALUES):
                 return "banned key %r" % key
             hit = _taint_scan(val)
             if hit:

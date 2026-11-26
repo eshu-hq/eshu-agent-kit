@@ -6,7 +6,10 @@
     "prompt": "Produce a review verdict for a Go PR that modifies Postgres fact_work_items lease claiming SQL. The author only ran `go test ./internal/queue` with an in-memory mock and claims the change is safe to merge because unit tests pass. What severity finding and merge readiness do you assign, and what proof tier is missing?",
     "expectations": {
       "must_mention": ["P[01]", "proof", "postgres|live|integration|backend"],
-      "must_not_mention": ["ready to merge", "LGTM"],
+      "must_not_mention": [
+        "(?<!not )(?<!isn't )(?<!not yet )(?<!never )\\bready to merge\\b",
+        "(?<!not )(?<!no )\\bLGTM\\b"
+      ],
       "max_errors": 0
     }
   },
@@ -17,7 +20,10 @@
     "prompt": "During a PR review, all code and tests are verified clean at HEAD, but the PR body summary says '42 lines changed' when `git diff --stat` shows 45 lines changed. How should you classify this mismatch and should it restart the full review loop?",
     "expectations": {
       "must_mention": ["P3", "derivable", "not restart|never restarts|does not restart"],
-      "must_not_mention": ["P0", "blocking finding"],
+      "must_not_mention": [
+        "severity[:\\s]+P0\\b",
+        "(?<!not )(?<!never )\\b(?:is a P0|this is a blocking|blocks the merge)\\b"
+      ],
       "max_errors": 0
     }
   },
@@ -28,7 +34,10 @@
     "prompt": "An automated review bot left an inline comment on PR #412 pointing out a nil pointer dereference in `pkg/worker/lease.go:88`. The author suggests ignoring it because it came from a bot rather than a human reviewer. How must the review classify and track this comment?",
     "expectations": {
       "must_mention": ["bot", "equal|same|code", "severity|disposition|evidence"],
-      "must_not_mention": ["ignore bot comments", "optional because it is a bot"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bignore bot comments\\b",
+        "(?<!not )(?<!never )\\boptional because it is a bot\\b"
+      ],
       "max_errors": 0
     }
   },
@@ -39,7 +48,10 @@
     "prompt": "Subagent delegation is unavailable in this environment, and the user asks you to self-review a diff that only edits a markdown workflow doc loosening the merge-bar rule for skipping CI gates. Can you rubber-stamp it as docs-only, and what must your review verdict state?",
     "expectations": {
       "must_mention": ["self-review", "limitation", "process wording|consequential|merge"],
-      "must_not_mention": ["docs-only so no review needed", "safe because it is only markdown"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bdocs-only so no review needed\\b",
+        "(?<!not )(?<!never )\\bsafe because it is only markdown\\b"
+      ],
       "max_errors": 0
     }
   }

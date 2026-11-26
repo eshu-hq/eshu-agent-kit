@@ -40,13 +40,19 @@ under [evals/README.md](../../evals/README.md).
    When `--runner` is omitted, `replay` invokes `scripts/replay-runner.sh`,
    which creates a detached temporary git worktree (or temp dir) per run and
    cleans it up automatically:
-   - `claude`: passes `--append-system-prompt-file <SKILL.md>` only in
-     `with-skill` mode, with `--no-session-persistence --disable-slash-commands`.
+   - `claude`: passes `--output-format stream-json --verbose
+     --no-session-persistence --disable-slash-commands`, adding
+     `--append-system-prompt-file <SKILL.md>` only in `with-skill` mode.
    - `agy`: passes `--output-format json --disable-slash-commands -p=<prompt>`,
      prepending `SKILL.md` only in `with-skill` mode.
    - `muse`: passes `muse exec --json --no-session-log --no-foreign-personal-context
-     --approval-mode never --workspace <iso_dir> --prompt-file <file>`,
-     prepending `SKILL.md` only in `with-skill` mode.
+     --approval-mode never --workspace <iso_dir> --prompt-file <file>` (writing
+     the prompt file outside `<iso_dir>` so the worktree stays clean). In
+     `with-skill` mode (and in `muse` judge calls), it passes `--trust-workspace`
+     so workspace tools work and prepends `SKILL.md`. In `without-skill` mode,
+     project skills under `<iso_dir>/.agents/skills` are removed and
+     `--no-foreign-personal-context` strips foreign personal skills without
+     trusting the workspace.
 
    Pass `--runner PATH` to plug in a custom runner executable (for offline
    tests or bespoke harnesses). Use `scripts/replay-runner.sh --dry-run-cmd ...`
@@ -88,8 +94,8 @@ under [evals/README.md](../../evals/README.md).
    trajectory pass rates (with a sweet-spot warning when `with-skill` hits 100%
    over 3+ pairs), token cost delta, and wall-time latency delta.
 
-   Feed `--json-out` summaries into `debrief.sh aggregate --evals` to track
-   skill value alongside session telemetry.
+   `--json-out` writes the machine-readable JSON summary contract (which
+   `/debrief` will ingest via `--evals` once #100 lands).
 
 ## Blindness And Strip-Proof Gate
 
