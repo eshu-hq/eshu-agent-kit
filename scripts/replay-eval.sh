@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# scripts/replay-eval.sh — Replay evals for issue #83 (D5 scope).
+# scripts/replay-eval.sh — Multi-harness replay evals (issue #103).
 #
-# Mine first prompts from raw Muse transcripts, replay each prompt with the
-# performance-rigor skill loaded vs stripped, blind-judge the pair, and report
-# win rate with an A/A repeat noise band.
+# Mine first prompts from Muse, Claude, or Agy transcripts, replay each prompt
+# with a target skill loaded vs stripped (via built-in isolated runner or custom
+# --runner), blind-judge A/B pairs with trajectory grading, and report win rate,
+# noise band, pass rates, cost delta, and latency delta.
 #
 # Subcommands: mine | replay | judge | report (see --help on each).
 # Nothing in this harness runs in CI by design.
@@ -17,10 +18,10 @@ usage() {
 Usage: bash scripts/replay-eval.sh <mine|replay|judge|report> [options...]
 
 Examples:
-  bash scripts/replay-eval.sh mine --sessions-root "$XDG_DATA_HOME/muse/sessions" --out evals.json
-  bash scripts/replay-eval.sh replay --evals evals.json --runner ./run-once.sh --skill performance-rigor --out pairs.json --seal seal.json --repeats 3
-  bash scripts/replay-eval.sh judge --runs pairs.json --out verdict.json
-  bash scripts/replay-eval.sh report --verdict verdict.json --aa-verdict verdict-aa.json --seal seal.json
+  bash scripts/replay-eval.sh mine --harness all --skill code-review --top-steered --out evals.json
+  bash scripts/replay-eval.sh replay --evals evals/code-review.json --skill code-review --harness claude --out pairs.json --seal seal.json --repeats 3
+  bash scripts/replay-eval.sh judge --runs pairs.json --judge-harness claude --out verdict.json
+  bash scripts/replay-eval.sh report --verdict verdict.json --seal seal.json --json-out summary.json
 EOF
 }
 
