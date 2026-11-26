@@ -51,6 +51,10 @@ printf 'bad-link\tSKILL004\tTier 1 is never suppressible, even when listed.\n' >
 out="$(bash "${LINT}" --baseline "${fixture_base}" "${bad_link}" 2>&1)"
 code=$?
 [ "${code}" != "0" ] && ok "SKILL004 fires despite a baseline row" || no "SKILL004 fires despite a baseline row (exit 0)"
+case "${out}" in
+*"SKILL004"*) ok "SKILL004 citation present despite baseline row" ;;
+*) no "SKILL004 citation present despite baseline row (got: ${out:0:120})" ;;
+esac
 
 # 2. Links RED: a dangling reference-style link target fires SKILL004.
 bad_ref="${work}/bad-ref/SKILL.md"
