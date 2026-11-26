@@ -49,6 +49,13 @@ h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 44px; margin
 .act-create { background: #dcfce7; color: #166534; }
 .act-modify { background: #fef3c7; color: #92400e; }
 .act-remove { background: #fee2e2; color: #991b1b; }
+.coach-item { padding: 10px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+.coach-item:last-child { margin-bottom: 0; }
+.coach-user { background: #eff6ff; border-left: 3px solid #2563eb; }
+.coach-agent { background: #f0fdf4; border-left: 3px solid #16a34a; }
+.coach-title { font-weight: 600; color: #0f172a; margin-bottom: 3px; }
+.coach-ev { color: #475569; margin-bottom: 4px; font-size: 12px; }
+.coach-act { color: #1e293b; }
 .rules-section { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
 .rules-section h3 { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 10px; }
 .rules-actions { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #dbeafe; }

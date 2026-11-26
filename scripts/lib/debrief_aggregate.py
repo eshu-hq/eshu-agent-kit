@@ -28,6 +28,7 @@ from debrief_hooks import (  # noqa: E402
     _read_hook_events,
     papercut_stats,
 )
+from debrief_coaching import build_coaching_playbook, session_health_stats  # noqa: E402
 from debrief_insights import (  # noqa: E402
     build_skill_recommendations,
     interjection_reason_stats,
@@ -417,6 +418,7 @@ def cmd_aggregate(args):
     span_to = max(dates) if dates else today_iso
     days_active = max(1, len(dates))
     skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active)
+    sess_health = session_health_stats(metas.values(), skill_costs)
 
     agg = {
         "meta": {
@@ -463,6 +465,7 @@ def cmd_aggregate(args):
         "repositories": repositories,
         "skill_table": skill_table,
         "skill_recommendations": skill_recs,
+        "session_health": sess_health,
         "skill_costs": skill_costs,
         "papercuts": papercuts,
         "evals": evals,
@@ -475,6 +478,7 @@ def cmd_aggregate(args):
             "Correlation is never causation: facet outcomes and satisfaction are model-estimated from bounded session digests.",
         ],
     }
+    agg["coaching_playbook"] = build_coaching_playbook(agg, sess_health)
     if args.out:
         atomic_write_json(args.out, agg)
     sys.stdout.write(json.dumps(agg, indent=2, sort_keys=True) + "\n")

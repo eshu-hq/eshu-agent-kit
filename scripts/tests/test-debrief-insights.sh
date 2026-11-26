@@ -169,8 +169,50 @@ for needle in (
     "Approving / Confirming",
     "eshu-agent-kit",
     "action-pill",
+    "Context Bloat (Skills Stacked Per Chat)",
+    "Model Mix",
 ):
     assert needle in h, f"missing {needle!r} in rendered HTML!"
+PYEOF
+
+# 6. session_health_stats + build_coaching_playbook flag bloated/mega/error threads and produce two-sided coaching.
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "session_health_stats and build_coaching_playbook flag runaway threads and two-sided actions" || no "session_health_stats and build_coaching_playbook flag runaway threads and two-sided actions"
+import sys
+sys.path.insert(0, sys.argv[1])
+from debrief_coaching import build_coaching_playbook, render_coaching_playbook_card, render_session_health_section, session_health_stats
+
+metas = [
+    {"id": "mega-1", "harness": "claude", "project": "-Users-a-personal-repos-eshu", "tokens_in": 600_000_000, "tokens_out": 2_000_000, "duration_minutes": 300.0, "prompts": 45, "errors": {"Bash": 25}, "skill_loads": [f"s{i}" for i in range(7)], "session_models": {"claude-sonnet": 40}},
+    {"id": "small-1", "harness": "agy", "project": "/Users/a/personal-repos/eshu-agent-kit", "tokens_in": 10_000, "tokens_out": 500, "duration_minutes": 5.0, "prompts": 2, "errors": {}, "skill_loads": ["publish"], "session_models": {"gemini-flash": 4}},
+]
+sc = {"by_harness": {"claude": {"tokens_in": 600_000_000, "tokens_cache_read": 540_000_000, "tokens_cache_write": 30_000_000}}, "unattributed": {"sessions": 10}}
+h = session_health_stats(metas, sc)
+assert h["bloated_skill_sessions"] == 1 and h["mega_token_sessions"] == 1 and h["high_error_sessions"] == 1, h
+assert h["cache_by_harness"]["claude"]["cache_hit_pct"] == 90.0 and h["cache_by_harness"]["claude"]["cache_write_pct"] == 5.0, h
+assert h["outliers"][0]["session_id"] == "mega-1" and "7 skills stacked" in h["outliers"][0]["flags"], h
+
+agg = {
+    "meta": {"total_sessions": 20},
+    "charts": {
+        "interjection_reasons": {"redirect_goal": 12},
+        "prompt_distribution": {"10+": 4},
+        "response_time_buckets": {">15m": 15, "1-2m": 5},
+        "median_response_gap_s": 180.0,
+        "tool_error_categories": {"Hook Blocked": 30, "File Not Found": 25, "Edit Failed": 10, "Command Failed": 40, "Timeout": 5},
+        "primary_friction_types": {"hook_or_env_retry": 12},
+    },
+    "skill_costs": sc,
+    "repositories": [{"repo": "eshu", "unattributed_sessions": 10}],
+    "skill_recommendations": [{"action": "modify", "target": "code-review", "reason": "high overhead", "suggestion": "split references/"}],
+    "session_health": h,
+}
+pb = build_coaching_playbook(agg, h)
+agg["coaching_playbook"] = pb
+assert len(pb["for_you"]) >= 3 and len(pb["for_agents"]) >= 3, pb
+html_pb = render_coaching_playbook_card(agg)
+html_sh = render_session_health_section(agg)
+assert "For You (Habits &amp; Prompting)" in html_pb and "For Your Agents (Skills, Rules &amp; Hooks)" in html_pb
+assert "Runaway &amp; High-Friction Threads" in html_sh and "mega-1" in html_sh and "90.0%" in html_sh
 PYEOF
 
 printf '\ndebrief-insights: %d passed, %d failed\n' "${passed}" "${failed}"
