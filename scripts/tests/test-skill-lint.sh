@@ -101,7 +101,25 @@ case "${out}" in
 *) no "name mismatch cites SKILL003 (got: ${out:0:120})" ;;
 esac
 
-# 3. Structure GREEN: the good fixture passes Tier 1 silently.
+# 3. Structure RED: missing description fires SKILL002.
+no_desc="${work}/no-desc/SKILL.md"
+mkdir -p "${work}/no-desc"
+cat >"${no_desc}" <<'EOF'
+---
+name: no-desc
+---
+
+# No description
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${no_desc}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "missing description fails" || no "missing description fails (exit 0)"
+case "${out}" in
+*"SKILL002"*) ok "missing description cites SKILL002" ;;
+*) no "missing description cites SKILL002 (got: ${out:0:120})" ;;
+esac
+
+# 4. Structure GREEN: the good fixture passes Tier 1 silently.
 out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${good}" 2>&1)"
 code=$?
 [ "${code}" = "0" ] && ok "good fixture passes" || no "good fixture passes (exit ${code}: ${out:0:150})"
@@ -110,7 +128,7 @@ case "${out}" in
 *) no "good fixture prints no advisories (got: ${out:0:150})" ;;
 esac
 
-# 4. Links RED: a dangling relative link fires SKILL004 at the link line.
+# 5. Links RED: a dangling relative link fires SKILL004 at the link line.
 bad_link="${work}/bad-link/SKILL.md"
 mkdir -p "${work}/bad-link"
 cat >"${bad_link}" <<'EOF'
@@ -131,7 +149,7 @@ case "${out}" in
 *) no "dangling link cites SKILL004 at the link line (got: ${out:0:150})" ;;
 esac
 
-# 5. Size RED: an oversized skill fires SKILL005.
+# 6. Size RED: a line-count oversized skill fires SKILL005.
 big="${work}/big/SKILL.md"
 mkdir -p "${work}/big"
 {
@@ -146,7 +164,25 @@ case "${out}" in
 *) no "oversized skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 6. Verification RED: no numbered steps and no fences print advisories
+# 7. Size RED: narrow lines but over the byte cap still fires SKILL005.
+wide="${work}/wide/SKILL.md"
+mkdir -p "${work}/wide"
+{
+	printf -- '---\nname: wide\ndescription: Many bytes, few lines.\n---\n\n# Wide\n\n'
+	for _ in $(seq 1 400); do
+		printf '0123456789%.0s' $(seq 1 10)
+		printf '\n'
+	done
+} >"${wide}"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${wide}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "byte-heavy skill fails" || no "byte-heavy skill fails (exit 0)"
+case "${out}" in
+*"SKILL005"*) ok "byte-heavy skill cites SKILL005" ;;
+*) no "byte-heavy skill cites SKILL005 (got: ${out:0:120})" ;;
+esac
+
+# 8. Verification RED: no numbered steps and no fences print advisories
 # but stay exit 0 (Tier 2 never blocks).
 bare="${work}/bare/SKILL.md"
 mkdir -p "${work}/bare"
@@ -170,7 +206,7 @@ for rule in SKILL006 SKILL007 SKILL008; do
 	esac
 done
 
-# 7. Recovery RED: a body whose only recovery advice is "try again" still
+# 9. Recovery RED: a body whose only recovery advice is "try again" still
 # fires SKILL008, and a real recovery section clears it.
 retry="${work}/retry/SKILL.md"
 mkdir -p "${work}/retry"
@@ -206,7 +242,7 @@ case "${out}" in
 *) ok "retry fixture fires only SKILL008" ;;
 esac
 
-# 8. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
+# 10. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
 # while Tier 1 still fires for a listed skill.
 fixture_base="${work}/baseline.tsv"
 printf 'bare\tSKILL006\tFixture exemption for the suite.\n' >"${fixture_base}"
@@ -228,7 +264,7 @@ case "${out}" in
 *) no "Tier 1 is never suppressed by the baseline (got: ${out:0:150})" ;;
 esac
 
-# 9. Baseline hygiene: every shipped exemption names a skill that exists,
+# 11. Baseline hygiene: every shipped exemption names a skill that exists,
 # so NEW skills cannot arrive pre-exempted.
 stale=0
 while IFS=$'\t' read -r skill _rule _reason; do
