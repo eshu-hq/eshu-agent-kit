@@ -42,6 +42,10 @@ def judge_pair(pair, judge_cmd=None):
         verdict = proc.stdout.strip().upper()
         if verdict not in ("A", "B", "TIE"):
             fail("judge command must print A, B, or TIE (got %r)" % verdict)
+        # Stored verdicts use the internal vocabulary (A/B/tie); an external
+        # TIE must decode as a tie or the report miscounts it as decisive.
+        if verdict == "TIE":
+            verdict = "tie"
         return verdict, {"tokens": tokens}
     prompt = pair.get("prompt") or ""
     score_a = rubric_score(prompt, pair["traj_a"])
