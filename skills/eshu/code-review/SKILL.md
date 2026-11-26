@@ -31,9 +31,12 @@ Load the project skills whose contracts match the diff, using root skill routing
    Explain which runtime, concurrency, rollback, and operator concerns apply;
    group excluded concerns with a concrete reason. Missing applicable context
    is a P1 proof failure, or P0 if it risks private data, truth, deadlock, or main.
-3. Select exactly one [proof tier](references/proof-tiers.md). Explain why its
-   actual evidence covers every in-scope claim. A weaker test cannot substitute
-   for required backend, scaled, or full-corpus proof.
+3. Compute the [proof matrix](references/proof-matrix.md) from the changed
+   paths and select, per touched surface, every
+   [proof tier](references/proof-tiers.md) its claims need. Explain why the
+   actual evidence covers every in-scope claim, row by row. A weaker test
+   cannot substitute for required backend, scaled, or full-corpus proof, and
+   a satisfied row discharges no other row.
 4. Perform all five [review passes](references/review-passes.md): scope,
    correctness, performance, reliability/security/workflow, and hostile read.
    Load [runtime-surfaces.md](references/runtime-surfaces.md) only for the
@@ -379,7 +382,8 @@ one scoped review first, even if it is tiny; that verdict is its baseline.
 Use the output template in [cold-review-probes.md](references/cold-review-probes.md)
 as a checklist, scaling prose to the diff. A compact verdict may group clean
 passes and excluded surfaces, but must record all five passes, full-picture and
-proof-tier rationale, cross-pass comparison, applicable probe results, scans,
+proof-tier rationale, every [proof-matrix](references/proof-matrix.md) row
+with its status and evidence (or that the change owes no rows), cross-pass comparison, applicable probe results, scans,
 GitHub state or no-PR disposition, evidence, finding counts/dispositions, target
 readiness, and stale-verdict conditions. Expand only where needed to assess a
 finding or proof gap. Do not manufacture findings to fill a template.
