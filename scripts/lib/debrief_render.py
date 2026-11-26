@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import default_reports_dir, read_json, safe_float, safe_int  # noqa: E402
 from debrief_html_assets import REPORT_CSS, REPORT_JS  # noqa: E402
-from debrief_render_skills import render_harness_skill_section  # noqa: E402
+from debrief_render_skills import render_friction_cards, render_harness_skill_section  # noqa: E402
 
 
 def _e(val):
@@ -28,29 +28,32 @@ def _label(key):
     return str(key or "").replace("_", " ").strip().title()
 
 
-def _render_bars(data, color, title_case=True):
+def _render_bars(data, color, title_case=True, left_col="", right_col=""):
     if not data or not any(v for v in data.values()):
         return '<div class="subtitle" style="margin:0">No observations in this window.</div>'
     mx = max(data.values()) or 1
     out = []
+    if left_col or right_col:
+        out.append(f'<div class="bar-head"><span>{_e(left_col)}</span><span>{_e(right_col)}</span></div>')
     for k, v in data.items():
         lbl = _label(k) if title_case else str(k)
         pct = (float(v) / float(mx)) * 100.0
+        val_txt = f"{v:,}" if isinstance(v, int) else str(v)
         out.append(
             f'<div class="bar-row">'
             f'<div class="bar-label" title="{_e(lbl)}">{_e(lbl)}</div>'
             f'<div class="bar-track"><div class="bar-fill" style="width:{pct:.1f}%;background:{color}"></div></div>'
-            f'<div class="bar-value">{_e(v)}</div></div>'
+            f'<div class="bar-value">{_e(val_txt)}</div></div>'
         )
     return "\n".join(out)
 
 
-def _render_chart_card(title, data, color, title_case=True, footer=""):
+def _render_chart_card(title, data, color, title_case=True, footer="", left_col="", right_col=""):
     foot = f'<div style="font-size:12px;color:#64748b;margin-top:8px">{footer}</div>' if footer else ""
     return (
         f'<div class="chart-card">'
         f'<div class="chart-title">{_e(title)}</div>'
-        f'{_render_bars(data, color, title_case=title_case)}{foot}</div>'
+        f'{_render_bars(data, color, title_case=title_case, left_col=left_col, right_col=right_col)}{foot}</div>'
     )
 
 
@@ -166,14 +169,10 @@ def render_html(agg, syn):
         f'<div class="big-win-desc">{_e(w.get("description"))}</div></div>'
         for w in (syn.get("big_wins") or [])
     )
-    fric_html = "\n".join(
-        f'<div class="friction-category"><div class="friction-title">{_e(f.get("title"))}</div>'
-        f'<div class="friction-desc">{_e(f.get("description"))}</div>'
-        f'<ul class="friction-examples">'
-        + "".join(f"<li>{_e(ex)}</li>" for ex in (f.get("examples") or []))
-        + "</ul></div>"
-        for f in (syn.get("friction_categories") or [])
-    )
+    fric_intro, fric_html = render_friction_cards(agg, syn)
+    raw_pdist = charts.get("prompt_distribution") or {}
+    pdist_labels = {"1": "1 prompt (one-shot)", "2-3": "2-3 prompts", "4-9": "4-9 prompts", "10+": "10+ prompts"}
+    prompt_dist_disp = {pdist_labels.get(str(k), str(k)): v for k, v in raw_pdist.items()}
     ov = charts.get("multi_agent_overlap") or {}
     med_g = charts.get("median_response_gap_s")
     avg_g = charts.get("avg_response_gap_s")
@@ -260,10 +259,10 @@ def render_html(agg, syn):
   </nav>
 
   <div class="stats-row">
-    <div class="stat"><div class="stat-value">{m_prompts:,}</div><div class="stat-label">Prompts</div></div>
+    <div class="stat"><div class="stat-value">{m_prompts:,}</div><div class="stat-label">User Prompts</div></div>
     <div class="stat"><div class="stat-value">{m_tools:,}</div><div class="stat-label">Tool Calls</div></div>
-    <div class="stat"><div class="stat-value">{m_fac}</div><div class="stat-label">Facets</div></div>
-    <div class="stat"><div class="stat-value">{_e(lines_str)}</div><div class="stat-label">Repo Lines</div></div>
+    <div class="stat"><div class="stat-value">{m_fac}</div><div class="stat-label">Sessions Analyzed</div></div>
+    <div class="stat"><div class="stat-value">{_e(lines_str)}</div><div class="stat-label">Lines Changed (+/-)</div></div>
     <div class="stat"><div class="stat-value">{merges if repos else m_commits}</div><div class="stat-label">{"Merge Commits" if repos else "Git Commits"}</div></div>
     <div class="stat"><div class="stat-value">{m_days}d ({m_mpd:.1f}/d)</div><div class="stat-label">Active Days</div></div>
   </div>
@@ -272,12 +271,12 @@ def render_html(agg, syn):
   <div class="project-areas">{areas_html}</div>
 
   <div class="charts-row">
-    {_render_chart_card("What You Wanted", charts.get("what_you_wanted"), "#2563eb")}
-    {_render_chart_card("Top Tools Used", charts.get("top_tools"), "#0891b2", title_case=False)}
+    {_render_chart_card("What You Wanted", charts.get("what_you_wanted"), "#2563eb", left_col="Goal", right_col="Sessions")}
+    {_render_chart_card("Top Tools Used", charts.get("top_tools"), "#0891b2", title_case=False, left_col="Tool", right_col="Calls")}
   </div>
   <div class="charts-row">
-    {_render_chart_card("Languages Touched", charts.get("languages"), "#10b981", title_case=False)}
-    {_render_chart_card("Session Types", charts.get("session_types"), "#8b5cf6")}
+    {_render_chart_card("Languages Touched", charts.get("languages"), "#10b981", title_case=False, left_col="Language", right_col="File touches")}
+    {_render_chart_card("Session Types", charts.get("session_types"), "#8b5cf6", left_col="Type", right_col="Sessions")}
   </div>
 
   <h2 id="section-usage">How You Use Muse, Antigravity &amp; Claude</h2>
@@ -286,11 +285,11 @@ def render_html(agg, syn):
     <div class="key-insight"><strong>Key pattern:</strong> {_e(key_ins)}</div>
   </div>
 
-  {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot)}
+  {_render_chart_card("User Response Time Distribution", charts.get("response_time_buckets"), "#6366f1", title_case=False, footer=gap_foot, left_col="Wait between replies", right_col="Turns")}
 
   {gap_harness_table}
 
-  {_render_chart_card("Prompts Per Session (Interjections)", charts.get("prompt_distribution"), "#0ea5e9", title_case=False, footer=ij_foot)}
+  {_render_chart_card("Prompts Per Session (Interjections)", prompt_dist_disp, "#0ea5e9", title_case=False, footer=ij_foot, left_col="Prompts in session", right_col="Sessions")}
 
   <div class="chart-card" style="margin:20px 0">
     <div class="chart-title">Multi-Agent Parallelism (Overlapping Sessions Across Harnesses)</div>
@@ -316,7 +315,7 @@ def render_html(agg, syn):
       </div>
       <div id="hour-histogram"></div>
     </div>
-    {_render_chart_card("Tool Errors Encountered", charts.get("tool_error_categories"), "#dc2626", title_case=False)}
+    {_render_chart_card("Tool Errors Encountered", charts.get("tool_error_categories"), "#dc2626", title_case=False, left_col="Error type", right_col="Occurrences")}
   </div>
 
   {render_harness_skill_section(agg)}
@@ -326,17 +325,17 @@ def render_html(agg, syn):
   <div class="big-wins">{wins_html}</div>
 
   <div class="charts-row">
-    {_render_chart_card("What Helped Most", charts.get("what_helped_most"), "#16a34a")}
-    {_render_chart_card("Session Outcomes", charts.get("outcomes"), "#8b5cf6")}
+    {_render_chart_card("What Helped Most", charts.get("what_helped_most"), "#16a34a", left_col="Factor", right_col="Sessions")}
+    {_render_chart_card("Session Outcomes", charts.get("outcomes"), "#8b5cf6", left_col="Outcome", right_col="Sessions")}
   </div>
 
   <h2 id="section-friction">Where Things Go Wrong</h2>
-  <p class="section-intro">{_e(syn.get("friction_intro"))}</p>
+  <p class="section-intro">{_e(fric_intro)}</p>
   <div class="friction-categories">{fric_html}</div>
 
   <div class="charts-row">
-    {_render_chart_card("Primary Friction Types", charts.get("primary_friction_types"), "#dc2626")}
-    {_render_chart_card("Inferred Satisfaction (Model-Estimated)", charts.get("satisfaction"), "#eab308")}
+    {_render_chart_card("Primary Friction Types", charts.get("primary_friction_types"), "#dc2626", left_col="Friction type", right_col="Sessions")}
+    {_render_chart_card("Inferred Satisfaction (Model-Estimated)", charts.get("satisfaction"), "#eab308", left_col="Rating", right_col="Sessions")}
   </div>
 
   <h2 id="section-fixes">Rules, Skills &amp; Hooks to Add or Tune</h2>
