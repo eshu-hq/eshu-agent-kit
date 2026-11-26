@@ -437,13 +437,7 @@ def main(argv):
         cmd, _, _ = build_harness_cmd(
             harness, mode, skill, skill_path, prompt, iso_stub, pf_stub, model
         )
-        payload = {
-            "harness": harness,
-            "mode": mode,
-            "skill": skill,
-            "skill_path": skill_path,
-            "cmd": cmd,
-        }
+        payload = {"harness": harness, "mode": mode, "skill": skill, "skill_path": skill_path, "cmd": cmd}
         print(json.dumps(payload, indent=2))
         return
 
@@ -452,40 +446,43 @@ def main(argv):
     with open(prompt_file, encoding="utf-8") as fh:
         prompt = fh.read()
 
-    with isolated_workspace(workspace or None) as iso_dir:
-        eff_pf = os.path.join(os.path.dirname(iso_dir), ".replay-eff-prompt.txt")
-        if harness == "muse" and mode == "without-skill":
-            skills_dir = os.path.join(iso_dir, ".agents", "skills")
-            if os.path.lexists(skills_dir):
-                if os.path.isdir(skills_dir) and not os.path.islink(skills_dir):
-                    shutil.rmtree(skills_dir)
-                else:
-                    os.unlink(skills_dir)
-        cmd, stdin_text, pf_text = build_harness_cmd(
-            harness, mode, skill, skill_path, prompt, iso_dir, eff_pf, model
-        )
-        if pf_text is not None:
-            with open(eff_pf, "w", encoding="utf-8") as fh:
-                fh.write(pf_text)
-        t0 = time.monotonic()
-        try:
-            proc = subprocess.run(
-                cmd, input=stdin_text, cwd=iso_dir,
-                capture_output=True, text=True, timeout=timeout,
+    try:
+        with isolated_workspace(workspace or None) as iso_dir:
+            eff_pf = os.path.join(os.path.dirname(iso_dir), ".replay-eff-prompt.txt")
+            if harness == "muse" and mode == "without-skill":
+                skills_dir = os.path.join(iso_dir, ".agents", "skills")
+                if os.path.lexists(skills_dir):
+                    if os.path.isdir(skills_dir) and not os.path.islink(skills_dir):
+                        shutil.rmtree(skills_dir)
+                    else:
+                        os.unlink(skills_dir)
+            cmd, stdin_text, pf_text = build_harness_cmd(
+                harness, mode, skill, skill_path, prompt, iso_dir, eff_pf, model
             )
-        except subprocess.TimeoutExpired:
-            _fail("harness %s timed out after %ds" % (harness, timeout), 1)
-        except FileNotFoundError:
-            _fail("harness binary not found on PATH: %s" % cmd[0], 1)
-        except OSError as exc:
-            _fail("harness %s could not execute: %s" % (harness, exc), 1)
-        wall = time.monotonic() - t0
-        if proc.returncode != 0:
-            _fail("harness %s failed (exit %d): %s" % (
-                harness, proc.returncode,
-                (proc.stderr or proc.stdout).strip()[-500:],
-            ))
-        traj = parse_harness_output(harness, proc.stdout, wall)
+            if pf_text is not None:
+                with open(eff_pf, "w", encoding="utf-8") as fh:
+                    fh.write(pf_text)
+            t0 = time.monotonic()
+            try:
+                proc = subprocess.run(
+                    cmd, input=stdin_text, cwd=iso_dir,
+                    capture_output=True, text=True, timeout=timeout,
+                )
+            except subprocess.TimeoutExpired:
+                _fail("harness %s timed out after %ds" % (harness, timeout), 1)
+            except FileNotFoundError:
+                _fail("harness binary not found on PATH: %s" % cmd[0], 1)
+            except OSError as exc:
+                _fail("harness %s could not execute: %s" % (harness, exc), 1)
+            wall = time.monotonic() - t0
+            if proc.returncode != 0:
+                _fail("harness %s failed (exit %d): %s" % (
+                    harness, proc.returncode,
+                    (proc.stderr or proc.stdout).strip()[-500:],
+                ))
+            traj = parse_harness_output(harness, proc.stdout, wall)
+    except RuntimeError as exc:
+        _fail(str(exc), 1)
 
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:

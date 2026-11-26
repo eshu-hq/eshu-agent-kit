@@ -455,15 +455,37 @@ PATH="${FAKE_BIN}:${PATH}" bash "${RUNNER}" --harness muse --mode with-skill --s
 		[ "$?" -eq 2 ]
 	) &&
 	python3 -B - "${LIB}" "${repo}" <<'PYEOF' &&
-import os, shutil, subprocess, sys
+import os, subprocess, sys
 sys.path.insert(0, sys.argv[1])
 import replay_runner as rr
-with rr.isolated_workspace(sys.argv[2]) as iso:
-    assert os.path.isfile(os.path.join(iso, "f.txt"))
-    shutil.rmtree(iso)
-wt_list = subprocess.check_output(["git", "-C", sys.argv[2], "worktree", "list", "--porcelain"], text=True)
-assert iso not in wt_list, f"stale worktree entry remained: {wt_list}"
+real_run = rr.subprocess.run
+seen_prune = []
+def fake_run(cmd, *a, **kw):
+    if cmd[-3:-1] == ["worktree", "remove"] or (len(cmd) >= 5 and cmd[3:5] == ["worktree", "remove"]):
+        return subprocess.CompletedProcess(cmd, 1, "", "simulated remove error")
+    if len(cmd) >= 5 and cmd[3:5] == ["worktree", "prune"]:
+        seen_prune.append(cmd)
+        if len(seen_prune) == 2:
+            return subprocess.CompletedProcess(cmd, 1, "", "simulated prune error")
+    return real_run(cmd, *a, **kw)
+rr.subprocess.run = fake_run
+try:
+    with rr.isolated_workspace(sys.argv[2]) as iso:
+        assert os.path.isfile(os.path.join(iso, "f.txt"))
+    assert len(seen_prune) == 1, seen_prune
+    try:
+        with rr.isolated_workspace(sys.argv[2]) as iso2:
+            assert os.path.isfile(os.path.join(iso2, "f.txt"))
+        raise AssertionError("expected RuntimeError when both remove and prune fail")
+    except RuntimeError as exc:
+        assert "git worktree cleanup failed" in str(exc), exc
+finally:
+    rr.subprocess.run = real_run
+real_run(["git", "-C", sys.argv[2], "worktree", "prune"], check=True)
 PYEOF
+	git -C "${work}" init -q empty-repo &&
+	! bash "${RUNNER}" --harness claude --mode without-skill --skill code-review \
+		--workspace "${work}/empty-repo" --prompt-file "${work}/p.txt" --out "${work}/empty.json" 2>&1 | rg -q "Traceback" &&
 	ok "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass" || no "muse isolation, worktree prune fallback, mismatched seal, OSError, and --timeout pass"
 
 if [ "${failed}" -gt 0 ]; then
