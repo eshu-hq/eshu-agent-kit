@@ -40,7 +40,7 @@ cp "${CHECKER_SRC}" "${repo}/scripts/check-docs-stale.sh"
 printf 'package pkg\n' >"${repo}/go/pkg/foo.go"
 printf '# pkg\n' >"${repo}/go/pkg/README.md"
 printf 'package pkg\n' >"${repo}/go/pkg/doc.go"
-touch -d '2020-01-01' "${repo}/go/pkg/README.md" "${repo}/go/pkg/doc.go"
+touch -t 202001010000 "${repo}/go/pkg/README.md" "${repo}/go/pkg/doc.go"
 out=$(printf '' | CLAUDE_PROJECT_DIR="${repo}" bash "${HOOK}" 2>&1)
 code=$?
 if [ "${code}" = "0" ]; then ok "checker run exits 0"; else no "checker run exits 0 (got ${code})"; fi
