@@ -209,16 +209,16 @@ by_h = {d["harness"]: d for d in digs}
 assert set(by_h) == {"muse", "agy"} and by_h["muse"]["rolled_up_children"] == 1 and by_h["agy"]["project"] == "/repo/alpha", by_h
 mdir = sys.argv[2]
 am = json.load(open(os.path.join(mdir, "agy__conv-agy-1.json")))
-assert am["meta_version"] == 2 and am["tokens_in"] == 5300 and am["tokens_out"] == 200 and am["tokens_cache_read"] == 4500 and am["tokens_cache_write"] == 0, am
+assert am["meta_version"] == 3 and am["tokens_in"] == 5300 and am["tokens_out"] == 200 and am["tokens_cache_read"] == 4500 and am["tokens_cache_write"] == 0, am
 assert am["turns_after_skill_load"] == {"publish": 2}, am
 cm = json.load(open(os.path.join(mdir, "claude__cl-parent.json")))
-assert cm["meta_version"] == 2 and cm["tokens_in"] == 2000 and cm["tokens_out"] == 250 and cm["tokens_cache_read"] == 1500 and cm["tokens_cache_write"] == 400, cm
+assert cm["meta_version"] == 3 and cm["tokens_in"] == 2000 and cm["tokens_out"] == 250 and cm["tokens_cache_read"] == 1500 and cm["tokens_cache_write"] == 400, cm
 assert cm["turns_after_skill_load"] == {"postgres-rigor": 1}, cm
 mm = json.load(open(os.path.join(mdir, "muse__parent-m.json")))
-assert mm["meta_version"] == 2 and mm["tokens_in"] == 2700 and mm["tokens_out"] == 500 and mm["tokens_cache_read"] == 1800 and mm["tokens_cache_write"] == 100 and mm["model_duration_ms"] == 2300, mm
+assert mm["meta_version"] == 3 and mm["tokens_in"] == 2700 and mm["tokens_out"] == 500 and mm["tokens_cache_read"] == 1800 and mm["tokens_cache_write"] == 100 and mm["model_duration_ms"] == 2300, mm
 assert mm["turns_after_skill_load"] == {"code-review": 2}, mm
 mc = json.load(open(os.path.join(mdir, "muse__child-m.json")))
-assert mc["meta_version"] == 2 and mc["tokens_in"] == 300 and mc["tokens_out"] == 100 and mc["model_duration_ms"] == 0, mc
+assert mc["meta_version"] == 3 and mc["tokens_in"] == 300 and mc["tokens_out"] == 100 and mc["model_duration_ms"] == 0, mc
 PYEOF
 
 # Test cache-write: valid facets + invalid facet rejection

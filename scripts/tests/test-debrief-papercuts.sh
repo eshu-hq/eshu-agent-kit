@@ -191,7 +191,7 @@ import json, sys
 m = json.loads(sys.argv[1])
 assert m["facets_queued"] == 0 and m["facets_already_cached"] == 1, m
 meta = json.load(open(sys.argv[2]))
-assert meta["meta_version"] == 2, meta
+assert meta["meta_version"] == 3, meta
 assert meta["tokens_in"] == 2500 and meta["tokens_out"] == 120 and meta["tokens_cache_read"] == 2000, meta
 PYEOF
 

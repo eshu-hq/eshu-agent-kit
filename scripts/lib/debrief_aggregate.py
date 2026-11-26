@@ -28,6 +28,11 @@ from debrief_hooks import (  # noqa: E402
     _read_hook_events,
     papercut_stats,
 )
+from debrief_insights import (  # noqa: E402
+    build_skill_recommendations,
+    interjection_reason_stats,
+    repo_stats,
+)
 from debrief_skill_costs import attribute_skill_costs, gap_stats, load_skill_sizes  # noqa: E402
 
 
@@ -344,8 +349,12 @@ def cmd_aggregate(args):
 
     gap_buckets, med_gap, avg_gap, med_gap_by_harness = gap_stats(gaps_with_harness)
     prompt_dist, interjections = interjection_stats(top_metas)
-    skill_costs = attribute_skill_costs(metas.values(), skill_sizes=load_skill_sizes())
+    ij_reasons, ij_by_skill, ij_unattr = interjection_reason_stats(top_metas, metas.values())
+    interjections["reasons"] = ij_reasons
+    skill_sizes = load_skill_sizes()
+    skill_costs = attribute_skill_costs(metas.values(), skill_sizes=skill_sizes)
     mined_skills = Counter(skill_costs["mined_skills"])
+    repositories = repo_stats(metas, children)
 
     goal_cats = Counter()
     session_types = Counter()
@@ -396,12 +405,18 @@ def cmd_aggregate(args):
         row["eval_noise_band"] = ev.get("noise_band")
         row["eval_pass_rate"] = ev.get("pass_rate_with")
         row["eval_pairs"] = ev.get("cross_pairs")
+        sk_ij = ij_by_skill.get(row["skill"]) or {}
+        row["redirect_interjections"] = safe_int(sk_ij.get("redirect_goal"), 0)
+        row["top_interjection_reason"] = (
+            max(sk_ij.items(), key=lambda kv: (kv[1], kv[0]))[0] if sk_ij else None
+        )
 
     repos = [_collect_git_stats(r, since_str) for r in (args.repo or []) if r.strip()]
     today_iso = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     span_from = min(dates) if dates else since_str
     span_to = max(dates) if dates else today_iso
     days_active = max(1, len(dates))
+    skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active)
 
     agg = {
         "meta": {
@@ -432,6 +447,7 @@ def cmd_aggregate(args):
             "session_types": dict(session_types.most_common(8)),
             "response_time_buckets": {b: gap_buckets[b] for b in ("2-10s", "10-30s", "30s-1m", "1-2m", "2-5m", "5-15m", ">15m")},
             "prompt_distribution": dict(prompt_dist),
+            "interjection_reasons": ij_reasons,
             "median_response_gap_s": med_gap,
             "median_response_gap_s_by_harness": med_gap_by_harness,
             "avg_response_gap_s": avg_gap,
@@ -444,7 +460,9 @@ def cmd_aggregate(args):
             "multi_agent_overlap": _compute_overlap(top_metas),
         },
         "projects": dict(projects.most_common(12)),
+        "repositories": repositories,
         "skill_table": skill_table,
+        "skill_recommendations": skill_recs,
         "skill_costs": skill_costs,
         "papercuts": papercuts,
         "evals": evals,

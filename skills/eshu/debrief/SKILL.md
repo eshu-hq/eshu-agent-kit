@@ -81,6 +81,9 @@ Read `$WORK/aggregate.json` — it contains:
 - `papercuts` (per-skill findings counts `filed`, `open`, and `fixed` joined on the `skill:` body line, plus `total_filed`, `total_open`, `total_fixed`, and `unmatched_without_skill`; `null` without `--papercuts`)
 - `evals` (per-skill replay-eval summaries with `win_rate`, `noise_band`, `pass_rate_with`, `pass_rate_without`, `cross_pairs`, cost/latency deltas, `harness`, `recorded_at`; `null` without `--evals`)
 - `skill_costs` (`per_skill` cost/tax/latency/error attribution, `by_harness` token rollup, explicit `unattributed` totals, `totals`, and equal-split caveats; Claude, agy `PLANNER_RESPONSE`, and Muse main-session `model_completed` tokens are mined while older sessions lacking usage fields report 0; per-harness figures are never ranked against each other)
+- `repositories` (normalized per-repo session, prompt, tool, error, token, top-skills, and top-interjection-reason rollups collapsing git/Claude worktrees under their parent repository)
+- `interjections` (prompts-per-session distribution, follow-up rate, and content-free follow-up intent counts: `redirect_goal`, `debugging`, `thought_process`, `new_scope`, `approval`, `clarification`)
+- `skill_recommendations` (evidence-backed `create` / `modify` / `remove` skill lifecycle suggestions driven by repo frequency, unattributed friction, overhead, nudged %, errors, open papercuts, goal-redirects, unused skills, and A/B evals)
 - `facet_summaries` (structured per-session goals, outcomes, friction, and summaries)
 
 ### Step 4: Synthesize Usage-Driven Recommendations & Render HTML

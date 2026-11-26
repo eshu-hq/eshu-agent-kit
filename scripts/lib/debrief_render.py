@@ -12,6 +12,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import default_reports_dir, read_json, safe_float, safe_int  # noqa: E402
 from debrief_html_assets import REPORT_CSS, REPORT_JS  # noqa: E402
+from debrief_insights import (  # noqa: E402
+    render_interjection_reasons_card,
+    render_repo_activity_section,
+    render_skill_recommendations_card,
+)
 from debrief_render_skills import render_friction_cards, render_harness_skill_section  # noqa: E402
 
 
@@ -271,6 +276,8 @@ def render_html(agg, syn):
   <h2 id="section-work">What You Work On</h2>
   <div class="project-areas">{areas_html}</div>
 
+  {render_repo_activity_section(agg)}
+
   <div class="charts-row">
     {_render_chart_card("What You Wanted", charts.get("what_you_wanted"), "#2563eb", left_col="Goal", right_col="Sessions")}
     {_render_chart_card("Top Tools Used", charts.get("top_tools"), "#0891b2", title_case=False, left_col="Tool", right_col="Calls")}
@@ -291,6 +298,8 @@ def render_html(agg, syn):
   {gap_harness_table}
 
   {_render_chart_card("Prompts Per Session (Interjections)", prompt_dist_disp, "#0ea5e9", title_case=False, footer=ij_foot, left_col="Prompts in session", right_col="Sessions", hint="How many messages you sent in a single main chat. 1 prompt = autonomous one-shot; 2–3 = light nudge; 4+ = interactive iteration or heavy steering.")}
+
+  {render_interjection_reasons_card(agg)}
 
   <div class="chart-card" style="margin:20px 0">
     <div class="chart-title">Multi-Agent Parallelism (Overlapping Sessions Across Harnesses)</div>
@@ -320,6 +329,8 @@ def render_html(agg, syn):
   </div>
 
   {render_harness_skill_section(agg)}
+
+  {render_skill_recommendations_card(agg)}
 
   <h2 id="section-wins">Impressive Things You Did</h2>
   <p class="section-intro">{_e(syn.get("wins_intro"))}</p>

@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 
-META_SCHEMA_VERSION = 2
+META_SCHEMA_VERSION = 3
 FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
 FIXTURE_SESSION_RE = re.compile(r"^t[0-9]{4,}$")
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -355,3 +355,41 @@ def validate_facet(raw):
         "brief_summary": truncate_text(raw.get("brief_summary") or "", 400),
         "imported_from": str(raw.get("imported_from") or ""),
     }, None
+
+
+_AFFIRM = r"(?:yes|yep|yeah|yup|ok|okay|sure|lgtm|looks good|sounds good|go ahead|proceed|do it|ship it|merge|approved|great|thanks|thank you|perfect|nice|cool|awesome|good|fine|continue|please)"
+_APPROVAL_RE = re.compile(rf"^{_AFFIRM}(?:[\s,!.-]+{_AFFIRM})*[\s!.,]*$", re.IGNORECASE)
+_REDIRECT_RE = re.compile(
+    r"\b(stop|wait|hold on|don'?t|do not|you forgot|forgot to|you missed|missed the|remember to|follow the|refollow|re-?read|stick to|back to|finish|keep going|not done|still haven'?t|still need|didn'?t finish|make sure you|focus on|wrong file|wrong branch|don'?t skip|never skip)\b",
+    re.IGNORECASE,
+)
+_DEBUG_RE = re.compile(
+    r"\b(error|errors|fail|failed|failing|failure|broken|bug|crash|traceback|exception|panic|exit code|doesn'?t work|didn'?t work|not working|still failing|stuck|hang|hanging|timeout|timed out|fix this|fix it|why is it failing|why did it fail|stack trace|503|500|404|403|segfault)\b",
+    re.IGNORECASE,
+)
+_THOUGHT_RE = re.compile(
+    r"(\?|\b(why |how does|how do|what does|what is|what if|should we|would it|could we|can we|compare|tradeoff|trade-off|explain|make sense|what do you think|opinion|thoughts|curious|wondering)\b)",
+    re.IGNORECASE,
+)
+_SCOPE_RE = re.compile(
+    r"\b(also|another thing|next[, ]|now add|let'?s add|can you add|one more|in addition|after that|plus |and also|also add|would be nice)\b",
+    re.IGNORECASE,
+)
+
+
+def classify_interjection(text):
+    """Classify a follow-up user prompt into an intent category (content-free)."""
+    s = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not s:
+        return "clarification"
+    if len(s) <= 60 and "?" not in s and _APPROVAL_RE.match(s):
+        return "approval"
+    if _REDIRECT_RE.search(s):
+        return "redirect_goal"
+    if _DEBUG_RE.search(s):
+        return "debugging"
+    if _THOUGHT_RE.search(s):
+        return "thought_process"
+    if _SCOPE_RE.search(s):
+        return "new_scope"
+    return "clarification"

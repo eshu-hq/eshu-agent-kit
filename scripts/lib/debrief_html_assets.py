@@ -45,6 +45,10 @@ h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 44px; margin
 .col-guide summary { cursor: pointer; font-weight: 600; color: #334155; }
 .col-guide ul { margin: 8px 0 0 18px; line-height: 1.55; }
 .col-guide li { margin-bottom: 3px; }
+.action-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
+.act-create { background: #dcfce7; color: #166534; }
+.act-modify { background: #fef3c7; color: #92400e; }
+.act-remove { background: #fee2e2; color: #991b1b; }
 .rules-section { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
 .rules-section h3 { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 10px; }
 .rules-actions { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #dbeafe; }
