@@ -472,5 +472,41 @@ while IFS=$'\t' read -r skill _rule _reason; do
 done <"${BASELINE}"
 [ "${stale}" = "0" ] && ok "every baseline row names an existing skill" || no "every baseline row names an existing skill"
 
+# 20. Links RED: a collapsed reference use with no definition fails.
+ref_collapsed="${work}/ref-collapsed/SKILL.md"
+mkdir -p "${work}/ref-collapsed"
+cat >"${ref_collapsed}" <<'EOF'
+---
+name: ref-collapsed
+description: Collapsed reference use whose label is never defined.
+---
+
+# Bad
+
+See [nosuch][] here.
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_collapsed}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "collapsed reference use without a definition fails" || no "collapsed reference use without a definition fails (exit 0)"
+case "${out}" in
+*"SKILL004"*) ok "collapsed reference use cites SKILL004" ;;
+*) no "collapsed reference use cites SKILL004 (got: ${out:0:120})" ;;
+esac
+
+# 21. Links GREEN: trailing whitespace before the closing paren is not
+# part of the target (CommonMark strips it), so a titled link with a
+# trailing space still resolves to the existing file.
+titled_ws="${work}/titled-ws/SKILL.md"
+mkdir -p "${work}/titled-ws/references"
+printf -- '# Guide\n' >"${work}/titled-ws/references/guide.md"
+printf -- '%s\n' '---' 'name: titled-ws' 'description: Titled link with trailing space before the paren.' '---' '' '# Titled' '' 'See [the guide](references/guide.md "Guide title" ) for details.' >"${titled_ws}"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${titled_ws}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "titled link with trailing space passes" || no "titled link with trailing space passes (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "titled link with trailing space fires no SKILL004 (got: ${out:0:150})" ;;
+*) ok "titled link with trailing space fires no SKILL004" ;;
+esac
+
 printf '\nskill-lint mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]
