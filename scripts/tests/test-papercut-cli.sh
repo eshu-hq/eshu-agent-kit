@@ -348,10 +348,16 @@ if bash "${CLI}" file --skill debrief --tried a --expected b --happened c --fix 
 else
 	ok "file rejects malformed --dedupe-file"
 fi
-if PATH="/usr/bin:/bin" bash "${CLI}" snapshot --out "${work}/no-gh.json" --repo "eshu-hq/eshu-agent-kit" >/dev/null 2>&1; then
-	no "snapshot fails cleanly when gh is unavailable"
-else
+nogh_bin="${work}/nogh-bin"
+mkdir -p "${nogh_bin}"
+ln -s "$(python3 -c 'import os, sys; print(os.path.realpath(sys.executable))')" "${nogh_bin}/python3"
+ln -s "$(command -v dirname)" "${nogh_bin}/dirname"
+ln -s "$(command -v bash)" "${nogh_bin}/bash"
+nogh_out="$(PATH="${nogh_bin}" "${nogh_bin}/bash" "${CLI}" snapshot --out "${work}/no-gh.json" --repo "eshu-hq/eshu-agent-kit" 2>&1)" && rc=0 || rc=$?
+if [ "${rc}" -eq 1 ] && printf '%s' "${nogh_out}" | grep -q 'gh CLI not found'; then
 	ok "snapshot fails cleanly when gh is unavailable"
+else
+	no "snapshot fails cleanly when gh is unavailable (rc=${rc}: ${nogh_out})"
 fi
 
 printf '\npapercut-cli: %s passed, %s failed\n' "${passed}" "${failed}"
