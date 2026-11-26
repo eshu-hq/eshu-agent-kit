@@ -111,7 +111,8 @@ Required `synthesis.json` schema:
     {
       "title": "Friction Pattern",
       "description": "1-2 sentences on root cause and impact.",
-      "examples": ["Concrete example with short session ID (no raw prompt text)."]
+      "examples": ["Concrete example with short session ID (no raw prompt text)."],
+      "remediation": "Concrete action (rule, skill edit, hook fix, or replay-eval case) to prevent this friction."
     }
   ],
   "agents_md_additions": [
@@ -157,7 +158,7 @@ bash "$KIT/scripts/debrief.sh" render \
   --synthesis "$WORK/synthesis.json"
 ```
 
-By default, `render` writes `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and updates `report-latest.html` (override with `--out PATH` when requested). Under Harnesses & Skill Effectiveness it renders a **Skill Quality Flywheel** summary card (total attributed tokens, top context-tax skill, open vs fixed papercuts when `--papercuts` is passed, and eval-covered skills count when `--evals` is passed) and the **Top Skills (Flywheel Scorecard)** table (`Skill | Mined | Hook | Forced | Cost (tok) | Context Tax | Latency | Errors | Papercuts | Eval Win Rate`). Generated reports are offline (inline CSS/JS, system font stack, zero external requests) and have no artificial line cap.
+By default, `render` writes `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and updates `report-latest.html` (override with `--out PATH` when requested). Under Harnesses & Skill Effectiveness it renders a **Skill Quality Flywheel** summary card (total tokens tracked, biggest skill overhead, open vs fixed papercut issues when `--papercuts` is passed, and eval-covered skills count when `--evals` is passed) and the **Top Skills (Flywheel Scorecard)** table (`Skill | Sessions Used | Hook Loads | Nudged % | Total Tokens | Skill Overhead (tok) | Reply Gap / Session Len | Errors (Avg / Session) | Issues (Open / Fixed) | A/B Win Rate (±Noise)`) with hover tooltips and a plain-English column guide. Generated reports are offline (inline CSS/JS, system font stack, zero external requests) and have no artificial line cap.
 
 ### Step 5: Chat Summary
 

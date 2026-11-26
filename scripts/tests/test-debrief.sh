@@ -423,7 +423,7 @@ cat >"${work}/syn.json" <<'EOF'
   "wins_intro": "Clean multi-harness delivery.",
   "big_wins": [{"title": "Cross-Harness Debugging", "description": "Fixed foo.go (parent-m) and app.py (conv-agy-1)."}],
   "friction_intro": "Two small friction hits.",
-  "friction_categories": [{"title": "Tool Errors", "description": "Permission and test errors.", "examples": ["parent-m hit permission denied."]}],
+  "friction_categories": [{"title": "Tool Errors", "description": "Permission and test errors.", "examples": ["parent-m hit permission denied."], "remediation": "Document the required command in AGENTS.md."}],
   "agents_md_additions": [{"target": "AGENTS.md", "snippet": "Run \" onmouseover=\"alert(1) pytest", "why": "Avoids retry loops."}],
   "features_to_try": [{"title": "Pre-briefs", "oneliner": "Inject skill cues.", "why": "Cuts forced loads.", "example": "agents/roles.json"}],
   "usage_patterns": [{"title": "Batch Verification", "summary": "Verify once.", "detail": "Group test checks.", "prompt": "Run full suite once."}],
@@ -447,11 +447,20 @@ assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html, "escaped text missing"
 assert not re.search(r'https?://', html), "external URL found in offline HTML!"
 assert "copyAllCheckedRules" in html and "timezone-select" in html and "rawUtcHours" in html
 assert "&amp;middot;" not in html, "double-escaped middot!"
-assert "Cost (tok)" in html and "Context Tax" in html and "Latency" in html and "Errors" in html and "Papercuts" in html and "Eval Win Rate" in html
-assert "Top Skills (Flywheel Scorecard)" in html and "Skill Quality Flywheel" in html and "Eval-Covered Skills" in html
+assert "Total Tokens" in html and "Skill Overhead (tok)" in html and "Reply Gap / Session Len" in html and "Errors (Avg / Session)" in html and "Issues (Open / Fixed)" in html and "A/B Win Rate" in html
+assert "Top Skills (Flywheel Scorecard)" in html and "Skill Quality Flywheel" in html and "Eval-Covered Skills" in html and "How to read this scorecard" in html
+assert "Prompts in session" in html and "1 prompt (one-shot)" in html and "How to remediate:" in html and "Document the required command" in html
 assert "Median Response Gap by Harness" in html, "per-harness gap table missing from render!"
 assert "not mined" not in html and "5.3k in / 200 out" in html, "agy real tokens missing from render!"
-assert "82% (±8%)" in html and "35.0s" in html and "1 (1.00/s)" in html, "eval/latency/error cells missing from render!"
+assert "82% (±8%)" in html and "35.0s" in html and "1 (1.00/sess)" in html, "eval/latency/error cells missing from render!"
+PYEOF
+
+printf '{"at_a_glance":{}}' >"${work}/syn-empty.json"
+bash "${DEBRIEF}" render --aggregate "${work}/agg-hostile.json" --synthesis "${work}/syn-empty.json" --out "${work}/fb.html" >/dev/null &&
+	python3 - "${work}/fb.html" <<'PYEOF' && ok "render auto-generates Where Things Go Wrong summary + remediation when synthesis omits friction_categories" || no "render auto-generates Where Things Go Wrong summary + remediation when synthesis omits friction_categories"
+import sys
+h = open(sys.argv[1], encoding="utf-8").read()
+assert "How to remediate:" in h and "friction-category" in h, "missing fallback friction remediation card!"
 PYEOF
 
 # --- Part E: Per-skill cost, context tax, latency, and error attribution (issues #80, #100) ---

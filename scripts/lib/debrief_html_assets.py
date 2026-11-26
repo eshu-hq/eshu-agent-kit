@@ -4,7 +4,7 @@
 REPORT_CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #334155; line-height: 1.65; padding: 40px 20px 64px; }
-.container { max-width: 860px; margin: 0 auto; }
+.container { max-width: 980px; margin: 0 auto; }
 h1 { font-size: 30px; font-weight: 700; color: #0f172a; margin-bottom: 6px; letter-spacing: -0.02em; }
 h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 44px; margin-bottom: 14px; }
 .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
@@ -39,6 +39,12 @@ h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 44px; margin
 .friction-desc { font-size: 13px; color: #7f1d1d; margin-bottom: 8px; }
 .friction-examples { margin: 0 0 0 20px; font-size: 13px; color: #334155; }
 .friction-examples li { margin-bottom: 4px; }
+.friction-fix { margin-top: 10px; padding: 9px 12px; background: #fff; border-left: 3px solid #16a34a; border-radius: 4px; font-size: 13px; color: #1e293b; }
+.friction-fix strong { color: #166534; }
+.col-guide { margin-top: 12px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #475569; }
+.col-guide summary { cursor: pointer; font-weight: 600; color: #334155; }
+.col-guide ul { margin: 8px 0 0 18px; line-height: 1.55; }
+.col-guide li { margin-bottom: 3px; }
 .rules-section { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
 .rules-section h3 { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 10px; }
 .rules-actions { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #dbeafe; }
@@ -65,11 +71,12 @@ h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 44px; margin
 .copy-btn:hover { background: #cbd5e1; }
 .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 20px 0; }
 .chart-title { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.03em; }
+.bar-head { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: #94a3b8; padding-bottom: 5px; margin-bottom: 7px; border-bottom: 1px solid #f1f5f9; }
 .bar-row { display: flex; align-items: center; margin-bottom: 6px; }
-.bar-label { width: 132px; font-size: 11px; color: #475569; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-label { width: 148px; font-size: 11px; color: #475569; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { flex: 1; height: 7px; background: #f1f5f9; border-radius: 4px; margin: 0 8px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; }
-.bar-value { width: 42px; font-size: 11px; font-weight: 600; color: #475569; text-align: right; font-variant-numeric: tabular-nums; }
+.bar-value { width: 54px; font-size: 11px; font-weight: 600; color: #475569; text-align: right; font-variant-numeric: tabular-nums; }
 .overlap-stats { display: flex; gap: 28px; margin: 10px 0; flex-wrap: wrap; }
 .overlap-num { font-size: 22px; font-weight: 700; color: #7c3aed; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
