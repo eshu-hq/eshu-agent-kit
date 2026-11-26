@@ -11,6 +11,7 @@ from debrief_common import (
     META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
+    classify_interjection,
     epoch_to_iso,
     epoch_to_utc_hour,
     lang_from_path,
@@ -185,6 +186,7 @@ def extract_session(path, mtime=0.0, db_cache=None):
     max_depth = nesting
 
     user_prompts = []
+    interjection_reasons = Counter()
     assistant_tail = []
     subagent_runs = []
     error_samples = []
@@ -280,6 +282,8 @@ def extract_session(path, mtime=0.0, db_cache=None):
                 last_assistant_ep = None
             raw_u = rec.get("text") or rec.get("user_response") or rec.get("content") or ""
             txt = truncate_text(raw_u, 260)
+            if prompts >= 2 and txt:
+                interjection_reasons[classify_interjection(txt)] += 1
             if txt and len(user_prompts) < 8:
                 user_prompts.append(txt)
         elif rtype == "CHECKPOINT":
@@ -330,6 +334,7 @@ def extract_session(path, mtime=0.0, db_cache=None):
         "tokens_cache_read": tokens_cache_read,
         "tokens_cache_write": 0,
         "turns_after_skill_load": turns_after_skill_load,
+        "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
         "session_id": cid,

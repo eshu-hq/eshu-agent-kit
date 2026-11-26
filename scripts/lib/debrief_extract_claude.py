@@ -8,6 +8,7 @@ from debrief_common import (
     META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
+    classify_interjection,
     epoch_to_iso,
     epoch_to_utc_hour,
     lang_from_path,
@@ -204,6 +205,7 @@ def extract_session(path, mtime=0.0):
     tokens_cache_write = 0
 
     user_prompts = []
+    interjection_reasons = Counter()
     assistant_tail = []
     subagent_runs = []
     error_samples = []
@@ -311,6 +313,8 @@ def extract_session(path, mtime=0.0):
             clean_u = truncate_text(user_txt, 260)
             if _is_owner_turn(rec, clean_u, has_tool_result):
                 prompts += 1
+                if prompts >= 2 and clean_u:
+                    interjection_reasons[classify_interjection(clean_u)] += 1
                 hr = epoch_to_utc_hour(ep)
                 if hr is not None:
                     msg_hours[str(hr)] += 1
@@ -363,6 +367,7 @@ def extract_session(path, mtime=0.0):
         "tokens_cache_read": tokens_cache_read,
         "tokens_cache_write": tokens_cache_write,
         "turns_after_skill_load": turns_after_skill_load,
+        "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
         "session_id": sess_id,

@@ -34,6 +34,7 @@ suites=(
 	scripts/tests/test-install-uninstall.sh
 	scripts/tests/test-debrief.sh
 	scripts/tests/test-debrief-papercuts.sh
+	scripts/tests/test-debrief-insights.sh
 	scripts/tests/test-papercut-cli.sh
 	scripts/tests/test-replay-eval.sh
 	hooks/tests/test-doc-staleness-hook.sh

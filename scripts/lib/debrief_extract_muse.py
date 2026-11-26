@@ -9,6 +9,7 @@ from debrief_common import (
     META_SCHEMA_VERSION,
     canon_skill,
     categorize_error,
+    classify_interjection,
     epoch_to_iso,
     epoch_to_utc_hour,
     lang_from_path,
@@ -135,6 +136,9 @@ def extract_session(path, mtime=0.0):
     max_depth = 0
 
     user_prompts = []
+    seen_user_msgs = set()
+    interjection_reasons = Counter()
+    intent_classified = 0
     assistant_tail = []
     subagent_runs = []
     error_samples = []
@@ -162,6 +166,13 @@ def extract_session(path, mtime=0.0):
 
         if pt == "runtime.user_intent.accepted":
             prompts += 1
+            utxt = truncate_text(
+                inner.get("text") or inner.get("prompt") or inner.get("content") or inner.get("message") or "",
+                260,
+            )
+            if prompts >= 2 and utxt:
+                interjection_reasons[classify_interjection(utxt)] += 1
+                intent_classified += 1
             hr = epoch_to_utc_hour(ep)
             if hr is not None:
                 msg_hours[str(hr)] += 1
@@ -244,8 +255,12 @@ def extract_session(path, mtime=0.0):
                 if isinstance(msgs, list):
                     for m in msgs:
                         txt = truncate_text(m, 260)
-                        if txt and len(user_prompts) < 8 and txt not in user_prompts:
-                            user_prompts.append(txt)
+                        if txt and txt not in seen_user_msgs:
+                            seen_user_msgs.add(txt)
+                            if len(seen_user_msgs) >= 2 and intent_classified == 0:
+                                interjection_reasons[classify_interjection(txt)] += 1
+                            if len(user_prompts) < 8:
+                                user_prompts.append(txt)
                             hr = epoch_to_utc_hour(ep)
                             if hr is not None:
                                 fallback_hours[str(hr)] += 1
@@ -376,6 +391,7 @@ def extract_session(path, mtime=0.0):
         "tokens_cache_write": tokens_cache_write,
         "model_duration_ms": model_duration_ms,
         "turns_after_skill_load": turns_after_skill_load,
+        "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
         "session_id": sess_id,
