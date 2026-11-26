@@ -108,6 +108,10 @@ adv() { # skill file line rule detail
 	printf '%s:%s: %s (advisory): %s\n' "$2" "$3" "$4" "$5"
 	advisories=$((advisories + 1))
 }
+norm_label() { # canonicalize a reference label the CommonMark way
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]' |
+		sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]][[:space:]]*/ /g'
+}
 
 for skill_file in "${files[@]}"; do
 	rel="${skill_file#"${KIT_DIR}"/}"
@@ -152,6 +156,8 @@ for skill_file in "${files[@]}"; do
 
 	# SKILL004: every relative link target resolves, inline or
 	# reference-style. An optional quoted title is not part of the target.
+	# Known boundary (not checked): a quoted title containing ")" truncates
+	# the target at the first paren, since the inline extractor stops there.
 	while IFS= read -r hit; do
 		lnum="${hit%%:*}"
 		target="${hit#*:}"
@@ -174,7 +180,7 @@ for skill_file in "${files[@]}"; do
 	# [label] each need a matching [label]: definition (case-insensitive).
 	defined_labels="$(rg --no-heading -o '^[[:space:]]*\[[^]]+\]:' "${skill_file}" 2>/dev/null |
 		sed -e 's/^[[:space:]]*\[//' -e 's/\]:$//' |
-		tr '[:upper:]' '[:lower:]' || true)"
+		while IFS= read -r raw; do norm_label "${raw}"; done || true)"
 	while IFS= read -r use; do
 		ulnum="${use%%:*}"
 		pair="${use#*:}"
@@ -184,8 +190,8 @@ for skill_file in "${files[@]}"; do
 		label="${rest%\]}"
 		[[ -z "${label}" ]] && label="${text}"
 		[[ -z "${label}" ]] && continue
-		label="$(printf '%s' "${label}" | tr '[:upper:]' '[:lower:]')"
-		if ! printf '%s\n' "${defined_labels}" | rg -qxF "${label}" 2>/dev/null; then
+		label="$(norm_label "${label}")"
+		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
 			err "${rel}" "${ulnum}" SKILL004 "reference '[${label}]' has no matching definition"
 		fi
 	done < <(rg -n --no-heading -o '\[[^]]*\]\[[^]]*\]' "${skill_file}" 2>/dev/null || true)
@@ -203,8 +209,8 @@ for skill_file in "${files[@]}"; do
 		inner="$(printf '%s' "${fragment}" | sed -e 's/^[^\[]*\[//' -e 's/\].*//')"
 		inner="${inner#\[}"
 		[[ -z "${inner}" ]] && continue
-		label="$(printf '%s' "${inner}" | tr '[:upper:]' '[:lower:]')"
-		if ! printf '%s\n' "${defined_labels}" | rg -qxF "${label}" 2>/dev/null; then
+		label="$(norm_label "${inner}")"
+		if ! printf '%s\n' "${defined_labels}" | rg -qxF -- "${label}" 2>/dev/null; then
 			adv "${skill}" "${rel}" "${ulnum}" SKILL004 "possible shortcut reference '[${label}]' has no matching definition"
 		fi
 	done < <(rg -n --no-heading -o '.?\[[^]]+\].?' "${skill_file}" 2>/dev/null || true)

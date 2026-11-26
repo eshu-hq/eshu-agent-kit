@@ -297,7 +297,55 @@ case "${out}" in
 *) ok "defined reference uses fire no SKILL004" ;;
 esac
 
-# 12. Size RED: a line-count oversized skill fires SKILL005.
+# 12. Links GREEN: leading-dash labels match their definitions.
+ref_dash="${work}/ref-dash/SKILL.md"
+mkdir -p "${work}/ref-dash/references"
+printf -- '# Guide\n' >"${work}/ref-dash/references/guide.md"
+cat >"${ref_dash}" <<'EOF'
+---
+name: ref-dash
+description: Leading-dash label on both sides.
+---
+
+# Fine
+
+See [a][-foo] here.
+
+[-foo]: references/guide.md
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_dash}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "leading-dash reference uses pass" || no "leading-dash reference uses pass (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "leading-dash reference uses fire no SKILL004 (got: ${out:0:150})" ;;
+*) ok "leading-dash reference uses fire no SKILL004" ;;
+esac
+
+# 13. Links GREEN: whitespace-collapsed labels match their definitions.
+ref_ws="${work}/ref-ws/SKILL.md"
+mkdir -p "${work}/ref-ws/references"
+printf -- '# Guide\n' >"${work}/ref-ws/references/guide.md"
+cat >"${ref_ws}" <<'EOF'
+---
+name: ref-ws
+description: Equivalent labels with different inner spacing.
+---
+
+# Fine
+
+See [the guide][my  label] here.
+
+[my label]: references/guide.md
+EOF
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${ref_ws}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "whitespace-variant reference uses pass" || no "whitespace-variant reference uses pass (exit ${code}: ${out:0:150})"
+case "${out}" in
+*"SKILL004"*) no "whitespace-variant reference uses fire no SKILL004 (got: ${out:0:150})" ;;
+*) ok "whitespace-variant reference uses fire no SKILL004" ;;
+esac
+
+# 14. Size RED: a line-count oversized skill fires SKILL005.
 big="${work}/big/SKILL.md"
 mkdir -p "${work}/big"
 {
@@ -312,7 +360,7 @@ case "${out}" in
 *) no "oversized skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 13. Size RED: narrow lines but over the byte cap still fires SKILL005.
+# 15. Size RED: narrow lines but over the byte cap still fires SKILL005.
 wide="${work}/wide/SKILL.md"
 mkdir -p "${work}/wide"
 {
@@ -330,7 +378,7 @@ case "${out}" in
 *) no "byte-heavy skill cites SKILL005 (got: ${out:0:120})" ;;
 esac
 
-# 14. Verification RED: no numbered steps and no fences print advisories
+# 16. Verification RED: no numbered steps and no fences print advisories
 # but stay exit 0 (Tier 2 never blocks).
 bare="${work}/bare/SKILL.md"
 mkdir -p "${work}/bare"
@@ -354,7 +402,7 @@ for rule in SKILL006 SKILL007 SKILL008; do
 	esac
 done
 
-# 15. Recovery RED: a body whose only recovery advice is "try again" still
+# 17. Recovery RED: a body whose only recovery advice is "try again" still
 # fires SKILL008, and a real recovery section clears it.
 retry="${work}/retry/SKILL.md"
 mkdir -p "${work}/retry"
@@ -390,7 +438,7 @@ case "${out}" in
 *) ok "retry fixture fires only SKILL008" ;;
 esac
 
-# 16. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
+# 18. Baseline GREEN: a listed Tier 2 exemption suppresses the advisory,
 # while Tier 1 still fires for a listed skill.
 fixture_base="${work}/baseline.tsv"
 printf 'bare\tSKILL006\tFixture exemption for the suite.\n' >"${fixture_base}"
@@ -412,7 +460,7 @@ case "${out}" in
 *) no "Tier 1 is never suppressed by the baseline (got: ${out:0:150})" ;;
 esac
 
-# 17. Baseline hygiene: every shipped exemption names a skill that exists,
+# 19. Baseline hygiene: every shipped exemption names a skill that exists,
 # so NEW skills cannot arrive pre-exempted.
 stale=0
 while IFS=$'\t' read -r skill _rule _reason; do
