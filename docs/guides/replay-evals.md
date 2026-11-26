@@ -46,13 +46,12 @@ under [evals/README.md](../../evals/README.md).
    - `agy`: passes `--output-format json --disable-slash-commands -p=<prompt>`,
      prepending `SKILL.md` only in `with-skill` mode.
    - `muse`: passes `muse exec --json --no-session-log --no-foreign-personal-context
-     --approval-mode never --workspace <iso_dir> --prompt-file <file>` (writing
-     the prompt file outside `<iso_dir>` so the worktree stays clean). In
-     `with-skill` mode (and in `muse` judge calls), it passes `--trust-workspace`
-     so workspace tools work and prepends `SKILL.md`. In `without-skill` mode,
-     project skills under `<iso_dir>/.agents/skills` are removed and
-     `--no-foreign-personal-context` strips foreign personal skills without
-     trusting the workspace.
+     --approval-mode never --trust-workspace --workspace <iso_dir> --prompt-file <file>`
+     on both arms (writing the prompt file outside `<iso_dir>` so the worktree
+     stays clean and both arms have identical workspace tool access). In
+     `with-skill` mode it prepends `SKILL.md`; in `without-skill` mode it strips
+     `<iso_dir>/.agents/skills` inside the isolated worktree and relies on
+     `--no-foreign-personal-context` to exclude foreign personal skills.
 
    Pass `--runner PATH` to plug in a custom runner executable (for offline
    tests or bespoke harnesses). Use `scripts/replay-runner.sh --dry-run-cmd ...`

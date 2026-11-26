@@ -206,7 +206,7 @@ assert "-p=Check lock contention\n" in da2["cmd"], da2
 dm = json.loads(dry("muse", "with-skill").stdout)
 assert "--trust-workspace" in dm["cmd"] and "--no-foreign-personal-context" in dm["cmd"] and "--prompt-file" in dm["cmd"], dm
 dm2 = json.loads(dry("muse", "without-skill").stdout)
-assert "--trust-workspace" not in dm2["cmd"] and "--no-foreign-personal-context" in dm2["cmd"], dm2
+assert "--trust-workspace" in dm2["cmd"] and "--no-foreign-personal-context" in dm2["cmd"], dm2
 assert dry("claude", "with-skill", skill="nonexistent-skill-xyz").returncode != 0
 PYEOF
 
@@ -402,7 +402,9 @@ python3 - "${ws}" "${pf}" "${trusted}" <<'PYEOF'
 import json, os, subprocess, sys
 ws, pf, trusted = sys.argv[1], sys.argv[2], int(sys.argv[3])
 assert os.path.dirname(os.path.abspath(pf)) != os.path.abspath(ws), f"prompt inside ws: {pf}"
-if trusted:
+assert trusted == 1, "both muse arms must pass --trust-workspace for A/B fairness"
+txt = open(pf, encoding="utf-8").read()
+if "Follow these instructions for " in txt:
     st = subprocess.check_output(["git", "-C", ws, "status", "--porcelain"], text=True).strip()
     assert st == "", f"dirty git worktree: {st}"
 else:

@@ -150,10 +150,9 @@ def build_harness_cmd(
             "--disable-request-user-input",
             "--no-foreign-personal-context",
             "--approval-mode", "never",
+            "--trust-workspace",
             "--workspace", iso_dir,
         ]
-        if mode == "with-skill":
-            cmd.append("--trust-workspace")
         if model:
             cmd += ["--model", model]
         cmd += ["--prompt-file", prompt_file]
