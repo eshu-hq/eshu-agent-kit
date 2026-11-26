@@ -145,14 +145,14 @@ PAPERCUT_SKILL_RE = re.compile(r"^\s*skill\s*:\s*[`'\"]?([A-Za-z0-9_.:-]+)", re.
 
 
 def papercut_stats(path):
-    """Per-skill papercut filed vs fixed from a caller-supplied snapshot file.
+    """Per-skill papercut filed, open, and fixed counts from a snapshot file.
 
     The snapshot is JSON exported out of band (e.g. ``gh issue list --label
     papercut --json number,title,body,state,stateReason``), either a bare
     array or ``{"issues": [...]}``. The join key is the required ``skill:``
     body line the papercut template asks for; issues without one count as
-    unmatched, never as zero-skill findings. Fixed means CLOSED for a reason
-    other than NOT_PLANNED. Offline only: no network calls.
+    unmatched, never as zero-skill findings. Open means state == OPEN; fixed
+    means CLOSED for a reason other than NOT_PLANNED. Offline only: no network calls.
     """
     if not path:
         return None
