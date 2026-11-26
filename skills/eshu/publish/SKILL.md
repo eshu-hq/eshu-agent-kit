@@ -144,3 +144,8 @@ bash scripts/check-shape.sh --issue-checklist checklist.md
 4. Compare every claim that bears on a decision with the diff and the proof.
    Write a derivable figure as a link or a command, not as a hand-typed count
    (see [Derivable figures](../code-review/references/merge-bar.md#derivable-figures)).
+
+## Failure And Recovery
+
+- **`check-shape.sh` failure:** fix every reported `FAIL` line (missing `Refs #N.`/`Fixes #N.` first line, missing bold lead or glance table, or prose paragraph over 800 bytes) and re-run `check-shape.sh` until it exits 0 before capturing the review receipt.
+- **Body or title edited after `ci-gates review-attest` capture:** the existing receipt is void; repeat the affected proof and full review, then capture a fresh receipt. If only a derivable figure is wrong after capture, leave the body unchanged and record the corrected figure in the verdict's P3 list.

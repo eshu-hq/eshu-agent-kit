@@ -256,5 +256,142 @@ while IFS=$'\t' read -r skill _rule _reason; do
 done <"${BASELINE}"
 [ "${stale}" = "0" ] && ok "every baseline row names an existing skill" || no "every baseline row names an existing skill"
 
+# 11. SKILL009 RED/ADVISORY/GREEN: description token budget (>600 error,
+# 401-600 advisory, <=400 clean).
+make_desc_skill() {
+	local name="$1" len="$2"
+	local dir="${work}/${name}"
+	local pad
+	mkdir -p "${dir}"
+	pad="$(python3 -c "print('a' * ${len})")"
+	cat >"${dir}/SKILL.md" <<EOF
+---
+name: ${name}
+description: ${pad}
+---
+
+# ${name}
+
+## Workflow
+
+1. Run the check.
+
+\`\`\`bash
+echo ok
+\`\`\`
+
+## Error recovery
+
+When the check fails, read the cited line and fix it.
+EOF
+	printf '%s' "${dir}/SKILL.md"
+}
+
+desc_err="$(make_desc_skill desc-err 601)"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_err}" 2>&1)"
+code=$?
+[ "${code}" != "0" ] && ok "SKILL009 >600 chars fails" || no "SKILL009 >600 chars fails (exit 0)"
+case "${out}" in
+*"SKILL009 (error)"*) ok "SKILL009 >600 chars cites SKILL009 (error)" ;;
+*) no "SKILL009 >600 chars cites SKILL009 (error) (got: ${out:0:150})" ;;
+esac
+
+desc_adv="$(make_desc_skill desc-adv 450)"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_adv}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "SKILL009 401-600 chars stays exit 0" || no "SKILL009 401-600 chars stays exit 0 (exit ${code})"
+case "${out}" in
+*"SKILL009 (advisory)"*) ok "SKILL009 401-600 chars emits SKILL009 (advisory)" ;;
+*) no "SKILL009 401-600 chars emits SKILL009 (advisory) (got: ${out:0:150})" ;;
+esac
+
+desc_ok="$(make_desc_skill desc-ok 400)"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${desc_ok}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "SKILL009 <=400 chars passes" || no "SKILL009 <=400 chars passes (exit ${code})"
+case "${out}" in
+*"SKILL009"*) no "SKILL009 <=400 chars emits no SKILL009 (got: ${out:0:150})" ;;
+*) ok "SKILL009 <=400 chars emits no SKILL009" ;;
+esac
+
+# 12. SKILL010 RED/GREEN: >200 lines without references/ or scripts/ triggers
+# advisory; adding references/ clears it.
+long_skill="${work}/long-skill/SKILL.md"
+mkdir -p "${work}/long-skill"
+{
+	cat <<'EOF'
+---
+name: long-skill
+description: Longer skill testing progressive disclosure.
+---
+
+# Long skill
+
+## Workflow
+
+1. Run the check.
+
+```bash
+echo ok
+```
+
+## Error recovery
+
+When the check fails, read the cited line and fix it.
+EOF
+	for _ in $(seq 1 200); do printf 'Detail line.\n'; done
+} >"${long_skill}"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${long_skill}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "SKILL010 stays exit 0" || no "SKILL010 stays exit 0 (exit ${code})"
+case "${out}" in
+*"SKILL010 (advisory)"*) ok "SKILL010 fires over 200 lines with no references/ or scripts/" ;;
+*) no "SKILL010 fires over 200 lines with no references/ or scripts/ (got: ${out:0:150})" ;;
+esac
+
+mkdir -p "${work}/long-skill/references"
+out="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" "${long_skill}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "SKILL010 with references/ passes" || no "SKILL010 with references/ passes (exit ${code})"
+case "${out}" in
+*"SKILL010"*) no "adding references/ clears SKILL010 (got: ${out:0:150})" ;;
+*) ok "adding references/ clears SKILL010" ;;
+esac
+
+# 13. --json output: valid JSON with expected fields; exits 1 on Tier 1 error.
+json_ok="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${good}" "${long_skill}" 2>&1)"
+code=$?
+[ "${code}" = "0" ] && ok "--json exits 0 when clean" || no "--json exits 0 when clean (exit ${code})"
+if python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d["checked"] == 2 and d["errors"] == 0 and d["advisories"] == 0 and d["suppressed"] == 0
+by_name = {s["skill"]: s for s in d["skills"]}
+assert set(by_name) == {"good", "long-skill"}
+assert by_name["good"]["has_references"] is False and by_name["long-skill"]["has_references"] is True
+for s in by_name.values():
+    for k in ("path", "lines", "bytes", "desc_chars", "est_desc_tokens", "est_body_tokens", "has_scripts", "errors", "advisories"):
+        assert k in s, f"missing {k}"
+    assert s["est_desc_tokens"] > 0 and s["est_body_tokens"] > 0
+' <<<"${json_ok}"; then
+	ok "--json emits valid JSON with token counts, has_references, and skills list"
+else
+	no "--json emits valid JSON with token counts, has_references, and skills list"
+fi
+
+json_err="$(bash "${LINT}" --baseline "${EMPTY_BASELINE}" --json "${desc_err}" 2>&1)"
+code=$?
+[ "${code}" = "1" ] && ok "--json exits 1 on Tier 1 error" || no "--json exits 1 on Tier 1 error (exit ${code})"
+if python3 -c '
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d["checked"] == 1 and d["errors"] == 1
+assert len(d["skills"]) == 1 and d["skills"][0]["errors"][0]["rule"] == "SKILL009"
+' <<<"${json_err}"; then
+	ok "--json records Tier 1 error in skills[].errors"
+else
+	no "--json records Tier 1 error in skills[].errors"
+fi
+
 printf '\nskill-lint mirror: %s passed, %s failed\n' "${passed}" "${failed}"
 [[ "${failed}" -eq 0 ]]

@@ -60,7 +60,16 @@ those. You are a leaf agent: do not dispatch other agents.
 
    In `specs/ci-gates.v1.yaml`, `env-registry-doc` and `live-backend-tests` (the
    owner of the ledger validator) have no `local.pre_push: floor`. `make
-   pre-push` defers them, so this table is their first local run.
+   pre-push` defers them, so this table is their first local run. Run the
+   commands that apply to your diff:
+
+   ```bash
+   git rev-parse HEAD
+   bash scripts/verify-license-header.sh
+   bash scripts/verify-live-tests-ledger.sh
+   bash scripts/verify-env-registry-doc.sh
+   bash scripts/verify-docs-cli-env-refs.sh
+   ```
 
 5. **Confirm the role gates.** Rerun the registry-selected static gates your role
    names if you committed after their last run. Report each as `PASS`, `FAIL`, or

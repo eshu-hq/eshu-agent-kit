@@ -1,37 +1,9 @@
-# skill-lint Tier 2 baseline (#81): per-skill exemptions with reasons.
+# skill-lint Tier 2 baseline (#81, #102): per-skill exemptions with reasons.
 #
-# Swept 2026-11-26 over skills/eshu/*/SKILL.md. Each row suppresses one
-# Tier 2 advisory the linter would otherwise print. Tier 1 (SKILL001-005)
-# is never suppressible: a malformed skill fails no matter what is listed
-# here. NEW skills get no baseline entries: their advisories stay visible
-# until the body earns them, so each row must name a skill that exists.
+# Swept 2026-11-26 over skills/eshu/*/SKILL.md; burned down from 29 rows to 0
+# in #102 (following #101). Each row suppresses one Tier 2 advisory the linter
+# would otherwise print. Tier 1 (SKILL001-005, SKILL009 >600 chars) is never
+# suppressible: a malformed skill fails no matter what is listed here. NEW
+# skills get no baseline entries: their advisories stay visible until the body
+# earns them, so each row must name a skill that exists.
 # Format: <skill-dir><TAB><rule><TAB><reason>.
-code-review	SKILL007	Review workflow cites inline commands and reference docs throughout; grandfathered without a fenced command block.
-contract-rigor	SKILL006	Contract classification checklist, not a step sequence; the procedure branches on what changed.
-contract-rigor	SKILL007	Commands live in consuming-repo tooling named inline; no fenced block in the body.
-correlation-truth	SKILL007	Verification is direct graph-check prose plus a proof matrix; commands vary per query family.
-correlation-truth	SKILL008	Recovery is re-tracing the evidence path per case; no single named recovery section.
-diagnostic-rigor	SKILL006	Hypothesis-driven diagnosis, deliberately non-sequential; numbering it would invent an order.
-diagnostic-rigor	SKILL007	Telemetry and proof commands are case-specific and cited inline.
-executor-preflight	SKILL007	Seven numbered steps with inline git and gate commands; grandfathered without fenced blocks.
-folder-doc-keeper	SKILL006	41-line keeper note with a single instruction; steps would be padding.
-folder-doc-keeper	SKILL007	No commands to fence; the rule points at the owning skill.
-generator-script-discipline	SKILL006	Short discipline note, not a workflow; numbering would invent steps.
-generator-script-discipline	SKILL007	Ledger mechanics cited by script name inline; no fenced block.
-golang-engineering	SKILL006	Engineering guidance with sections per topic; the workflow lives in references/.
-golang-engineering	SKILL007	Tool commands cited inline per topic; no single fenced sequence.
-golden-corpus-rigor	SKILL006	Contract plus gate-id prose; validation branches on live versus mirror runs.
-golden-corpus-rigor	SKILL008	Recovery is rerunning the named gate; no dedicated recovery section.
-issue-driver	SKILL007	Fifteen numbered drive steps with inline gh and gate commands; grandfathered without fenced blocks.
-performance-rigor	SKILL006	Contract and budget prose with per-claim evidence rules; not a step sequence.
-performance-rigor	SKILL007	Measurement commands are per-path and cited inline.
-postgres-rigor	SKILL006	Doctrine sections per SQL topic; the order depends on the query under review.
-postgres-rigor	SKILL007	SQL and gate commands cited inline per section; no fenced block.
-publish	SKILL008	Failure handling is inline (fix every FAIL line, rewrite derivable figures); no dedicated recovery section.
-release	SKILL008	Gotchas section lists the known failure paths inline; grandfathered without a named recovery section.
-security-scan-gates	SKILL006	50-line scanner guide delegating to references/ per scanner; not a step sequence.
-security-scan-gates	SKILL007	Scanner invocations live in the per-scanner references; no fenced block in the body.
-session-lifecycle	SKILL006	Session mechanics plus trap tables; steps vary by resume versus handoff path.
-session-lifecycle	SKILL007	Commands cited inline per mechanic; no fenced block.
-telemetry-coverage-discipline	SKILL006	Short discipline note; the workflow is a single keep-or-add decision.
-telemetry-coverage-discipline	SKILL008	No failure path beyond the owning skill's gates; no recovery section.

@@ -92,19 +92,33 @@ Read [scaled-runs.md](references/scaled-runs.md) before launching these runs.
 
 ## Evidence And Closeout
 
-Read [evidence.md](references/evidence.md) for durable evidence markers, the
-hypothesis ledger, before/after reporting, ADR updates, and result classification.
-Keep cold-client latency separate from warm p50/p95. Claim only the measured
-level of improvement and name the next measured bottleneck.
+1. **Verify ancestry and record evidence.** Refresh Git and verify ancestry
+   before relying on recently merged code or baselines, then read
+   [evidence.md](references/evidence.md) for durable evidence markers, the
+   hypothesis ledger, before/after reporting, ADR updates, and result
+   classification. Keep cold-client latency separate from warm p50/p95. Claim
+   only the measured level of improvement and name the next measured bottleneck.
+   Done when the before/after table and markers match the exact tested commit.
+2. **Run focused and performance-evidence gates.** Run focused reproduction and
+   required integration/golden and performance-evidence gates:
 
-Run focused reproduction and required integration/golden and performance-evidence
-gates. Follow [code-review](../code-review/SKILL.md) and root rules for
-review, attestation, `make pre-push` (the required fast floor), and push.
-`make pre-pr` is not part of promotion. This skill's risk classes (queue/lease,
-schema DDL, hot-path Cypher or graph writes, reducer projection/materialization)
-are held by the Evidence Rules in the root canon, not by `make pre-pr`. A verified unchanged receipt
-avoids a duplicate semantic review. Changed inputs invalidate that receipt.
-Capture live CI/review truth and apply the declared retention mode at closeout.
+   ```bash
+   git merge-base --is-ancestor <merge-commit> origin/main
+   bash scripts/test-verify-performance-evidence.sh
+   bash scripts/verify-performance-evidence.sh
+   ```
+
+   Done when every required gate exits 0 on the reviewed branch base.
+3. **Complete review, promotion, and retention closeout.** Follow
+   [code-review](../code-review/SKILL.md) and root rules for review,
+   attestation, `make pre-push` (the required fast floor), and push.
+   `make pre-pr` is not part of promotion. This skill's risk classes
+   (queue/lease, schema DDL, hot-path Cypher or graph writes, reducer
+   projection/materialization) are held by the Evidence Rules in the root canon,
+   not by `make pre-pr`. A verified unchanged receipt avoids a duplicate
+   semantic review; changed inputs invalidate that receipt. Capture live
+   CI/review truth and apply the declared retention mode at closeout. Done when
+   live CI is green and retained resources match the run manifest.
 
 Add storage, Cypher, Go, concurrency, correlation, or golden-corpus skills when
 the touched contract needs them; their correctness requirements still apply.

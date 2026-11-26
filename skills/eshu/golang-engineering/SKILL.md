@@ -65,24 +65,27 @@ directly in the leaf package.
 
 Package-move mechanics, in order:
 
-- Use `git mv` for every relocated file, so history follows the move instead
-  of showing a delete plus an unrelated add.
-- Census what actually moves by symbol, never by filename prefix: a filename
-  prefix both over- and under-states real package membership. Use `go/types`
-  or a trial compile with `-gcflags=-e` to enumerate the exported and
-  cross-file-referenced symbols a file depends on before deciding it belongs
-  in the move.
-- Use recursive `./pkg/...` test paths for both the old and new locations, not
-  a bare package path — a non-recursive path silently skips subpackages a
-  move touched.
-- Prove repointed tests still run, not merely still compile: `go test -list
-  '.*' ./pkg/...` against the moved package confirms the test names the move
-  was supposed to carry are still discovered, catching a test file left
-  behind under a build tag or an old package name that compiles clean but
-  registers nothing.
-- When a PR creates a subpackage, its tests live in that package (an
-  external `_test` package if they need the parent), never as a `<pkg>_*`
-  family in the parent.
+1. Use `git mv` for every relocated file, so history follows the move instead
+   of showing a delete plus an unrelated add. Done when `git status` shows
+   renames rather than delete/add pairs.
+2. Census what actually moves by symbol, never by filename prefix: a filename
+   prefix both over- and under-states real package membership. Use `go/types`
+   or a trial compile with `-gcflags=-e` to enumerate the exported and
+   cross-file-referenced symbols a file depends on before deciding it belongs
+   in the move. Done when every moved symbol's callers resolve.
+3. Use recursive `./pkg/...` test paths for both the old and new locations, not
+   a bare package path — a non-recursive path silently skips subpackages a
+   move touched. Done when every touched package and subpackage compiles and
+   passes tests.
+4. Prove repointed tests still run, not merely still compile: `go test -list
+   '.*' ./pkg/...` against the moved package confirms the test names the move
+   was supposed to carry are still discovered, catching a test file left
+   behind under a build tag or an old package name that compiles clean but
+   registers nothing. Done when every expected test name appears in the listing.
+5. When a PR creates a subpackage, place its tests in that package (an
+   external `_test` package if they need the parent), never as a `<pkg>_*`
+   family in the parent. Done when no orphaned `<pkg>_*` test remains in the
+   parent directory.
 
 `go build/vet/test ./...` silently skips any file behind a `//go:build` tag
 that no workflow, Makefile target, or script ever passes — a moved or renamed
@@ -121,6 +124,13 @@ fails, reproduce only that failing gate locally.
   stage, worker, queue, lease, batching, or concurrency changes, including new
   collectors that introduce those patterns. Use the reviewed branch base.
 - Report commands, actual results, and unverified scope.
+
+```bash
+bash scripts/add-license-header.sh
+(cd go && go test -list '.*' ./<pkg>/... && go test -count=1 ./<pkg>/...)
+bash scripts/verify-package-docs.sh
+bash scripts/verify-performance-evidence.sh
+```
 
 When running Go tools on a shared host or with concurrent agents, read
 [shared-machine constraints](references/shared-machine.md) before execution.

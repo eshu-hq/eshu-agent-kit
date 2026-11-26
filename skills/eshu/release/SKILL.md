@@ -202,3 +202,9 @@ gh attestation verify "oci://${IMAGE}" \
   Release.
 - Keep non-public deployment procedures in their own restricted repositories or
   user-local notes, not in this open-source repository.
+
+## Failure And Recovery
+
+- **Pre-tag validation failure (`helm lint`, `go test`, or `factschema-diff.yml`):** fix the chart, binary tests, or schema version bump in a follow-up PR and merge to `main` before tagging; never tag a red commit.
+- **Image signing or attestation verification failure:** inspect `.github/workflows/docker-publish.yml` for the tag run and confirm `github.repository` and `WORKFLOW_IDENTITY` match the pushed tag; do not claim release completion until `cosign verify` and `gh attestation verify` exit 0.
+- **Faulty artifact after a tag is pushed:** root `vX.Y.Z` and `sdk/go/<module>/vX.Y.Z` tags are permanent (and cached by Go module proxies); never delete or re-point a published tag—land the fix on `main` and cut the next patch version (`vX.Y.(Z+1)`).
