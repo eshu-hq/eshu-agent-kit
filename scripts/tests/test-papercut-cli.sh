@@ -279,11 +279,12 @@ d = json.load(open(sys.argv[1], encoding="utf-8"))
 pc = d["papercuts"]
 assert pc["total_filed"] == 3, pc
 assert pc["total_fixed"] == 1, pc
+assert pc["total_open"] == 1, pc
 assert pc["unmatched_without_skill"] == 0, pc
-assert pc["per_skill"]["debrief"] == {"filed": 2, "fixed": 1}, pc
-assert pc["per_skill"]["issue-driver"] == {"filed": 1, "fixed": 0}, pc
+assert pc["per_skill"]["debrief"] == {"filed": 2, "fixed": 1, "open": 1}, pc
+assert pc["per_skill"]["issue-driver"] == {"filed": 1, "fixed": 0, "open": 0}, pc
 by_sk = {r["skill"]: r for r in d["skill_table"]}
-assert by_sk["debrief"]["papercut_filed"] == 2 and by_sk["debrief"]["papercut_fixed"] == 1, by_sk["debrief"]
+assert by_sk["debrief"]["papercut_filed"] == 2 and by_sk["debrief"]["papercut_fixed"] == 1 and by_sk["debrief"]["papercut_open"] == 1, by_sk["debrief"]
 PYEOF
 	ok "snapshot JSON joins cleanly with debrief.sh aggregate --papercuts"
 else
