@@ -452,6 +452,36 @@ assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html, "escaped text missing"
 assert not re.search(r'https?://', html), "external URL found in offline HTML!"
 assert "copyAllCheckedRules" in html and "timezone-select" in html and "rawUtcHours" in html
 assert "&amp;middot;" not in html, "double-escaped middot!"
+assert "Cost (tok)" in html, "cost column missing from render!"
+assert "Median Response Gap by Harness" in html, "per-harness gap table missing from render!"
+assert "not mined" in html, "agy not-mined marker missing from render!"
+PYEOF
+
+# --- Part E: Per-skill cost/latency/error attribution (issue #80) ---
+python3 -B - "${KIT_DIR}/scripts/lib" "${work}/agg.json" <<'PYEOF' && ok "skill costs attribute tokens/errors, per-harness medians, totals reconcile" || no "skill costs attribute tokens/errors, per-harness medians, totals reconcile"
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from debrief_skill_costs import attribute_skill_costs, gap_stats
+metas = [
+    {"id": "c1", "harness": "claude", "tokens_in": 9000, "tokens_out": 3000, "errors": {"Bash": 2}, "skill_loads": ["expensive-skill"], "response_gaps": [10.0, 11.0]},
+    {"id": "c2", "harness": "claude", "tokens_in": 100, "tokens_out": 50, "errors": {}, "skill_loads": ["cheap-skill"], "response_gaps": [14.0]},
+    {"id": "m1", "harness": "muse", "tokens_in": 400, "tokens_out": 200, "errors": {"Edit": 1}, "skill_loads": ["expensive-skill", "cheap-skill"], "response_gaps": [5.0]},
+    {"id": "a1", "harness": "agy", "tokens_in": 0, "tokens_out": 0, "errors": {}, "skill_loads": [], "response_gaps": [120.0, 180.0]},
+]
+costs = attribute_skill_costs(metas)
+by_sk = {r["skill"]: r for r in costs["per_skill"]}
+assert by_sk["expensive-skill"]["attributed_tokens_total"] > by_sk["cheap-skill"]["attributed_tokens_total"], by_sk
+assert by_sk["expensive-skill"]["attributed_errors"] == 2.5, by_sk
+assert costs["unattributed"]["sessions"] == 1 and costs["totals"]["tokens_in"] == 9500, costs
+tin = sum(r["attributed_tokens_in"] for r in costs["per_skill"]) + costs["unattributed"]["tokens_in"]
+tout = sum(r["attributed_tokens_out"] for r in costs["per_skill"]) + costs["unattributed"]["tokens_out"]
+assert abs(tin - costs["totals"]["tokens_in"]) < 0.01 and abs(tout - costs["totals"]["tokens_out"]) < 0.01, (tin, tout)
+_, med, _, med_by_h = gap_stats([(g, m["harness"]) for m in metas for g in m["response_gaps"]])
+assert med == 14.0 and med_by_h == {"agy": 180.0, "claude": 11.0, "muse": 5.0}, (med, med_by_h)
+d = json.load(open(sys.argv[2]))
+assert d["skill_costs"]["totals"]["sessions"] == d["meta"]["total_sessions"], d["skill_costs"]
+assert "median_response_gap_s_by_harness" in d["charts"], sorted(d["charts"])
+assert all("attributed_tokens_total" in r for r in d["skill_table"]), d["skill_table"][:1]
 PYEOF
 
 printf '\ndebrief: %s passed, %s failed\n' "${passed}" "${failed}"
