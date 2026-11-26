@@ -46,8 +46,10 @@ proof and only the orchestrator runs the promotion gate. Commit before
 dispatching any subagent — a "read-only" reviewer once reverted a production
 fix while probing a test tautology, and there was nothing to recover but the
 commit. Include the verified absolute worktree path from
-`git worktree list --porcelain` in each subagent brief so read-only reviewers
-and debuggers inspect the live checkout instead of guessing `.worktrees/<slug>`.
+`git worktree list --porcelain` and the explicit target or changed file list
+(`git diff --name-only` / `rg --files`) in each subagent brief so read-only
+reviewers, debuggers, and arbiters inspect live files instead of probing
+missing paths or guessing `.worktrees/<slug>`.
 Re-verify a subagent's findings yourself before acting on them, and
 before passing them to an executor as verified; a finding is what the subagent
 believes, not what you have confirmed.

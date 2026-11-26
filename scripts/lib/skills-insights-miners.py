@@ -440,6 +440,10 @@ def collect_git_stats(path, since):
             window = ""
     cmd = ["git", "-C", path, "log", "--pretty=%H %P %s", "--numstat"]
     if window:
+        # Bare YYYY-MM-DD makes git fill in the current wall-clock time of day,
+        # dropping earlier commits on that date; anchor at UTC midnight instead.
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", window):
+            window += "T00:00:00Z"
         cmd += ["--since=" + window]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
