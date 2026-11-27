@@ -1,0 +1,71 @@
+[
+  {
+    "id": "postgres-rigor-golden-1",
+    "category": "golden",
+    "skill": "postgres-rigor",
+    "prompt": "Reducer queue drain looks slow. A teammate points at a long graph retract log line and says the database is the bottleneck. How do you respond before anyone changes SQL?",
+    "expectations": {
+      "must_mention": [
+        "claim",
+        "lock",
+        "graph|cypher",
+        "separate|split"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!cannot )\\bconclude (?:that )?postgres is (?:the )?(?:slow|bottleneck)"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "postgres-rigor-golden-2",
+    "category": "golden",
+    "skill": "postgres-rigor",
+    "prompt": "To speed up the work-item claim query, a PR adds an index on the status column alone. About 4 distinct status values exist across millions of rows.",
+    "expectations": {
+      "must_mention": [
+        "EXPLAIN",
+        "partial",
+        "cardinality"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!avoid )\\badd (?:a |an |the )?index on status alone\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "postgres-rigor-golden-3",
+    "category": "golden",
+    "skill": "postgres-rigor",
+    "prompt": "A claim query is slow, and a proposal says to drop FOR UPDATE SKIP LOCKED and shrink the batch size so workers stop colliding.",
+    "expectations": {
+      "must_mention": [
+        "SKIP LOCKED",
+        "lease",
+        "fencing|idempot"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bserialize workers\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "postgres-rigor-edge-1",
+    "category": "edge",
+    "skill": "postgres-rigor",
+    "prompt": "To prove a plan for a slow UPDATE, an engineer wants EXPLAIN ANALYZE on the production database because the table only has realistic volume there.",
+    "expectations": {
+      "must_mention": [
+        "fixture",
+        "ROLLBACK|BEGIN",
+        "trigger"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\brun EXPLAIN ANALYZE (?:directly )?on production\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "executor-preflight-golden-1",
+    "category": "golden",
+    "skill": "executor-preflight",
+    "prompt": "You committed a branch and drafted the PR body. Tests pass locally. Describe the handoff steps and whether to run make pre-push to feel safe.",
+    "expectations": {
+      "must_mention": [
+        "HEAD",
+        "check-shape",
+        "NOT_CHECKED|PASS"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\brun make pre-push\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "executor-preflight-golden-2",
+    "category": "golden",
+    "skill": "executor-preflight",
+    "prompt": "After the preflight passed, you spot a typo in a doc, fix it, and commit. Can you hand off the earlier results as they were?",
+    "expectations": {
+      "must_mention": [
+        "new commit",
+        "restart|void",
+        "step 1|bind"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bearlier results (?:still )?(?:hold|apply)\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "executor-preflight-golden-3",
+    "category": "golden",
+    "skill": "executor-preflight",
+    "prompt": "Your diff adds a *_live_test.go file and a new ESHU_ environment variable. The author says make pre-push will catch the registry issues.",
+    "expectations": {
+      "must_mention": [
+        "live-tests\\.v1\\.yaml|ledger",
+        "env-registry|envregistry|generate-env-registry-doc",
+        "verify-"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bskip the registry checks?\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "executor-preflight-edge-1",
+    "category": "edge",
+    "skill": "executor-preflight",
+    "prompt": "The PR body quotes a 12-minute drain time measured against baseline run abc123. A reviewer suggests re-running it at the current HEAD to refresh the figure.",
+    "expectations": {
+      "must_mention": [
+        "baseline",
+        "provenance|run id",
+        "not re-run|do not re-run|leave"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bre-run (?:the )?(?:timing|benchmark) at (?:this |the current )?HEAD\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "publish-golden-1",
+    "category": "golden",
+    "skill": "publish",
+    "prompt": "Write the PR body for a change that closes issue 42. Describe how it should open, what the first line must contain, and what must not appear in it.",
+    "expectations": {
+      "must_mention": [
+        "Fixes #|Refs #",
+        "bold",
+        "At a glance",
+        "attribution"
+      ],
+      "must_not_mention": [
+        "(?<!no )(?<!not )(?<!never )(?<!without )\\bco-authored-by\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "publish-golden-2",
+    "category": "golden",
+    "skill": "publish",
+    "prompt": "A reviewer left a thread about a missing nil check. You pushed the fix. Draft the reply and say how to close the thread.",
+    "expectations": {
+      "must_mention": [
+        "name the change",
+        "proof|test|commit"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\breply (?:with )?['\\\"]?fixed\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "publish-golden-3",
+    "category": "golden",
+    "skill": "publish",
+    "prompt": "A PR body paragraph is 900 bytes of prose and the At a glance table is missing. Will check-shape.sh accept it?",
+    "expectations": {
+      "must_mention": [
+        "800",
+        "split|list",
+        "glance"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\b900[- ]byte paragraph is fine\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "publish-edge-1",
+    "category": "edge",
+    "skill": "publish",
+    "prompt": "You are drafting a public status comment and have a pod name, an image digest, and an employer-private repository name on hand as evidence.",
+    "expectations": {
+      "must_mention": [
+        "pod",
+        "digest",
+        "private|redact|omit"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\binclude the (?:pod ID|image digest)\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

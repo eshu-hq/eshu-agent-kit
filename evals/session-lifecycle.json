@@ -1,0 +1,70 @@
+[
+  {
+    "id": "session-lifecycle-golden-1",
+    "category": "golden",
+    "skill": "session-lifecycle",
+    "prompt": "You resume a branch from a handoff note that says all tests pass. A teammate asks you to continue straight to the next step.",
+    "expectations": {
+      "must_mention": [
+        "inherited",
+        "exit status|command",
+        "re-run|rerun"
+      ],
+      "must_not_mention": [
+        "(?<!not )\\bis proof enough\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "session-lifecycle-golden-2",
+    "category": "golden",
+    "skill": "session-lifecycle",
+    "prompt": "You must pause work on a dirty tree and a teammate suggests using git stash to park it while you switch to another worktree.",
+    "expectations": {
+      "must_mention": [
+        "stash",
+        "shared",
+        "commit|WIP"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\buse git stash\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "session-lifecycle-golden-3",
+    "category": "golden",
+    "skill": "session-lifecycle",
+    "prompt": "A review request arrives for the branch at HEAD abc1234, but the branch tip is now def5678 after a rebase.",
+    "expectations": {
+      "must_mention": [
+        "STALE",
+        "current tip",
+        "HEAD="
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bstart the (?:review|work) (?:anyway|regardless)\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "session-lifecycle-edge-1",
+    "category": "edge",
+    "skill": "session-lifecycle",
+    "prompt": "A sibling worktree has not been modified for two days. Disk is tight and an agent suggests deleting it because it looks abandoned.",
+    "expectations": {
+      "must_mention": [
+        "mtime",
+        "liveness|alive",
+        "uncommitted|unmerged|open PR"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bdelete (?:the |that )?worktree\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

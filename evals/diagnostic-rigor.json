@@ -1,0 +1,70 @@
+[
+  {
+    "id": "diagnostic-rigor-golden-1",
+    "category": "golden",
+    "skill": "diagnostic-rigor",
+    "prompt": "A flaky integration test failed 3 times last week. After a retry it passed once, and a teammate declares the race condition fixed and wants to close the investigation.",
+    "expectations": {
+      "must_mention": [
+        "occurrence rate|rate",
+        "hypothes",
+        "raw|log"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bone passing (?:run|sample) proves\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "diagnostic-rigor-golden-2",
+    "category": "golden",
+    "skill": "diagnostic-rigor",
+    "prompt": "The reducer stalls and you suspect lock contention. A teammate wants to start rewriting the lock code right away. What do you do first?",
+    "expectations": {
+      "must_mention": [
+        "evidence",
+        "source SHA|HEAD|image digest|identity",
+        "telemetry|hypothesis"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!before )\\bedit (?:the )?(?:lock )?code first\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "diagnostic-rigor-golden-3",
+    "category": "golden",
+    "skill": "diagnostic-rigor",
+    "prompt": "A dashboard call through MCP returns a wrong answer and then hangs on retry. A colleague suggests simply running the same unbounded query again until it returns.",
+    "expectations": {
+      "must_mention": [
+        "limit",
+        "timeout",
+        "truncat"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bretry the unbounded call\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "diagnostic-rigor-edge-1",
+    "category": "edge",
+    "skill": "diagnostic-rigor",
+    "prompt": "A telemetry-only change added spans around the reconcile loop. The author claims it made reconcile 30% faster and wants that in the root-cause note.",
+    "expectations": {
+      "must_mention": [
+        "performance-rigor",
+        "visibility",
+        "speedup|improvement"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!no )\\brecord (?:a|the) 30% speedup\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

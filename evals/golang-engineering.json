@@ -1,0 +1,70 @@
+[
+  {
+    "id": "golang-engineering-golden-1",
+    "category": "golden",
+    "skill": "golang-engineering",
+    "prompt": "A teammate adds go/internal/query/cache.go and its cache_test.go, then says the license header can wait until review because the tests already pass. What has to be true before the first commit that holds those files?",
+    "expectations": {
+      "must_mention": [
+        "SPDX|license header",
+        "add-license-header|MIT",
+        "test"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bheader can wait\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "golang-engineering-golden-2",
+    "category": "golden",
+    "skill": "golang-engineering",
+    "prompt": "A bug fix lands in the retry classifier. The author writes the fix first, then adds a test that passes against it, and asks whether that is enough proof.",
+    "expectations": {
+      "must_mention": [
+        "regression",
+        "fail(s|ed|ing)? (first|before)|red[- ]first",
+        "intended reason|production path"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!isn't )\\bwritten afterwards is enough\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "golang-engineering-golden-3",
+    "category": "golden",
+    "skill": "golang-engineering",
+    "prompt": "go/internal/reducer already holds 40 non-test .go files and a PR adds two more. The author proposes raising the cap in the baseline file so the gate goes green. What is the correct way forward?",
+    "expectations": {
+      "must_mention": [
+        "40",
+        "Dirgate-Growth",
+        "trailer"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bedit (?:the )?baselines?\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "golang-engineering-edge-1",
+    "category": "edge",
+    "skill": "golang-engineering",
+    "prompt": "A family of files moved to a new package and carries a //go:build live tag. `go test ./...` passes on the branch. The author says that proves the moved tests still run.",
+    "expectations": {
+      "must_mention": [
+        "build tag|//go:build",
+        "workflows?|Makefile",
+        "skip(s|ped)?|never (compile|run)"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!isn't )\\bpass is enough proof\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]
