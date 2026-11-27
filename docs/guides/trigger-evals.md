@@ -4,7 +4,7 @@ Measure whether a skill's `name` and `description` make an agent reach for the
 skill when it should, and stay quiet when it should not.
 [Replay evals](replay-evals.md) ask whether a loaded skill helps; this covers
 whether it gets loaded. Only the frontmatter `name` and `description` are used
-(the loader stops at the closing `---`), and nothing here runs in CI.
+(the loader stops at the closing `---`), and no live model call runs in CI.
 
 ## Run it
 
