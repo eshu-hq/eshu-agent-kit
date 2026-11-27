@@ -136,13 +136,14 @@ sys.path.insert(0, sys.argv[1])
 from debrief_insights import build_skill_recommendations
 
 skill_table = [
-    {"skill": "noisy-skill", "mined_loads": 10, "hook_loads": 4, "forced_pct": 50.0, "estimated_context_tax_tokens": 60_000_000, "error_rate_per_session": 2.5, "papercut_open": 1, "redirect_interjections": 4, "eval_win_rate": None, "eval_noise_band": None},
-    {"skill": "bad-eval-skill", "mined_loads": 5, "hook_loads": 0, "forced_pct": None, "estimated_context_tax_tokens": 1000, "error_rate_per_session": 0.2, "papercut_open": 0, "redirect_interjections": 0, "eval_win_rate": 0.2, "eval_noise_band": 0.1},
+    {"skill": "noisy-skill", "mined_loads": 10, "hook_loads": 4, "forced_pct": 50.0, "estimated_context_tax_tokens": 60_000_000, "error_rate_per_session": 2.5, "papercut_open": 1, "redirect_interjections": 5, "eval_win_rate": None, "eval_noise_band": None, "eval_pass_rate": None},
+    {"skill": "bad-eval-skill", "mined_loads": 5, "hook_loads": 0, "forced_pct": None, "estimated_context_tax_tokens": 1000, "error_rate_per_session": 0.2, "papercut_open": 0, "redirect_interjections": 0, "eval_win_rate": 0.2, "eval_noise_band": 0.1, "eval_pass_rate": 0.2},
+    {"skill": "code-review", "mined_loads": 400, "hook_loads": 0, "forced_pct": None, "estimated_context_tax_tokens": 10_000_000, "error_rate_per_session": 2.1, "papercut_open": 0, "redirect_interjections": 49, "eval_win_rate": 0.5, "eval_noise_band": 1.0, "eval_pass_rate": 1.0},
 ]
 repos = [
     {"repo": "payments-svc", "main_sessions": 20, "total_sessions": 25, "prompts": 60, "tool_calls": 400, "errors": 35, "tokens_total": 5_000_000, "unattributed_sessions": 15, "interjections": 12, "interjection_reasons": {"redirect_goal": 4, "debugging": 5}, "top_interjection_reason": "debugging", "top_skills": []},
 ]
-skill_sizes = {"noisy-skill": 12000, "bad-eval-skill": 4000, "dormant-skill": 6000}
+skill_sizes = {"noisy-skill": 12000, "bad-eval-skill": 4000, "code-review": 9000, "dormant-skill": 6000}
 recs = build_skill_recommendations(skill_table, repos, skill_sizes, {"redirect_goal": 12}, days_active=14)
 acts = {(r["action"], r["target"]) for r in recs}
 assert ("modify", "noisy-skill") in acts, recs
@@ -150,6 +151,9 @@ assert ("remove", "bad-eval-skill") in acts, recs
 assert ("remove", "dormant-skill") in acts, recs
 assert ("create", "payments-svc workflow skill") in acts, recs
 assert ("create", "guardrail rule / skill for unattributed goal-redirects") in acts, recs
+cr_rec = next(r for r in recs if r["target"] == "code-review")
+assert "errors/session" not in cr_rec["reason"] and "goal-redirect" not in cr_rec["reason"], cr_rec
+assert "judge noise" in cr_rec["reason"] and "stronger model" in cr_rec["suggestion"], cr_rec
 PYEOF
 
 # 5. HTML render includes all 3 new cards cleanly escaped.
