@@ -152,7 +152,7 @@ raw = json.dumps(pairs).lower()
 for bad in ("with-skill", "without-skill", "with_skill", "without_skill", '"skill_count"', '"mode"', '"arm"'):
     assert bad not in raw, f"leaked {bad}: {raw}"
 assert all("cache_read_tokens" in p["traj_a"] and "wall_time_s" in p["traj_a"] and "cost_usd" in p["traj_a"] for p in pairs)
-assert seal["meta"] == {"skill": "code-review", "harness": "claude"}, seal
+assert len(seal["meta"].pop("skill_sha")) == 64 and seal["meta"] == {"skill": "code-review", "harness": "claude"}, seal
 assert set(seal["arms"]) == {"p0", "p1"}, seal
 PYEOF
 
@@ -290,6 +290,7 @@ expected_keys = {
     "with_skill_wins", "win_rate", "noise_band", "aa_pairs",
     "pass_rate_with", "pass_rate_without", "cost_delta_in",
     "cost_delta_out", "latency_delta_s", "recorded_at",
+    "tool_calls_delta", "tool_errors_delta", "tool_pairs", "skill_sha", "kind",
 }
 assert set(s) == expected_keys, set(s) ^ expected_keys
 assert s["skill"] == "performance-rigor" and s["harness"] == "agy"
@@ -298,6 +299,7 @@ assert s["noise_band"] == 0.0 and s["aa_pairs"] == 6
 assert s["pass_rate_with"] == 1.0 and s["pass_rate_without"] == 0.0
 assert s["cost_delta_in"] == 60.0 and s["cost_delta_out"] == 120.0
 assert abs(s["latency_delta_s"] - 2.1) < 0.01
+assert s["tool_calls_delta"] == 2.0 and s["tool_errors_delta"] == -2.0 and s["tool_pairs"] == 3 and s["kind"] == "ablation"
 # Emit flat seal for backward-compat test
 seal = json.load(open(sys.argv[2]))
 json.dump(seal["arms"], open(sys.argv[3], "w"))

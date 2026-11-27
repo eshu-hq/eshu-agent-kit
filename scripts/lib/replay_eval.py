@@ -29,6 +29,7 @@ from debrief_common import (  # noqa: E402
     canon_skill, is_fixture_session, load_json_lines,
     safe_float, safe_int, truncate_text,
 )
+from replay_history import skill_sha  # noqa: E402
 
 VALID_HARNESSES = ("muse", "claude", "agy")
 VALID_CATEGORIES = ("golden", "production", "edge")
@@ -264,6 +265,7 @@ def blind_traj(traj):
     return {
         "transcript": ARM_TOKEN_RE.sub("[arm]", traj.get("transcript") or ""),
         "tools": tools,
+        "tool_calls": len(raw_tools) if isinstance(raw_tools, list) else 0,
         "errors": max(0, safe_int(traj.get("errors"), 0)),
         "tokens_in": max(0.0, safe_float(traj.get("tokens_in"), 0.0)),
         "tokens_out": max(0.0, safe_float(traj.get("tokens_out"), 0.0)),
@@ -386,7 +388,8 @@ def cmd_replay(args):
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
     with open(seal, "w", encoding="utf-8") as fh:
-        json.dump({"meta": {"skill": skill, "harness": harness}, "arms": arms_map}, fh, indent=1, sort_keys=True)
+        meta = {"skill": skill, "harness": harness, "skill_sha": skill_sha(kit_dir, skill)}
+        json.dump({"meta": meta, "arms": arms_map}, fh, indent=1, sort_keys=True)
         fh.write("\n")
     print("replay: %d pairs (%d evals, skill=%s, harness=%s, repeats=%d) -> %s" % (
         len(pairs), len(evals), skill, harness, repeats, out))

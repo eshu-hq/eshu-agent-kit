@@ -39,6 +39,7 @@ suites=(
 	scripts/tests/test-replay-eval.sh
 	scripts/tests/test-trigger-eval.sh
 	scripts/tests/test-code-mode-scripts.sh
+	scripts/tests/test-replay-history.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh

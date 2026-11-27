@@ -16,8 +16,9 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from debrief_common import canon_skill, safe_float, safe_int  # noqa: E402
+from debrief_common import canon_skill, default_eval_history, safe_float, safe_int  # noqa: E402
 from replay_eval import _taint_scan, fail, rubric_score  # noqa: E402
+from replay_history import _mean, append_history, load_seal, tool_deltas  # noqa: E402
 from replay_runner import VALID_HARNESSES, parse_harness_output  # noqa: E402
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
@@ -219,6 +220,11 @@ def judge_pair(pair, judge_cmd=None, judge_harness=None, judge_model="", timeout
             "B": max(0.0, safe_float(pair["traj_b"].get("wall_time_s"), 0.0)),
         },
     }
+    if all(isinstance(pair[side].get("tool_calls"), int) for side in ("traj_a", "traj_b")):
+        rubric["tool_calls"] = {"A": pair["traj_a"]["tool_calls"], "B": pair["traj_b"]["tool_calls"]}
+        rubric["errors"] = {
+            side: max(0, safe_int(pair["traj_" + side.lower()].get("errors"), 0)) for side in ("A", "B")
+        }
     exp = pair.get("expectations")
     if isinstance(exp, dict) and exp:
         rubric["expectations"] = {
@@ -313,26 +319,14 @@ def cmd_judge(args):
     print("judge: %d comparisons -> %s" % (len(comparisons), out))
 
 
-def _mean(vals):
-    return sum(vals) / len(vals) if vals else 0.0
-
-
-def _load_seal(path):
-    if not path:
-        return {}, {}
-    with open(path, encoding="utf-8") as fh:
-        raw = json.load(fh)
-    if isinstance(raw, dict) and isinstance(raw.get("arms"), dict):
-        return raw["arms"], (raw.get("meta") if isinstance(raw.get("meta"), dict) else {})
-    return (raw if isinstance(raw, dict) else {}), {}
-
-
 def cmd_report(args):
     try:
-        opts, _ = getopt.getopt(args, "", ["verdict=", "aa-verdict=", "seal=", "skill=", "json-out=", "help"])
+        opts, _ = getopt.getopt(args, "", [
+            "verdict=", "aa-verdict=", "seal=", "skill=", "json-out=", "history=", "default-history", "help",
+        ])
     except getopt.GetoptError as exc:
         fail(str(exc), 2)
-    verdict = aa_verdict = seal = skill_opt = json_out = None
+    verdict = aa_verdict = seal = skill_opt = json_out = history = None
     for key, val in opts:
         if key == "--verdict":
             verdict = val
@@ -344,12 +338,19 @@ def cmd_report(args):
             skill_opt = canon_skill(val)
         elif key == "--json-out":
             json_out = val
+        elif key in ("--history", "--default-history"):
+            if history:
+                fail("--history and --default-history are mutually exclusive", 2)
+            history = val if key == "--history" else default_eval_history()
         elif key == "--help":
-            print("report: win rate, noise band, trajectory pass rates, cost & latency delta.\n"
-                  "Options: --verdict FILE [--aa-verdict FILE] [--seal FILE] [--skill NAME] [--json-out FILE]")
+            print("report: win rate, noise band, pass rates, tool/error, cost & latency delta.\n"
+                  "Options: --verdict FILE [--aa-verdict FILE] [--seal FILE] [--skill NAME] [--json-out FILE]\n"
+                  "         [--history FILE | --default-history]  append the summary to a JSONL ledger (needs --seal)")
             return
     if not verdict:
         fail("report needs --verdict", 2)
+    if history and not seal:
+        fail("--history/--default-history requires --seal (a ledger line without arm decoding is not comparable)", 2)
     with open(verdict, encoding="utf-8") as fh:
         all_comps = json.load(fh).get("comparisons", [])
     cross = [c for c in all_comps if c.get("kind") == "cross"]
@@ -358,7 +359,7 @@ def cmd_report(args):
             aa = [c for c in json.load(fh).get("comparisons", []) if c.get("kind") == "aa"]
     else:
         aa = [c for c in all_comps if c.get("kind") == "aa"]
-    seal_map, seal_meta = _load_seal(seal)
+    seal_map, seal_meta = load_seal(seal)
     if seal:
         missing = [str(c.get("pair_id")) for c in cross if seal_map.get(c.get("pair_id")) not in ("A", "B")]
         if missing:
@@ -399,6 +400,8 @@ def cmd_report(args):
     cost_delta_in = round(_mean(with_in) - _mean(without_in), 2) if with_in else None
     cost_delta_out = round(_mean(with_out) - _mean(without_out), 2) if with_out else None
     latency_delta_s = round(_mean(with_lat) - _mean(without_lat), 3) if with_lat else None
+    tool_calls_delta, tool_errors_delta, tool_pairs = tool_deltas(cross, seal_map)
+    sha = seal_meta.get("skill_sha") if isinstance(seal_meta.get("skill_sha"), str) else None
 
     lines = [
         "replay-eval report: skill=%s harness=%s" % (skill, harness),
@@ -430,9 +433,14 @@ def cmd_report(args):
         lines.append("latency delta (mean with-skill minus stripped): %+.3fs over %d pairs" % (latency_delta_s, len(with_lat)))
     else:
         lines.append("latency delta: no latency-bearing pairs" if seal_map else "latency delta: withheld (no --seal; judge stayed blind)")
+    if tool_calls_delta is not None:
+        lines.append("tool delta (mean with-skill minus stripped): %+.1f calls / %+.1f errors over %d pairs" % (
+            tool_calls_delta, tool_errors_delta, tool_pairs))
+    else:
+        lines.append("tool delta: no tool-bearing pairs" if seal_map else "tool delta: withheld (no --seal; judge stayed blind)")
     print("\n".join(lines))
 
-    if json_out:
+    if json_out or history:
         summary = {
             "skill": skill, "harness": harness, "cross_pairs": len(cross),
             "decisive_pairs": len(decisive), "ties": ties,
@@ -441,11 +449,16 @@ def cmd_report(args):
             "pass_rate_with": pass_rate_with, "pass_rate_without": pass_rate_without,
             "cost_delta_in": cost_delta_in, "cost_delta_out": cost_delta_out,
             "latency_delta_s": latency_delta_s,
+            "tool_calls_delta": tool_calls_delta, "tool_errors_delta": tool_errors_delta,
+            "tool_pairs": tool_pairs, "skill_sha": sha, "kind": "ablation",
             "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-        with open(json_out, "w", encoding="utf-8") as fh:
-            json.dump(summary, fh, indent=2)
-            fh.write("\n")
+        if json_out:
+            with open(json_out, "w", encoding="utf-8") as fh:
+                json.dump(summary, fh, indent=2)
+                fh.write("\n")
+        if history:
+            append_history(history, summary)
 
 
 def main(argv):
