@@ -17,7 +17,9 @@ INTERJECTION_LABELS = {
 }
 
 _SYNTHETIC_REPOS = frozenset({"(no repo recorded)", "(workflow sandbox)", "(scratch workspace)"})
-_REVIEW_DIAGNOSTIC_SKILLS = frozenset({"code-review", "diagnostic-rigor", "resolve-review-threads"})
+_REVIEW_DIAGNOSTIC_SKILLS = frozenset({"code-review", "diagnostic-rigor", "resolve-review-threads"}) | {
+    canon_skill(x) for x in (os.environ.get("DEBRIEF_REVIEW_SKILLS") or "").split(",") if canon_skill(x)
+}
 _WF_RE = re.compile(r"^wf_[0-9a-f-]+$", re.IGNORECASE)
 _CLAUDE_PREFIX_RE = re.compile(
     r"^-(?:Users|home|Volumes)-[^-]+-(?:(?:personal-repos|repos|projects|src|code|dev|work|workspace|git|Documents|Desktop)-)?",
@@ -253,7 +255,7 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
             "create",
             "debugging playbook for unattributed sessions",
             f"{un_dbg} debugging follow-ups occurred in sessions with zero skills loaded.",
-            "Ensure diagnostic-rigor triggers automatically or add repo-specific troubleshooting commands to AGENTS.md.",
+            "Ensure your debugging skill triggers automatically or add repo-specific troubleshooting commands to AGENTS.md.",
         )
 
     # 3. REMOVE / RETIRE: shipped kit skills with zero loads across the window.

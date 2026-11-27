@@ -17,6 +17,7 @@ from debrief_aggregate import (  # noqa: E402
 from debrief_common import (  # noqa: E402
     META_SCHEMA_VERSION,
     atomic_write_json,
+    configure_aliases,
     default_cache_dir,
     read_json,
     resolve_since,
@@ -281,6 +282,7 @@ def main(argv=None):
     p_prep.add_argument("--transcript-root", action="append", default=[])
     p_prep.add_argument("--claude-facets-dir", default="")
     p_prep.add_argument("--no-claude-import", action="store_true")
+    p_prep.add_argument("--aliases", default="", help="Optional TSV skill alias map (default: kit overlay or none)")
 
     p_cw = sub.add_parser("cache-write")
     p_cw.add_argument("--cache-dir", default="")
@@ -294,6 +296,9 @@ def main(argv=None):
     p_agg.add_argument("--cache-dir", default="")
     p_agg.add_argument("--log", action="append", default=[])
     p_agg.add_argument("--repo", action="append", default=[])
+    p_agg.add_argument("--aliases", default="", help="Optional TSV skill alias map (default: kit overlay or none)")
+    p_agg.add_argument("--skills-dir", action="append", default=[],
+                       help="Skill directory to scan for SKILL.md byte sizes (repeatable; flat or layered)")
     p_agg.add_argument("--papercuts", default="",
                        help="JSON snapshot of papercut issues (array or {\"issues\": [...]}) joined on the skill: body line; no live gh calls")
     p_agg.add_argument("--evals", action="append", default=[],
@@ -301,6 +306,8 @@ def main(argv=None):
     p_agg.add_argument("--out", default="")
 
     args = ap.parse_args(argv)
+    if getattr(args, "aliases", ""):
+        configure_aliases(args.aliases)
     if args.cmd == "prepare":
         cmd_prepare(args)
     elif args.cmd == "cache-write":

@@ -352,7 +352,7 @@ def cmd_aggregate(args):
     prompt_dist, interjections = interjection_stats(top_metas)
     ij_reasons, ij_by_skill, ij_unattr = interjection_reason_stats(top_metas, metas.values())
     interjections["reasons"] = ij_reasons
-    skill_sizes = load_skill_sizes()
+    skill_sizes = load_skill_sizes(skills_dirs=getattr(args, "skills_dir", None) or None)
     skill_costs = attribute_skill_costs(metas.values(), skill_sizes=skill_sizes)
     mined_skills = Counter(skill_costs["mined_skills"])
     repositories = repo_stats(metas, children)

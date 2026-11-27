@@ -3,7 +3,7 @@
 import json
 import os
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 
 from debrief_common import (
     META_SCHEMA_VERSION,
@@ -133,6 +133,11 @@ def extract_session(path, mtime=0.0):
     mc_tokens_in = mc_tokens_out = mc_cache_read = mc_cache_write = 0
     fb_tokens_in = fb_tokens_out = fb_cache_read = fb_cache_write = 0
     model_duration_ms = 0
+    post_in = defaultdict(float)
+    post_out = defaultdict(float)
+    post_cr = defaultdict(float)
+    post_cw = defaultdict(float)
+    post_err = defaultdict(float)
     max_depth = 0
 
     user_prompts = []
@@ -241,6 +246,10 @@ def extract_session(path, mtime=0.0):
             kind = outcome.get("kind") if isinstance(outcome, dict) else outcome
             if kind != "completed":
                 errors[tool] += 1
+                if skill_loads:
+                    share = 1.0 / float(len(skill_loads))
+                    for sk in skill_loads:
+                        post_err[sk] += share
                 err_txt = str(outcome) if outcome else str(kind)
                 error_cats[categorize_error(tool, err_txt)] += 1
                 if len(error_samples) < 8:
@@ -268,11 +277,22 @@ def extract_session(path, mtime=0.0):
                 has_model_completed = True
                 model_turns += 1
                 usage = ev.get("usage") if isinstance(ev.get("usage"), dict) else {}
-                mc_tokens_in += max(0, safe_int(usage.get("input_tokens"), 0))
-                mc_tokens_out += max(0, safe_int(usage.get("output_tokens"), 0))
-                mc_cache_read += _usage_cache_read(usage)
-                mc_cache_write += max(0, safe_int(usage.get("cache_write_tokens"), 0))
+                t_in = max(0, safe_int(usage.get("input_tokens"), 0))
+                t_out = max(0, safe_int(usage.get("output_tokens"), 0))
+                t_cr = _usage_cache_read(usage)
+                t_cw = max(0, safe_int(usage.get("cache_write_tokens"), 0))
+                mc_tokens_in += t_in
+                mc_tokens_out += t_out
+                mc_cache_read += t_cr
+                mc_cache_write += t_cw
                 model_duration_ms += max(0, safe_int(ev.get("duration_ms"), 0))
+                if skill_loads and (t_in or t_out):
+                    n_sk = float(len(skill_loads))
+                    for sk in skill_loads:
+                        post_in[sk] += t_in / n_sk
+                        post_out[sk] += t_out / n_sk
+                        post_cr[sk] += t_cr / n_sk
+                        post_cw[sk] += t_cw / n_sk
             elif ek == "assistant_message_committed":
                 assistants += 1
                 if ep is not None:
@@ -391,6 +411,16 @@ def extract_session(path, mtime=0.0):
         "tokens_cache_write": tokens_cache_write,
         "model_duration_ms": model_duration_ms,
         "turns_after_skill_load": turns_after_skill_load,
+        "post_load_attribution": {
+            sk: {
+                "tokens_in": round(post_in[sk], 2),
+                "tokens_out": round(post_out[sk], 2),
+                "tokens_cache_read": round(post_cr[sk], 2),
+                "tokens_cache_write": round(post_cw[sk], 2),
+                "errors": round(post_err[sk], 2),
+            }
+            for sk in sorted(skill_loads)
+        } if skill_loads else {},
         "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
