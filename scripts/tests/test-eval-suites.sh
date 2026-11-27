@@ -20,17 +20,17 @@ no() {
 	failed=$((failed + 1))
 }
 
-SKILLS="code-review performance-rigor golang-engineering postgres-rigor diagnostic-rigor correlation-truth executor-preflight publish issue-driver session-lifecycle"
+SKILLS="code-review performance-rigor golang-engineering postgres-rigor diagnostic-rigor correlation-truth executor-preflight publish issue-driver session-lifecycle telemetry-coverage-discipline"
 paths=()
 for skill in ${SKILLS}; do paths+=("${KIT_DIR}/evals/${skill}.json"); done
 
-# 1. Ten suites exist and every item follows the suite contract.
-python3 -B - "${LIB}" "${paths[@]}" <<'PYEOF' && ok "10 suites: valid, ids, categories, taint-free, guarded expectations" || no "10 suites: valid, ids, categories, taint-free, guarded expectations"
+# 1. Eleven suites exist and every item follows the suite contract.
+python3 -B - "${LIB}" "${paths[@]}" <<'PYEOF' && ok "11 suites: valid, ids, categories, taint-free, guarded expectations" || no "11 suites: valid, ids, categories, taint-free, guarded expectations"
 import json, os, re, sys
 sys.path.insert(0, sys.argv[1])
 from replay_eval import _taint_scan
 paths = sys.argv[2:]
-assert len(paths) == 10, paths
+assert len(paths) == 11, paths
 seen = set()
 for path in paths:
     stem = os.path.basename(path)[:-5]
@@ -49,7 +49,7 @@ for path in paths:
         assert any("(?<!" in pat for pat in exp["must_not_mention"]), "%s needs a negation-guarded must_not_mention" % i["id"]
         assert i["prompt"] and not _taint_scan({"prompt": i["prompt"], "expectations": exp}), i["id"]
         assert not re.search(r"with[-_]skill|without[-_]skill", json.dumps(i), re.I), i["id"]
-assert len(seen) == 40, len(seen)
+assert len(seen) == 44, len(seen)
 PYEOF
 
 # 2. One good and one bad transcript per item (40 cases): good passes, bad fails on a forbidden mention.
@@ -197,6 +197,22 @@ cases = {
     "session-lifecycle-edge-1": (
         "Do not delete the worktree. Liveness is not mtime: a thinking agent writes no files. Check for a process in that directory, an open PR or unmerged commits, or uncommitted work first; assume alive when signals disagree.",
         "Delete the worktree; two days without changes means it is abandoned.",
+    ),
+    "telemetry-coverage-discipline-golden-1": (
+        "Update eshu-operator-overview.json under observability/ and run scripts/verify-telemetry-coverage.sh; never skip dashboard updates because metrics alone are not enough.",
+        "Emit the Go metric only; metrics alone are enough so skip dashboard updates.",
+    ),
+    "telemetry-coverage-discipline-golden-2": (
+        "Avoid high-cardinality unbounded UUID labels on Prometheus metrics; put request IDs on trace spans or structured logs instead.",
+        "Using a uuid as a metric label is fine; add request id to prometheus labels.",
+    ),
+    "telemetry-coverage-discipline-golden-3": (
+        "Remove the stale panel from eshu-operator-overview.json and re-run verify-telemetry-coverage.sh so the dashboard stays in sync; never silence the script.",
+        "Just silence the script or disable verify-telemetry-coverage so CI passes.",
+    ),
+    "telemetry-coverage-discipline-edge-1": (
+        "Unit tests do not verify dashboard coverage; inspect observability/ and run scripts/verify-telemetry-coverage.sh.",
+        "Unit tests prove coverage is complete so there is no need to run verify-telemetry-coverage.",
     ),
 }
 assert set(cases) == set(items), set(cases) ^ set(items)

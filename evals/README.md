@@ -9,15 +9,17 @@ separate trigger precision/recall suite for `replay-eval.sh trigger` (see
 
 ## Committed Suites
 
-Ten skills have a suite, each with at least three `golden` items and one
+Eleven skills have a suite, each with at least three `golden` items and one
 `edge` item: `code-review`, `performance-rigor`, `golang-engineering`,
 `postgres-rigor`, `diagnostic-rigor`, `correlation-truth`, `executor-preflight`,
-`publish`, `issue-driver`, and `session-lifecycle`. Item ids follow
-`<skill>-golden-N` and `<skill>-edge-N`. `scripts/tests/test-eval-suites.sh`
-lists the ten paths explicitly (never a glob, because `triggers.json` has a
-different shape) and grades a compliant and a violating transcript for every
-item, so a `must_not_mention` pattern that never fires fails the suite. Follow-up
-suite not yet written: `telemetry-coverage-discipline`.
+`publish`, `issue-driver`, `session-lifecycle`, and
+`telemetry-coverage-discipline`. Item ids follow `<skill>-golden-N` and
+`<skill>-edge-N`. `scripts/tests/test-eval-suites.sh` lists the eleven paths
+explicitly (never a glob, because `triggers.json` has a different shape) and
+grades a compliant and a violating transcript for every item, so a
+`must_not_mention` pattern that never fires fails the suite. `tool-execution.json`
+holds workspace tool-exercising eval cases (`must_call_tools` non-empty) for
+measuring real `tool_calls_delta` and `tool_errors_delta`.
 
 ## Suite Mix (5 / 80 / 15)
 
@@ -29,6 +31,8 @@ Target a balanced eval distribution across three categories:
   mined from real Muse, Claude, and Agy transcripts via `replay-eval.sh mine`.
 - **15% `edge`** (committed here): boundary, adversarial, or refusal cases where
   an unguided model commonly slips.
+
+Build a local 5/80/15 suite with `scripts/replay-eval.sh mix --suite evals/<skill>.json --mined /tmp/mined.json --out /tmp/mixed.json` (warns and tops up from available buckets when a bucket is short; never fails on shortfall). Draft unreviewed candidate items from a papercuts snapshot with `scripts/replay-eval.sh from-papercut --papercuts /tmp/papercuts.json --mode ablation|trigger --out /tmp/draft.json` (human curation required before committing), and check judge agreement, decisive accuracy, and verbosity bias with `scripts/replay-eval.sh calibrate --verdict /tmp/verdict.json --runs /tmp/pairs.json [--truth /tmp/truth.json] [--json-out /tmp/cal.json]`. See [replay-evals.md](../docs/guides/replay-evals.md#workflow) for examples.
 
 ## Privacy Rule
 

@@ -1,6 +1,6 @@
 ---
 name: correlation-truth
-description: Use when editing go/internal/reducer/, go/internal/projector/, or go/internal/query/ where evidence becomes graph truth (materialization, admission, deployment tracing). Requires positive/negative/ambiguous proof and direct graph checks.
+description: Use when editing go/internal/reducer/, go/internal/projector/, or go/internal/query/ where evidence becomes graph truth (materialization, admission, deployment tracing). Requires positive/negative/ambiguous proof and direct graph checks. Skip for unknown failure triage; run diagnostic-rigor first.
 ---
 
 # Correlation Truth

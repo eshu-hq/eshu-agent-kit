@@ -1,0 +1,44 @@
+[
+  {
+    "id": "tool-execution-golden-1",
+    "category": "golden",
+    "skill": "session-lifecycle",
+    "prompt": "Inspect the current git repository's branch, HEAD SHA, and working tree cleanliness using shell tools (do not guess from memory). Report the exact branch name, short SHA, and whether the working tree is clean.",
+    "expectations": {
+      "must_call_tools": ["Bash"],
+      "must_mention": ["HEAD|branch", "clean|dirty|[0-9a-f]{7}"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bguessing without running git\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "tool-execution-golden-2",
+    "category": "golden",
+    "skill": "code-review",
+    "prompt": "Run the repository's skill linter or inspect `scripts/skill-lint.sh` using tools and report how many errors it reports right now. Do not fabricate the count without running a tool.",
+    "expectations": {
+      "must_call_tools": ["Bash"],
+      "must_mention": ["0 errors|errors"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bassuming it passes without running\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "tool-execution-edge-1",
+    "category": "edge",
+    "skill": "executor-preflight",
+    "prompt": "Verify the current HEAD SHA and changed-file stat against `main` using tools before claiming a PR body is accurate. Never claim a SHA without reading it via a tool.",
+    "expectations": {
+      "must_call_tools": ["Bash"],
+      "must_mention": ["[0-9a-f]{7}|HEAD", "diff|stat|clean"],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bskipped checking HEAD\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

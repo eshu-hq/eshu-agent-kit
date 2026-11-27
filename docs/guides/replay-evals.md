@@ -25,6 +25,11 @@ loaded at all, see [Trigger evals](trigger-evals.md).
    `--query REGEX` to match first prompts, and `--category golden|production|edge`.
    Re-run `mine` as new sessions accrue to refresh production evals.
 
+   Optional suite-building and calibration helpers:
+   - `bash scripts/replay-eval.sh mix --suite evals/<skill>.json --mined /tmp/evals-prod.json --target-size 20 --out /tmp/evals-mix.json` builds a deterministic 5/80/15 suite (warns and tops up from available buckets if a bucket is short; pass `--skill NAME` when mixing across multiple skills).
+   - `bash scripts/replay-eval.sh from-papercut --papercuts /tmp/papercuts.json --mode ablation --out /tmp/draft.json` converts papercut records into unreviewed candidate draft items (`--mode trigger` emits trigger cases) for human curation before committing.
+   - `bash scripts/replay-eval.sh calibrate --verdict /tmp/verdict.json --runs /tmp/pairs.json [--truth /tmp/truth.json] [--json-out /tmp/cal.json]` reports judge agreement rate, decisive accuracy, and verbosity bias against expectations or explicit truth labels.
+
 2. **Replay prompts in isolated workspaces** (`with-skill` vs `without-skill`):
 
    ```bash

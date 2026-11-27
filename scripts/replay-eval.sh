@@ -16,13 +16,16 @@ LIB="${SCRIPT_DIR}/lib"
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: bash scripts/replay-eval.sh <mine|replay|judge|report|trigger> [options...]
+Usage: bash scripts/replay-eval.sh <mine|replay|judge|report|trigger|mix|from-papercut|calibrate> [options...]
 
 Examples:
   bash scripts/replay-eval.sh mine --harness all --skill code-review --top-steered --out evals.json
+  bash scripts/replay-eval.sh mix --suite evals/code-review.json --mined /tmp/mined.json --out /tmp/mixed.json
   bash scripts/replay-eval.sh replay --evals evals/code-review.json --skill code-review --harness claude --out pairs.json --seal seal.json --repeats 3
   bash scripts/replay-eval.sh judge --runs pairs.json --judge-harness claude --out verdict.json
+  bash scripts/replay-eval.sh calibrate --verdict verdict.json --runs pairs.json --json-out cal.json
   bash scripts/replay-eval.sh report --verdict verdict.json --seal seal.json --json-out summary.json
+  bash scripts/replay-eval.sh from-papercut --papercuts /tmp/papercuts.json --mode ablation --out /tmp/draft.json
   bash scripts/replay-eval.sh trigger --suite evals/triggers.json --harness rubric --json-out trigger.json
 EOF
 }
@@ -48,6 +51,9 @@ judge | report)
 	;;
 trigger)
 	exec python3 -B "${LIB}/replay_trigger.py" "$@"
+	;;
+mix | from-papercut | calibrate)
+	exec python3 -B "${LIB}/replay_calibrate.py" "${cmd}" "$@"
 	;;
 -h | --help)
 	usage
