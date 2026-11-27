@@ -93,10 +93,49 @@ loaded at all, see [Trigger evals](trigger-evals.md).
    file (otherwise `report` reads `kind == "aa"` entries from `--verdict`).
    The report prints win rate, A/A noise band with a signal-vs-noise note,
    trajectory pass rates (with a sweet-spot warning when `with-skill` hits 100%
-   over 3+ pairs), token cost delta, and wall-time latency delta.
+   over 3+ pairs), token cost delta, wall-time latency delta, and a tool delta
+   line (mean tool calls and tool errors, with-skill minus stripped).
 
-   `--json-out` writes the machine-readable JSON summary contract (which
-   `/debrief` will ingest via `--evals` once #100 lands).
+   `--json-out` writes the machine-readable JSON summary contract that
+   `/debrief` ingests via `--evals`. Beyond the win-rate and cost fields it
+   carries `tool_calls_delta`, `tool_errors_delta`, `tool_pairs`, `skill_sha`,
+   and `kind: "ablation"`.
+
+   Tool and error deltas are `null` (never 0) with no `--seal`, or when the
+   verdict was judged before these fields existed. Re-run `judge` on a fresh
+   `replay` to get them. `skill_sha` is the sha256 of the raw `SKILL.md` bytes,
+   taken at `replay` time (so it names what was injected, not what is on disk
+   at report time) and stored in the seal meta, never in the pairs the judge
+   sees. It is `null` for a flat legacy seal or an unresolvable skill file.
+
+5. **Keep a version history** (optional). Append the summary to a JSONL ledger:
+
+   ```bash
+   bash scripts/replay-eval.sh report --verdict /tmp/verdict.json --seal /tmp/seal.json \
+     --history ~/replay-history.jsonl      # or --default-history
+   ```
+
+   `--default-history` writes `$DEBRIEF_DATA_DIR/replay-eval-history.jsonl`
+   (default `$XDG_DATA_HOME/eshu-agent-kit/`). The two flags are mutually
+   exclusive and need `--seal`; without one the run is not comparable and exits
+   2. Each line is the `--json-out` object, compact with sorted keys, written
+   with one `O_APPEND` write, so concurrent reports do not interleave. There is
+   no lock and no pruning command. Pass the ledger to `/debrief` with
+   `aggregate --eval-history PATH` (bare flag = default ledger) to render the
+   **Skill Quality Trends (Version History)** card: one row per
+   `(skill, harness, skill_sha)` showing the newest run of that version, never
+   averaged, with the win-rate change against the prior version on the same
+   harness (`within noise` when it is inside the larger noise band). The
+   aggregate keeps the newest 20 versions per skill and harness; the card shows
+   5. Records whose `kind` is not `ablation` (trigger results) never enter it.
+
+### How tool calls are counted
+
+`tool_calls` is the length of the runner's `tools` list before the 50-entry
+truncation in the pair. Claude appends one entry per `tool_use` block, Muse one
+per `tool_batch.effect.terminal` event, and agy copies the `tools` list from
+the CLI result. The agy count is only as complete as that list; whether the
+agy CLI deduplicates it is unverified, so compare agy deltas against agy only.
 
 ## Blindness And Strip-Proof Gate
 
