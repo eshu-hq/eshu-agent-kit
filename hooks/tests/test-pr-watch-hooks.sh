@@ -82,6 +82,27 @@ else
 	no "Muse PreToolUse blocks one-shot gh pr view inside monitor (rc=${m_bm_rc})"
 fi
 
+# 2c-bis. Read-only commands referencing hook files or --help do NOT falsely arm PR #455.
+for benign in \
+	"cat hooks/pr-watch-nudge.sh" \
+	"shellcheck hooks/pr-watch-guard.sh" \
+	"rg pr-watch hooks/" \
+	"bash ${KIT_DIR}/scripts/watch-pr.sh --help"; do
+	b_pre='{"hook_event_name":"PreToolUse","tool_name":"bash","session_id":"'"${msid}"'","cwd":"'"${repo}"'","tool_input":{"command":"'"${benign}"'"}}'
+	b_post='{"hook_event_name":"PostToolUse","tool_name":"bash","session_id":"'"${msid}"'","cwd":"'"${repo}"'","tool_input":{"command":"'"${benign}"'"},"tool_response":"{\"output\":\"ok\"}"}'
+	printf '%s' "${b_pre}" | bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null || true
+	printf '%s' "${b_post}" | bash "${repo}/.muse/hooks/pr-watch-nudge.sh" 2>/dev/null || true
+done
+set +e
+printf '%s' "${m_snooze}" | bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null
+m_s_still_rc=$?
+set -e
+if [ "${m_s_still_rc}" -eq 2 ]; then
+	ok "read-only commands mentioning hook files or --help do not falsely arm PR #455"
+else
+	no "read-only commands mentioning hook files or --help do not falsely arm PR #455 (rc=${m_s_still_rc})"
+fi
+
 # 2d. Muse PreToolUse allows valid looping watch-pr.sh inside monitor and clears unwatched flag.
 m_goodmon='{"hook_event_name":"PreToolUse","tool_name":"monitor","session_id":"'"${msid}"'","cwd":"'"${repo}"'","tool_input":{"command":"bash '"${KIT_DIR}"'/scripts/watch-pr.sh --repo acme/app 455","persistent":true}}'
 if printf '%s' "${m_goodmon}" | bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null &&

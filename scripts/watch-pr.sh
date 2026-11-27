@@ -17,7 +17,29 @@
 set -uo pipefail
 
 usage() {
-	sed -n '12,15p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '12,16p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+need_val() { # <flag> <remaining-argc> [value]
+	if [ "$2" -lt 2 ] || [ -z "${3:-}" ]; then
+		printf 'watch-pr.sh: %s requires a value\n' "$1" >&2
+		usage >&2
+		exit 2
+	fi
+}
+
+check_uint() { # <flag> <val> [min]
+	local flag="$1" val="$2" min="${3:-0}"
+	case "${val}" in
+	'' | *[!0-9]*)
+		printf 'watch-pr.sh: %s must be a non-negative integer: %s\n' "${flag}" "${val}" >&2
+		exit 2
+		;;
+	esac
+	if [ "${val}" -lt "${min}" ]; then
+		printf 'watch-pr.sh: %s must be >= %s: %s\n' "${flag}" "${min}" "${val}" >&2
+		exit 2
+	fi
 }
 
 repo=""
@@ -32,23 +54,30 @@ prs=()
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--repo | -R)
-		repo="${2:-}"
+		need_val "$1" "$#" "${2:-}"
+		repo="$2"
 		shift 2
 		;;
 	--interval)
-		interval="${2:-60}"
+		need_val "$1" "$#" "${2:-}"
+		check_uint "$1" "$2" 0
+		interval="$2"
 		shift 2
 		;;
 	--stable-reads)
-		stable_reads="${2:-2}"
+		need_val "$1" "$#" "${2:-}"
+		check_uint "$1" "$2" 1
+		stable_reads="$2"
 		shift 2
 		;;
 	--required)
-		required_csv="${2:-}"
+		need_val "$1" "$#" "${2:-}"
+		required_csv="$2"
 		shift 2
 		;;
 	--account)
-		account="${2:-}"
+		need_val "$1" "$#" "${2:-}"
+		account="$2"
 		shift 2
 		;;
 	--exit-on-event)
@@ -56,7 +85,9 @@ while [ $# -gt 0 ]; do
 		shift
 		;;
 	--max-polls)
-		max_polls="${2:-0}"
+		need_val "$1" "$#" "${2:-}"
+		check_uint "$1" "$2" 0
+		max_polls="$2"
 		shift 2
 		;;
 	--once)
@@ -288,12 +319,17 @@ poll_one() { # <pr> -> sets actionable=1 when an event fires
 		actionable=1
 	fi
 
-	# CI failures (full failure/cancelled/error set).
+	# CI failures (full failure/cancelled/error set). Clear the stored key on a
+	# clean poll so a fail -> pass -> fail recurrence on the same head fires again.
 	prev_bad="$(st_get "${pr}" bad)"
-	if [ -n "${bad}" ] && [ "${bad}:${head10}" != "${prev_bad}" ]; then
-		st_set "${pr}" bad "${bad}:${head10}"
-		emit "CI-FAIL pr=${pr} head=${head10} jobs=\"${bad}\""
-		actionable=1
+	if [ -n "${bad}" ]; then
+		if [ "${bad}:${head10}" != "${prev_bad}" ]; then
+			st_set "${pr}" bad "${bad}:${head10}"
+			emit "CI-FAIL pr=${pr} head=${head10} jobs=\"${bad}\""
+			actionable=1
+		fi
+	else
+		st_set "${pr}" bad ""
 	fi
 
 	# Unresolved review threads, new reviews, new comments.

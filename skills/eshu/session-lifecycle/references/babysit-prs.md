@@ -101,7 +101,7 @@ token setup]`. A shared account means `--author` is not ownership (step 2).
 | `CI-FAIL job=…` | Reproduce that gate locally, fix, push. Includes a cancelled blocking gate: a cancelled job never re-runs itself, so rerun it explicitly or push. |
 | `CONFLICT state=…` | `CONFLICTING` or `BEHIND`: resolve against the conflict recipes at `code-review` references/conflict-recipes.md and run its check; a clean test merge means rebase and re-verify ([rebase-verify.md](rebase-verify.md)). `UNKNOWN`: the merge state could not be read twice running — read the conflict yourself. |
 | `NEW-THREAD`, `NEW-REVIEW`, `NEW-COMMENT` | Any author, including your own account and bots that commented unrequested. Read the body and fix first; disposition threads per `resolve-review-threads`. |
-| `HEAD-MOVED … source=foreign` | Someone else pushed. Fetch and rebase onto the remote head before you push; never force. `source=local` is your own push. |
+| `HEAD-MOVED` | Remote PR head changed (`from=<old> to=<new>` from `scripts/watch-pr.sh`; `go/cmd/pr-watch` also adds `source=foreign\|local`). When `source=foreign`, or when `source=` is absent and `to` differs from local `git rev-parse HEAD`, someone else pushed — fetch and rebase onto the remote head before pushing; never force. |
 | `MERGED` / `CLOSED` | Stop pushing to the branch. A follow-up is a new branch and PR. |
 | `GREEN` | Rollup SUCCESS, nothing pending, every check read, every ruleset-required context present and successful, head and total unchanged on two reads (step 4). It does not mean mergeable: judge threads and the merge bar (`code-review`, "Merge bar"). A red anywhere already came as `CI-FAIL`. |
 | `ERROR` | A read failed; the watcher keeps polling. A repeating error needs a look. |

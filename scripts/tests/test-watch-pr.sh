@@ -62,14 +62,23 @@ exit 1
 EOF
 chmod +x "${work}/bin/gh" "${WATCH}"
 
-# 1. Usage / bad PR validation exits 2.
-if ! bash "${WATCH}" >/dev/null 2>&1 && ! bash "${WATCH}" abc >/dev/null 2>&1; then
-	ok "rejects missing or non-numeric PR arguments"
+# 1. Usage / bad PR / missing flag values / invalid numeric flags exit 2 without hanging, and --help shows <pr>.
+help_out="$(bash "${WATCH}" --help 2>&1)"
+if ! bash "${WATCH}" >/dev/null 2>&1 &&
+	! bash "${WATCH}" abc >/dev/null 2>&1 &&
+	! bash "${WATCH}" --repo >/dev/null 2>&1 &&
+	! bash "${WATCH}" --interval >/dev/null 2>&1 &&
+	! bash "${WATCH}" --interval abc 455 >/dev/null 2>&1 &&
+	! bash "${WATCH}" --stable-reads 0 455 >/dev/null 2>&1 &&
+	! bash "${WATCH}" --max-polls nope 455 >/dev/null 2>&1 &&
+	grep -q '<pr>' <<<"${help_out}" &&
+	grep -q -- '--max-polls' <<<"${help_out}"; then
+	ok "rejects bad PRs, missing flag values, and invalid numbers, and --help prints full usage"
 else
-	no "rejects missing or non-numeric PR arguments"
+	no "rejects bad PRs, missing flag values, and invalid numbers, and --help prints full usage"
 fi
 
-# 2. GREEN requires 2 stable reads + required context; unchanged poll stays silent; MERGED exits with WATCH state=done.
+# 2. GREEN requires 2 stable reads + required context (negative leg pins threshold=2); unchanged poll stays silent; MERGED exits with WATCH state=done.
 c2="${work}/c2"
 mkdir -p "${c2}"
 cat >"${c2}/pr.1.json" <<'EOF'
@@ -81,15 +90,22 @@ cat >"${c2}/pr.3.json" <<'EOF'
 EOF
 printf '0\n' >"${c2}/api.last.txt"
 
+c2_neg="${work}/c2_neg"
+mkdir -p "${c2_neg}"
+cp "${c2}/pr.1.json" "${c2_neg}/pr.last.json"
+printf '0\n' >"${c2_neg}/api.last.txt"
+out2_neg="$(PATH="${work}/bin:${PATH}" STUB_DIR="${c2_neg}" bash "${WATCH}" --interval 0 --stable-reads 2 --required ci-complete --max-polls 1 455)"
+
 out2="$(PATH="${work}/bin:${PATH}" STUB_DIR="${c2}" bash "${WATCH}" --interval 0 --stable-reads 2 --required ci-complete 455)"
-if grep -q 'WATCH state=start repo=acme/widget prs=455' <<<"${out2}" &&
+if ! grep -q 'GREEN ' <<<"${out2_neg}" &&
+	grep -q 'WATCH state=start repo=acme/widget prs=455' <<<"${out2}" &&
 	[ "$(grep -c 'GREEN pr=455 head=aaaa111122 checks=1' <<<"${out2}")" -eq 1 ] &&
 	grep -q 'MERGED pr=455 head=aaaa111122' <<<"${out2}" &&
 	grep -q 'WATCH state=done repo=acme/widget' <<<"${out2}"; then
-	ok "emits GREEN on 2nd stable read with required context and exits done on MERGED"
+	ok "pins 2-stable-read GREEN threshold (no GREEN on poll 1) and exits done on MERGED"
 else
-	printf '%s\n' "${out2}" >&2
-	no "emits GREEN on 2nd stable read with required context and exits done on MERGED"
+	printf 'neg:\n%s\nfull:\n%s\n' "${out2_neg}" "${out2}" >&2
+	no "pins 2-stable-read GREEN threshold (no GREEN on poll 1) and exits done on MERGED"
 fi
 
 # 3. Detects CONFLICT, CANCELLED CI-FAIL, NEW-THREAD, NEW-REVIEW, NEW-COMMENT, and HEAD-MOVED.
@@ -130,6 +146,25 @@ if grep -q 'WATCH state=stopped reason=event' <<<"${out4}" &&
 else
 	printf '%s\n' "${out4}" >&2
 	no "--exit-on-event stops after first actionable event"
+fi
+
+# 5. CI-FAIL recurrence after an interim clean poll on the same head emits a second CI-FAIL.
+c5="${work}/c5"
+mkdir -p "${c5}"
+cat >"${c5}/pr.1.json" <<'EOF'
+{"state":"OPEN","mergeStateStatus":"CLEAN","mergeable":"MERGEABLE","headRefOid":"cccc33334444","comments":[],"reviews":[],"statusCheckRollup":[{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"}]}
+EOF
+cat >"${c5}/pr.2.json" <<'EOF'
+{"state":"OPEN","mergeStateStatus":"CLEAN","mergeable":"MERGEABLE","headRefOid":"cccc33334444","comments":[],"reviews":[],"statusCheckRollup":[{"name":"lint","status":"IN_PROGRESS","conclusion":""}]}
+EOF
+cp "${c5}/pr.1.json" "${c5}/pr.3.json"
+printf '0\n' >"${c5}/api.last.txt"
+out5="$(PATH="${work}/bin:${PATH}" STUB_DIR="${c5}" bash "${WATCH}" --repo org/app --interval 0 --max-polls 3 77)"
+if [ "$(grep -c 'CI-FAIL pr=77 head=cccc333344 jobs="lint"' <<<"${out5}")" -eq 2 ]; then
+	ok "re-emits CI-FAIL on fail -> clean -> fail recurrence on the same head"
+else
+	printf '%s\n' "${out5}" >&2
+	no "re-emits CI-FAIL on fail -> clean -> fail recurrence on the same head"
 fi
 
 if [ "${failed}" -gt 0 ]; then

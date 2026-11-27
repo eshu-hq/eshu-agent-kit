@@ -65,8 +65,9 @@ except OSError:
 PY
 }
 
-# Mark PR(s) named in a watcher command as armed=1 (or all open session PRs when
-# the command uses a shell variable instead of literal PR numbers).
+# Mark PR(s) named in a watcher command as armed=1 (or all open session PRs only
+# when the command passes a shell variable in place of literal PR numbers).
+# Never arms anything when the command names neither a PR number nor a variable.
 prw_mark_armed() { # <session_id> <command>
 	local sf
 	sf="$(prw_state_file "$1")" || return 0
@@ -74,13 +75,19 @@ prw_mark_armed() { # <session_id> <command>
 	PRW_FILE="${sf}" PRW_CMD="$2" python3 - <<'PY' 2>/dev/null || true
 import os, re, tempfile, time
 sf, cmd = os.environ["PRW_FILE"], os.environ["PRW_CMD"]
-nums = set(re.findall(r"(?:^|[\s,=])([0-9]{1,7})(?=$|[\s,;|&])", cmd))
+# Strip flag values like --interval 60, --stable-reads 2, --max-polls 3 so they
+# cannot masquerade as PR numbers.
+cleaned = re.sub(r"--(?:interval|stable-reads|max-polls)(?:=|\s+)[0-9]+", " ", cmd)
+nums = set(re.findall(r"(?:^|[\s,])([0-9]{1,7})(?=$|[\s,;|&])", cleaned))
+has_var = bool(re.search(r"\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)", cleaned))
+if not nums and not has_var:
+    raise SystemExit(0)
 rows = []
 for line in open(sf, encoding="utf-8", errors="replace"):
     parts = line.rstrip("\n").split("\t")
     if len(parts) >= 3:
         repo, pr, armed = parts[0], parts[1], parts[2]
-        if not nums or pr in nums:
+        if (nums and pr in nums) or (not nums and has_var):
             armed = "1"
         rows.append((repo, pr, armed))
 d = os.path.dirname(sf) or "/tmp"
@@ -107,11 +114,25 @@ prw_list_unwatched() { # <session_id>
 }
 
 # Classify a command: prints "valid", "oneshot", or "other".
+# Only an actual watcher invocation (never read-only tools like cat/shellcheck/rg
+# referencing hook or test filenames) counts as "valid".
 prw_classify_cmd() { # <command>
 	PRW_CMD="$1" python3 - <<'PY' 2>/dev/null || printf 'other\n'
 import os, re
-cmd = os.environ.get("PRW_CMD", "")
-if re.search(r"(?:^|[\s/\"'])watch-pr\.sh\b", cmd) or re.search(r"(?:^|[\s/\"'])pr-watch\b", cmd):
+cmd = os.environ.get("PRW_CMD", "").strip()
+# Match a command segment that executes watch-pr.sh or pr-watch (optionally
+# prefixed by env vars, `env`, `bash`/`sh`, `exec`, or `nohup`), and require
+# arguments after it (excluding --help/-h). Never match hook/test filenames.
+exec_re = re.compile(
+    r"(?:^|[;&|]\s*|&&\s*|\|\|\s*)"
+    r"(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*)"
+    r"(?:env\s+(?:-[^\s]+\s+)*)?"
+    r"(?:nohup\s+)?"
+    r"(?:(?:bash|sh|exec)\s+(?:-[^\s]+\s+)*)?"
+    r"[\"']?(?:[^\s\"']*/)?(?:watch-pr\.sh|pr-watch)[\"']?"
+    r"(?:\s+(?!-h\b|--help\b)\S+)"
+)
+if exec_re.search(cmd):
     print("valid")
     raise SystemExit(0)
 has_gh_pr = bool(re.search(r"\bgh\s+pr\s+(view|checks|status)\b", cmd))
