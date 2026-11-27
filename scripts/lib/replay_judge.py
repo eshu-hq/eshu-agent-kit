@@ -190,6 +190,17 @@ def _invoke_judge_harness(harness, model, prompt_text, timeout=180):
             if model:
                 cmd += ["--model", model]
             cmd += ["--prompt-file", pf]
+        elif harness == "codex":
+            cmd = ["codex", "exec", "--json", "--skip-git-repo-check", "-C", tmpdir]
+            if model:
+                cmd += ["-m", model]
+            cmd.append("-")
+            stdin_text = prompt_text
+        elif harness == "opencode":
+            cmd = ["opencode", "run", "--format", "json", "--archived"]
+            if model:
+                cmd += ["-m", model]
+            cmd.append(prompt_text)
         else:
             fail("unsupported --judge-harness %r" % harness, 2)
         try:
@@ -341,6 +352,8 @@ def cmd_report(args):
         elif key in ("--history", "--default-history"):
             if history:
                 fail("--history and --default-history are mutually exclusive", 2)
+            if key == "--history" and not str(val or "").strip():
+                fail("--history requires a non-empty file path", 2)
             history = val if key == "--history" else default_eval_history()
         elif key == "--help":
             print("report: win rate, noise band, pass rates, tool/error, cost & latency delta.\n"

@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from debrief_common import safe_float  # noqa: E402
 
 
-def skill_sha(kit_dir, skill):
+def skill_sha(kit_dir, skill, skills_dirs=None):
     """sha256 hex of the raw SKILL.md bytes, or None when it cannot be read.
 
     Hashes SKILL.md only (references/ are never injected) with no
@@ -23,7 +23,7 @@ def skill_sha(kit_dir, skill):
     from replay_runner import default_kit_dir, resolve_skill_path
 
     try:
-        path = resolve_skill_path(kit_dir or default_kit_dir(), skill)
+        path = resolve_skill_path(kit_dir or default_kit_dir(), skill, skills_dirs=skills_dirs)
         if not path:
             return None
         with open(path, "rb") as fh:

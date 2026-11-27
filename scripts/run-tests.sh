@@ -42,6 +42,7 @@ suites=(
 	scripts/tests/test-debrief-trends.sh
 	scripts/tests/test-papercut-cli.sh
 	scripts/tests/test-replay-eval.sh
+	scripts/tests/test-replay-codex-opencode.sh
 	scripts/tests/test-trigger-eval.sh
 	scripts/tests/test-code-mode-scripts.sh
 	scripts/tests/test-replay-history.sh

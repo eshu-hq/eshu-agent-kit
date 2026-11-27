@@ -24,14 +24,16 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import debrief_extract_agy as agy_mod  # noqa: E402
 import debrief_extract_claude as claude_mod  # noqa: E402
+import debrief_extract_codex as codex_mod  # noqa: E402
 import debrief_extract_muse as muse_mod  # noqa: E402
+import debrief_extract_opencode as opencode_mod  # noqa: E402
 from debrief_common import (  # noqa: E402
     canon_skill, is_fixture_session, load_json_lines,
     safe_float, safe_int, truncate_text,
 )
 from replay_history import skill_sha  # noqa: E402
 
-VALID_HARNESSES = ("muse", "claude", "agy")
+VALID_HARNESSES = ("muse", "claude", "agy", "codex", "opencode")
 VALID_CATEGORIES = ("golden", "production", "edge")
 BANNED_KEYS = frozenset({
     "mode", "arm", "skill", "skills", "skill_count",
@@ -151,6 +153,28 @@ def _mine_harness(harness, roots, req_skill, query_re, category):
             sid = str(meta.get("id") or "")
             if sid and not meta.get("parent_session") and not is_fixture_session(sid):
                 _maybe_append(items, harness, sid, _first_prompt_agy(path), meta, req_skill, query_re, category)
+    elif harness == "codex":
+        for path, mt in codex_mod.discover(roots or codex_mod.default_roots(), 0):
+            meta, dig = codex_mod.extract_session(path, mt)
+            sid = str(meta.get("id") or "")
+            up = dig.get("user_prompts") or []
+            if sid and not meta.get("parent_session") and not is_fixture_session(sid) and up:
+                _maybe_append(items, harness, sid, up[0], meta, req_skill, query_re, category)
+    elif harness == "opencode":
+        oc_cache = {}
+        try:
+            for ref, mt in opencode_mod.discover(roots or opencode_mod.default_roots(), 0):
+                meta, dig = opencode_mod.extract_session(ref, mt, db_cache=oc_cache)
+                sid = str(meta.get("id") or "")
+                up = dig.get("user_prompts") or []
+                if sid and not meta.get("parent_session") and not is_fixture_session(sid) and up:
+                    _maybe_append(items, harness, sid, up[0], meta, req_skill, query_re, category)
+        finally:
+            for con in oc_cache.values():
+                try:
+                    con.close()
+                except Exception:
+                    pass
     return items
 
 
@@ -227,7 +251,7 @@ def _builtin_runner_path():
 
 
 def run_runner(runner, mode, skill, prompt, prompt_file, out_path,
-               harness="claude", model="", workspace="", kit_dir="", timeout=300):
+               harness="claude", model="", workspace="", kit_dir="", skills_dirs=None, timeout=300):
     with open(prompt_file, "w", encoding="utf-8") as fh:
         fh.write(prompt)
     if runner:
@@ -238,6 +262,9 @@ def run_runner(runner, mode, skill, prompt, prompt_file, out_path,
     for flag, val in (("--model", model), ("--workspace", workspace), ("--kit-dir", kit_dir)):
         if val:
             cmd += [flag, val]
+    if not runner:
+        for sdir in (skills_dirs or []):
+            cmd += ["--skills-dir", sdir]
     label = runner or ("replay-runner.sh(%s)" % harness)
     run_timeout = max(60, timeout + 60)
     try:
@@ -281,12 +308,13 @@ def cmd_replay(args):
     try:
         opts, _ = getopt.getopt(args, "", [
             "evals=", "runner=", "skill=", "harness=", "model=", "workspace=",
-            "kit-dir=", "timeout=", "out=", "seal=", "repeats=", "help",
+            "kit-dir=", "skills-dir=", "timeout=", "out=", "seal=", "repeats=", "help",
         ])
     except getopt.GetoptError as exc:
         fail(str(exc), 2)
     evals_path = runner = out = seal = None
     skill = model = workspace = kit_dir = ""
+    skills_dirs = []
     harness, repeats, timeout = "claude", 1, 300
     for key, val in opts:
         if key == "--evals":
@@ -303,6 +331,8 @@ def cmd_replay(args):
             workspace = val
         elif key == "--kit-dir":
             kit_dir = val
+        elif key == "--skills-dir":
+            skills_dirs.append(val)
         elif key == "--timeout":
             try:
                 timeout = int(val)
@@ -340,7 +370,7 @@ def cmd_replay(args):
     if not isinstance(evals, list):
         fail("evals file must be a JSON array")
     rng = random.Random()
-    sha_start = skill_sha(kit_dir, skill)
+    sha_start = skill_sha(kit_dir, skill, skills_dirs=skills_dirs or None)
     pairs, arms_map = [], {}
     with tempfile.TemporaryDirectory(prefix="replay-run-") as run_tmp:
         for idx, item in enumerate(evals):
@@ -354,7 +384,8 @@ def cmd_replay(args):
                     op = os.path.join(run_tmp, "traj-%d-%d-%s.json" % (idx, rep, mode))
                     traj = run_runner(
                         runner, mode, skill, prompt, pf, op, harness=harness,
-                        model=model, workspace=workspace, kit_dir=kit_dir, timeout=timeout,
+                        model=model, workspace=workspace, kit_dir=kit_dir,
+                        skills_dirs=skills_dirs or None, timeout=timeout,
                     )
                     bucket.append(blind_traj(traj))
             pid = "p%d" % idx
@@ -391,7 +422,7 @@ def cmd_replay(args):
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
     with open(seal, "w", encoding="utf-8") as fh:
-        sha_end = skill_sha(kit_dir, skill)
+        sha_end = skill_sha(kit_dir, skill, skills_dirs=skills_dirs or None)
         if sha_end != sha_start:
             print("replay: SKILL.md changed during replay; skill_sha recorded as null", file=sys.stderr)
             sha_end = None

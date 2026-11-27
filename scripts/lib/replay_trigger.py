@@ -27,7 +27,7 @@ from replay_runner import (  # noqa: E402
 )
 
 KIT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LIVE_HARNESSES = ("claude", "agy", "muse")
+LIVE_HARNESSES = ("claude", "agy", "muse", "codex", "opencode")
 KINDS = ("positive", "negative", "competing")
 DEFAULT_THRESHOLD = 0.25  # swept on evals/triggers.json; see docs/guides/trigger-evals.md
 ROUTER_PROMPT = (
@@ -249,10 +249,12 @@ def live_select(harness, payload, model, timeout):
             if pf_text is not None:
                 with open(prompt_file, "w", encoding="utf-8") as fh:
                     fh.write(pf_text)
+            env = dict(os.environ)
+            env["XDG_DATA_HOME"] = os.path.join(os.path.dirname(iso), ".xdg-data")
             t0 = time.monotonic()
             proc = subprocess.run(
                 cmd, input=stdin_text, stdin=None if stdin_text is not None else subprocess.DEVNULL,
-                cwd=iso, capture_output=True, text=True, timeout=timeout,
+                cwd=iso, env=env, capture_output=True, text=True, timeout=timeout,
             )
             wall = time.monotonic() - t0
     except (subprocess.TimeoutExpired, OSError, RuntimeError) as exc:
@@ -262,6 +264,9 @@ def live_select(harness, payload, model, timeout):
     traj = parse_harness_output(harness, proc.stdout, wall)
     if traj.get("errors"):
         return None, "%s reported a run error" % harness
+    if traj.get("tools"):
+        print("replay-trigger: warning: %s invoked tools during router-prompt trial (%s)" % (
+            harness, ", ".join(traj["tools"][:5])), file=sys.stderr)
     sel = parse_reply(traj.get("transcript"))
     return (sel, None) if sel is not None else (None, "%s reply has no skills list" % harness)
 
