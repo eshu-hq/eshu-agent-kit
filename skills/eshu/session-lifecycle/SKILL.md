@@ -9,6 +9,8 @@ Scope: this is the `eshu` layer of the kit. Relative `docs/` paths and tooling (
 
 ## Evidence at handoff
 
+**Pre-Action Checklist:** verify live worktree path from `git worktree list --porcelain` before reading files (never guess `.worktrees/`), never use `git stash` (shared across worktrees), re-read target lines right before exact-match edits on mismatch, and stamp `HEAD=<sha> BASE=<sha> RE:<id>` on branch handoffs.
+
 Preserve the prior investigation's file map, settled design decisions, and
 rejected hypotheses. Verify the evidence behind claims before relying on them.
 A summary saying "tests pass" is not proof.

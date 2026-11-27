@@ -1,6 +1,6 @@
 ---
 name: performance-rigor
-description: "Use when proving or improving an Eshu latency, throughput, resource, or wall-time claim: benchmarks, contribution budgets, scaled runs, and before/after evidence. Find an unknown cause first with diagnostic-rigor."
+description: "Use when editing *_bench_test.go, scripts/run-remote-e2e-*, docs/internal/remote-validation/, or docs/internal/evidence/, or proving/improving Eshu latency, throughput, resource, or wall-time claims. Find unknown causes first with diagnostic-rigor."
 ---
 
 # Performance Rigor
@@ -15,6 +15,8 @@ For a covered query family, follow `[fill-in: query engineering — this repo's 
 Update its executable contract and run the linked production evidence runner.
 
 ## Essential Contract
+
+**Pre-Flight Checklist:** confirm cause is known (else load `diagnostic-rigor` first); declare metric boundary, baseline, and stop threshold before editing; serialize live benchmarks on the shared host; bind before/after evidence to exact SHA/binary.
 
 Accuracy comes first, performance second, and concurrency third. A faster wrong
 answer, unsafe claim, incomplete drain, hidden fallback, or serialized

@@ -1,6 +1,6 @@
 ---
 name: telemetry-coverage-discipline
-description: Use when adding a metric, span, log key, or pipeline stage, or chasing a missing operator signal, in go/internal/telemetry and the telemetry-coverage doc/gate.
+description: Use when editing go/internal/telemetry/, observability/, eshu-operator-overview.json, or scripts/verify-telemetry-coverage.sh, or adding a metric, span, log key, or pipeline stage and chasing missing operator signals.
 ---
 
 # Telemetry coverage discipline
@@ -9,6 +9,8 @@ Scope: this is the `eshu` layer of the kit. Relative `docs/` paths and eshu repo
 
 Keep operator signals consistent across these artifacts. Paths are relative to
 the repository root.
+
+**Pre-Flight Checklist:** register new metrics in `instruments.go` and labels/spans in `contract*.go`; add a coverage row (or `No-Observability-Change:` naming an existing `eshu_dp_*` metric); run `scripts/verify-telemetry-coverage.sh` before handoff.
 
 | Artifact | Contract |
 | --- | --- |

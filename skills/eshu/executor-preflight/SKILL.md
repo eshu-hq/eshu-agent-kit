@@ -15,6 +15,8 @@ those. You are a leaf agent: do not dispatch other agents.
 
 ## Steps
 
+**Pre-Handoff Checklist:** commit first and bind every check to `HEAD`; run `check-shape.sh` on any PR/issue body; re-measure every decision-bearing claim at `HEAD`; clear license/live-test/env-registry traps (if `verify-license-header.sh` fails, run `bash scripts/add-license-header.sh`; if `verify-env-registry-doc.sh` fails, run `bash scripts/generate-env-registry-doc.sh`); never run `make pre-push` as a leaf executor.
+
 1. **Bind the run.** Commit first. Record `git rev-parse HEAD`. If a PR body or
    draft exists, record its `sha256` too. Every result below belongs to that
    commit. A new commit voids the results; restart at this step.

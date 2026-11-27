@@ -1,6 +1,6 @@
 ---
 name: postgres-rigor
-description: Use when writing or reviewing Eshu Postgres SQL, schema DDL, transactions, locks, or fact_work_items queue claims, leases, and dead letters. Covers EXPLAIN/pg_stat evidence and index doctrine.
+description: Use when editing storage/postgres/, *.sql, or internal/queue/, or reviewing Eshu Postgres SQL, schema DDL, transactions, locks, or fact_work_items queue claims, leases, and dead letters. Covers EXPLAIN/pg_stat evidence and index doctrine.
 ---
 
 # Postgres Rigor
@@ -18,6 +18,8 @@ For a covered query family, follow `[fill-in: query engineering — this repo's 
 Update its executable contract and run the linked production evidence runner.
 
 ## Required Classification
+
+**Pre-Edit Checklist:** separate Postgres wait from app/graph work first; capture schema, existing indexes, and `EXPLAIN (ANALYZE, BUFFERS)`; prove query/lock semantics against live Postgres, not mocks.
 
 Before proposing a fix, classify the symptom as one or more of:
 
