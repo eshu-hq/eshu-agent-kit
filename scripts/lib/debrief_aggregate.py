@@ -18,7 +18,9 @@ from debrief_common import (  # noqa: E402
     safe_int,
     safe_key,
 )
-from debrief_evals import _opt_float, _opt_int, _should_replace_eval, eval_stats  # noqa: E402,F401
+from debrief_evals import (  # noqa: E402,F401
+    _opt_float, _opt_int, _should_replace_eval, eval_stats, eval_trends, load_eval_history,
+)
 from debrief_hooks import (  # noqa: E402
     _aggregate_hooks,
     _collect_git_stats,
@@ -285,7 +287,14 @@ def cmd_aggregate(args):
 
     papercuts = papercut_stats(getattr(args, "papercuts", "") or "")
     filed_by_skill = papercuts["per_skill"] if papercuts else {}
-    evals = eval_stats(getattr(args, "evals", None) or [])
+    eval_records = []
+    evals = eval_stats(getattr(args, "evals", None) or [], records_out=eval_records)
+    history_paths = getattr(args, "eval_history", None) or []
+    eval_trend_stats = None
+    if evals is not None or history_paths:
+        history, trend_sources, history_skipped = load_eval_history(history_paths)
+        eval_trend_stats = eval_trends(
+            eval_records + history, (evals["sources"] if evals else []) + trend_sources, history_skipped)
     evals_by_skill = evals["per_skill"] if evals else {}
     trigger_evals = trigger_stats(getattr(args, "trigger_evals", None) or [])
     join_trigger_rows(skill_table, trigger_evals)
@@ -362,6 +371,7 @@ def cmd_aggregate(args):
         "skill_costs": skill_costs,
         "papercuts": papercuts,
         "evals": evals,
+        "eval_trends": eval_trend_stats,
         "trigger_evals": trigger_evals,
         "interjections": interjections,
         "facet_summaries": facet_summaries,

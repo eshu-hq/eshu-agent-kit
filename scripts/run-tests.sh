@@ -35,6 +35,7 @@ suites=(
 	scripts/tests/test-debrief.sh
 	scripts/tests/test-debrief-papercuts.sh
 	scripts/tests/test-debrief-insights.sh
+	scripts/tests/test-debrief-trends.sh
 	scripts/tests/test-papercut-cli.sh
 	scripts/tests/test-replay-eval.sh
 	scripts/tests/test-trigger-eval.sh

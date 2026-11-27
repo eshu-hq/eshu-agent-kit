@@ -303,6 +303,9 @@ def main(argv=None):
                        help="JSON snapshot of papercut issues (array or {\"issues\": [...]}) joined on the skill: body line; no live gh calls")
     p_agg.add_argument("--evals", action="append", default=[],
                        help="JSON file or directory of *.json replay-eval summaries joined per skill; offline only")
+    p_agg.add_argument("--eval-history", action="append", nargs="?", const=None, default=[],
+                       help="replay-eval.sh report --history JSONL ledger (repeatable); bare flag reads the default ledger; "
+                            "feeds the Skill Quality Trends card together with --evals")
     p_agg.add_argument("--trigger-evals", action="append", default=[],
                        help="JSON file or directory of trigger-eval summaries (replay-eval.sh trigger --json-out); never use --evals")
     p_agg.add_argument("--out", default="")

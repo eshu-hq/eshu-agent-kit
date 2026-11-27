@@ -7,7 +7,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from debrief_common import canon_skill, ts_to_epoch  # noqa: E402
+from debrief_common import canon_skill, default_eval_history, ts_to_epoch  # noqa: E402
+
+VERSIONS_KEPT = 20  # newest versions kept per (skill, harness) in the aggregate
 
 
 def _opt_float(val):
@@ -43,13 +45,49 @@ def _should_replace_eval(prev, cand):
     return bool(new_ts) or not old_ts
 
 
-def eval_stats(paths):
+def _sha(val):
+    if not isinstance(val, str):
+        return None
+    return val.strip().lower()[:64] or None
+
+
+def _eval_entry(rec):
+    """Normalize one replay-eval summary record; None without a skill."""
+    skill = canon_skill(str(rec.get("skill") or "").rstrip("."))
+    if not skill:
+        return None
+    return {
+        "skill": skill,
+        "win_rate": _opt_float(rec.get("win_rate")),
+        "noise_band": _opt_float(rec.get("noise_band")),
+        "pass_rate_with": _opt_float(rec.get("pass_rate_with")),
+        "pass_rate_without": _opt_float(rec.get("pass_rate_without")),
+        "cross_pairs": _opt_int(rec.get("cross_pairs")),
+        "cost_delta_in": _opt_float(rec.get("cost_delta_in")),
+        "cost_delta_out": _opt_float(rec.get("cost_delta_out")),
+        "latency_delta_s": _opt_float(rec.get("latency_delta_s")),
+        "tool_calls_delta": _opt_float(rec.get("tool_calls_delta")),
+        "tool_errors_delta": _opt_float(rec.get("tool_errors_delta")),
+        "skill_sha": _sha(rec.get("skill_sha")),
+        "harness": str(rec.get("harness") or ""),
+        "recorded_at": str(rec.get("recorded_at") or ""),
+    }
+
+
+def _is_ablation(rec):
+    """A record with a `kind` other than "ablation" (e.g. trigger-eval) is not a trend point."""
+    return "kind" not in rec or rec["kind"] == "ablation"
+
+
+def eval_stats(paths, records_out=None):
     """Per-skill replay-eval summary from offline JSON file(s) or directories.
 
     Accepts a path or sequence of paths. Each file may hold a single JSON
     object, a JSON array, or ``{"evals": [...]}``; directories expand to
     sorted ``*.json`` files. Deduplicates per canonical skill keeping the
-    newest ``recorded_at`` (or last when tied/absent). Offline only.
+    newest ``recorded_at`` (or last when tied/absent). Offline only. When
+    ``records_out`` is a list, every loaded record (before dedup) is appended
+    to it as ``(entry, is_ablation)`` for the trend loader.
     """
     if not paths:
         return None
@@ -85,30 +123,16 @@ def eval_stats(paths):
         else:
             raise SystemExit(f"aggregate: --evals file {fp!r} must be a JSON object, array, or {{\"evals\": [...]}}")
         for rec in recs:
-            if not isinstance(rec, dict):
-                skipped += 1
-                continue
-            skill = canon_skill(str(rec.get("skill") or "").rstrip("."))
-            if not skill:
+            entry = _eval_entry(rec) if isinstance(rec, dict) else None
+            if entry is None:
                 skipped += 1
                 continue
             loaded += 1
-            entry = {
-                "skill": skill,
-                "win_rate": _opt_float(rec.get("win_rate")),
-                "noise_band": _opt_float(rec.get("noise_band")),
-                "pass_rate_with": _opt_float(rec.get("pass_rate_with")),
-                "pass_rate_without": _opt_float(rec.get("pass_rate_without")),
-                "cross_pairs": _opt_int(rec.get("cross_pairs")),
-                "cost_delta_in": _opt_float(rec.get("cost_delta_in")),
-                "cost_delta_out": _opt_float(rec.get("cost_delta_out")),
-                "latency_delta_s": _opt_float(rec.get("latency_delta_s")),
-                "harness": str(rec.get("harness") or ""),
-                "recorded_at": str(rec.get("recorded_at") or ""),
-            }
-            prev = per_skill.get(skill)
+            if records_out is not None:
+                records_out.append((entry, _is_ablation(rec)))
+            prev = per_skill.get(entry["skill"])
             if prev is None or _should_replace_eval(prev, entry):
-                per_skill[skill] = entry
+                per_skill[entry["skill"]] = entry
     return {
         "sources": clean_paths,
         "skills_evaluated": len(per_skill),
@@ -116,3 +140,88 @@ def eval_stats(paths):
         "records_skipped": skipped,
         "per_skill": dict(sorted(per_skill.items())),
     }
+
+
+def load_eval_history(paths):
+    """Read replay-eval ledger JSONL file(s): (records, resolved_paths, skipped).
+
+    A ``None`` entry means the default ledger, which may be absent (zero
+    records); an explicit path that is missing fails fast. Torn, non-object,
+    and skill-less lines are skipped and counted; blank lines are ignored.
+    """
+    records, resolved, skipped = [], [], 0
+    for p in paths or []:
+        path = default_eval_history() if p is None else p
+        resolved.append(path)
+        if p is None and not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                lines = fh.read().splitlines()
+        except OSError as exc:
+            raise SystemExit(f"aggregate: cannot read --eval-history path {path!r}: not found or unreadable ({exc})")
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                skipped += 1
+                continue
+            entry = _eval_entry(rec) if isinstance(rec, dict) else None
+            if entry is None:
+                skipped += 1
+                continue
+            records.append((entry, _is_ablation(rec)))
+    return records, resolved, skipped
+
+
+def _first_key(ts):
+    epoch = ts_to_epoch(ts) if ts else None
+    if epoch is not None:
+        return (0, epoch, "")
+    return (1, 0.0, ts) if ts else (2, 0.0, "")
+
+
+def _version(key, runs):
+    newest = runs[0]
+    for cand in runs[1:]:
+        if _should_replace_eval(newest, cand):
+            newest = cand
+    first = min((r["recorded_at"] for r in runs), key=_first_key)
+    sha = key[2]
+    ver = {k: newest[k] for k in (
+        "win_rate", "noise_band", "pass_rate_with", "cross_pairs", "tool_calls_delta",
+        "tool_errors_delta", "cost_delta_in", "cost_delta_out", "latency_delta_s")}
+    return {"harness": key[1], "skill_sha": sha, "sha_short": sha[:8] if sha else "unversioned",
+            "first_recorded_at": first, "last_recorded_at": newest["recorded_at"], "runs": len(runs), **ver}
+
+
+def eval_trends(records, sources, skipped=0):
+    """Per-skill version history from ablation records (--evals before dedup plus ledger lines).
+
+    A version is one (skill, harness, skill_sha) group, shown with its newest run
+    (never averaged); runs dedupe on (skill, harness, skill_sha, recorded_at). A
+    null sha is its own "unversioned" group and harnesses never merge. Keeps the
+    newest VERSIONS_KEPT versions per (skill, harness).
+    """
+    groups, loaded = {}, 0
+    for entry, ablation in records:
+        if not ablation:
+            skipped += 1
+            continue
+        loaded += 1
+        key = (entry["skill"], entry["harness"], entry["skill_sha"])
+        runs = groups.setdefault(key, {})
+        runs.setdefault(entry["recorded_at"], entry)
+    by_series = {}
+    for key, runs in groups.items():
+        by_series.setdefault((key[0], key[1]), []).append(_version(key, list(runs.values())))
+    per_skill = {}
+    for (skill, _harness), versions in by_series.items():
+        versions.sort(key=lambda v: (_first_key(v["first_recorded_at"]), v["sha_short"]))
+        per_skill.setdefault(skill, []).extend(versions[-VERSIONS_KEPT:])
+    for versions in per_skill.values():
+        versions.sort(key=lambda v: (_first_key(v["first_recorded_at"]), v["harness"], v["sha_short"]))
+    return {"sources": list(sources), "records_loaded": loaded, "records_skipped": skipped,
+            "per_skill": dict(sorted(per_skill.items()))}
