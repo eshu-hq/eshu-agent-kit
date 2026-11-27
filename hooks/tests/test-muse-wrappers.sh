@@ -46,7 +46,7 @@ payload_prompt='{"hook_event_name":"UserPromptSubmit","prompt":"continue","sessi
 with_ids() { printf '%s' "$1" | sed -e "s|SID|${sid}|g" -e "s|REPO|${repo}|g"; }
 
 # 1. Garbage input fails open in every wrapper.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure pr-watch-nudge pr-watch-guard; do
 	if printf 'garbage' | bash "${MH}/${w}.sh" >/dev/null 2>&1; then
 		ok "garbage payload fails open: ${w}"
 	else
@@ -267,7 +267,7 @@ fi
 # 7. A missing .claude/hooks sibling fails open in every wrapper, never
 # blocks the tool call. on-compact needs a delegating payload to reach its
 # guard at all; the rest reach it on any input.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure pr-watch-nudge pr-watch-guard; do
 	rm "${repo}/.claude/hooks/${w}.sh"
 	if [ "${w}" = on-compact ]; then
 		in="$(printf '{"hook_event_name":"PreCompact","session_id":"%s","cwd":"%s","transcript_path":null}' "${sid}" "${repo}")"
@@ -300,7 +300,7 @@ gstop2='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_messa
 gstop3='{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"status","session_id":"SID","turn_id":"g3","cwd":"GREPO","transcript_path":null}'
 
 # 8. Garbage input fails open in every global wrapper.
-for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure; do
+for w in goal-continue goal-refresh skill-nudge skill-loaded guard-live-gate on-compact eshu-doc-staleness issue-capture stop-failure pr-watch-nudge pr-watch-guard; do
 	if printf 'garbage' | bash "${GMH}/${w}.sh" >/dev/null 2>&1; then
 		ok "global garbage payload fails open: ${w}"
 	else

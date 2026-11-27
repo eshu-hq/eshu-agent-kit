@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterShellExecution": [
+      {
+        "command": "bash .cursor/hooks/pr-watch-nudge.sh"
+      }
+    ]
+  }
+}

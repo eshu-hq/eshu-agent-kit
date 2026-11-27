@@ -9,23 +9,35 @@ the default branch moved under a branch you have out.
 ## Choose an implementation
 
 Two implementations share the event contract in [Events](#events). Pick one
-per repo; do not hand-roll a third poll loop. The consuming overlay fills
-every bracketed value below; if any is empty, stop and report instead of
-polling with a guess.
+per repo; do not hand-roll a third poll loop.
 
-- **Eshu repos:** the committed watcher binary (`go/cmd/pr-watch` in the Eshu
-  repo). Build it once and run it in the background over every PR you own;
-  each output line is one event.
-- **All other repos:** `gh`-CLI polling with the same event semantics. Poll
-  about every 60 seconds: `gh pr view` for head SHA, check rollup, and merge
-  state, plus review threads, submitted reviews, and conversation comments.
-  Name each change with the event names below and take the same actions.
+- **Any repo (zero-build default shipped in this kit):** `scripts/watch-pr.sh`
+  (linked into `<repo>/scripts/watch-pr.sh` by `install.sh --hooks --repo`, or
+  run directly from the kit checkout). Needs only `bash`, `gh`, and `jq`:
+
+  ```bash
+  bash scripts/watch-pr.sh --repo <owner/repo> <pr> [<pr> ...]
+  ```
+
+- **Eshu monorepo:** the committed watcher binary (`go/cmd/pr-watch` in the
+  Eshu repo) adds local `git merge-tree` conflict-recipe classification and
+  reads merge-rule contexts from `ci-gates`. Build it once and run it in the
+  background over every PR you own; fall back to `scripts/watch-pr.sh` when
+  outside the Eshu monorepo.
 
 The watcher command for this repo: `[fill-in: watcher command — the binary
 build-and-run line or the polling recipe path]`.
 
 Pin the GitHub account the watcher reads as: `[fill-in: account login or
 token setup]`. A shared account means `--author` is not ownership (step 2).
+
+### Per-harness invocation
+
+| Harness | How to arm the watcher in the same turn as `gh pr create` |
+|---|---|
+| **Muse** | Use Muse's `monitor` tool with `persistent: true` running `bash <kit>/scripts/watch-pr.sh --repo <owner/repo> <pr>` (or `/tmp/pr-watch` in Eshu). **Never** pass a one-shot `gh pr view` command to `monitor` (it exits after 1 second and emits `stream_ended`), and **never** call `report_progress(snooze_minutes=...)` without a live PR monitor covering every open PR. |
+| **Claude Code** | Run `bash <kit>/scripts/watch-pr.sh --repo <owner/repo> <pr>` in a background Monitor/Bash (`run_in_background: true`). Add `--exit-on-event` if not streaming. |
+| **Antigravity (`agy`), Codex, OpenCode, Cursor** | Run `bash <kit>/scripts/watch-pr.sh --repo <owner/repo> --exit-on-event <pr>` as a background command so the harness wakes you on the first merge, conflict, CI failure, review/thread, or 2-read green. |
 
 ## Steps
 
@@ -89,7 +101,7 @@ token setup]`. A shared account means `--author` is not ownership (step 2).
 | `CI-FAIL job=…` | Reproduce that gate locally, fix, push. Includes a cancelled blocking gate: a cancelled job never re-runs itself, so rerun it explicitly or push. |
 | `CONFLICT state=…` | `CONFLICTING` or `BEHIND`: resolve against the conflict recipes at `code-review` references/conflict-recipes.md and run its check; a clean test merge means rebase and re-verify ([rebase-verify.md](rebase-verify.md)). `UNKNOWN`: the merge state could not be read twice running — read the conflict yourself. |
 | `NEW-THREAD`, `NEW-REVIEW`, `NEW-COMMENT` | Any author, including your own account and bots that commented unrequested. Read the body and fix first; disposition threads per `resolve-review-threads`. |
-| `HEAD-MOVED … source=foreign` | Someone else pushed. Fetch and rebase onto the remote head before you push; never force. `source=local` is your own push. |
+| `HEAD-MOVED` | Remote PR head changed (`from=<old> to=<new>` from `scripts/watch-pr.sh`; `go/cmd/pr-watch` also adds `source=foreign\|local`). When `source=foreign`, or when `source=` is absent and `to` differs from local `git rev-parse HEAD`, someone else pushed — fetch and rebase onto the remote head before pushing; never force. |
 | `MERGED` / `CLOSED` | Stop pushing to the branch. A follow-up is a new branch and PR. |
 | `GREEN` | Rollup SUCCESS, nothing pending, every check read, every ruleset-required context present and successful, head and total unchanged on two reads (step 4). It does not mean mergeable: judge threads and the merge bar (`code-review`, "Merge bar"). A red anywhere already came as `CI-FAIL`. |
 | `ERROR` | A read failed; the watcher keeps polling. A repeating error needs a look. |

@@ -28,10 +28,12 @@ install_hooks_repo() {
 	link_files "$KIT_DIR/hooks/*.sh" "$target/.claude/hooks"
 	link_files "$KIT_DIR/hooks/lib/*" "$target/.claude/hooks/lib"
 	link_files "$KIT_DIR/hooks/codex/*.sh" "$target/.codex/hooks"
+	link_files "$KIT_DIR/hooks/cursor/*.sh" "$target/.cursor/hooks"
 	install_muse_hooks "$target"
 	prune_dir "$target/.claude/hooks" "$KIT_DIR/hooks/*.sh"
 	prune_dir "$target/.claude/hooks/lib" "$KIT_DIR/hooks/lib/*"
 	prune_dir "$target/.codex/hooks" "$KIT_DIR/hooks/codex/*.sh"
+	prune_dir "$target/.cursor/hooks" "$KIT_DIR/hooks/cursor/*.sh"
 	prune_dir "$target/.muse/hooks" "$KIT_DIR/hooks/muse/*.sh"
 	prune_dir "$target/.muse/hooks/lib" "$KIT_DIR/hooks/muse/lib/*"
 	install_agy_hooks_repo "$target"
@@ -46,8 +48,13 @@ install_hooks_repo() {
 	else
 		ln -sfn "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts/check-docs-stale.sh"
 	fi
-	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex, Muse and agy adapters)"
-	echo "wire the Claude/Codex hooks in settings.json (see hooks/README.md); Muse reads .muse/hooks.json, agy reads .agents/hooks.json"
+	if [ -e "$target/scripts/watch-pr.sh" ] && [ ! -L "$target/scripts/watch-pr.sh" ]; then
+		echo "preserving existing script: $target/scripts/watch-pr.sh" >&2
+	else
+		ln -sfn "$KIT_DIR/scripts/watch-pr.sh" "$target/scripts/watch-pr.sh"
+	fi
+	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex, Cursor, Muse and agy adapters, scripts/watch-pr.sh)"
+	echo "wire the Claude/Codex/Cursor hooks in settings/hooks.json (see hooks/README.md); Muse reads .muse/hooks.json, agy reads .agents/hooks.json"
 }
 
 install_hooks_mode() {

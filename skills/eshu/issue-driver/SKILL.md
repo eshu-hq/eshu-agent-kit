@@ -89,7 +89,10 @@ when its PR merges or closes.
    coordinator/arbiter countersign. An explicit owner push order overrides
    floor/review/receipt for that one push (`code-review`, Owner push order).
 7. Arm the CI watcher in the same turn as `gh pr create`
-   ([babysit-prs.md](../session-lifecycle/references/babysit-prs.md)) and follow
+   ([babysit-prs.md](../session-lifecycle/references/babysit-prs.md) — use
+   `scripts/watch-pr.sh` in any repo, or `/tmp/pr-watch` in Eshu; on Muse, run
+   it inside `monitor` with `persistent: true` and never snooze with
+   `report_progress` while an open PR has no live watcher) and follow
    [monitoring.md](references/monitoring.md). Never request a GitHub Copilot
    review; triage any unrequested comment like any reviewer's. Request owner
    review at creation; silence is never unavailability (positive decline/absence

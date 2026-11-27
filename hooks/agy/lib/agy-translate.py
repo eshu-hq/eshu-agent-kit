@@ -104,11 +104,24 @@ def build_in(kind, d):
             return None
         path = path if path.startswith("/") or not cwd else cwd.rstrip("/") + "/" + path
         base.update(hook_event_name="PreToolUse", tool_name="Edit", tool_input={"file_path": path})
-    elif kind == "guard-live-gate":
+    elif kind in ("guard-live-gate", "pr-watch-guard"):
         cmd = unquote(args.get("CommandLine"))
         if name != "run_command" or not cmd:
             return None
         base.update(hook_event_name="PreToolUse", tool_name="Bash", tool_input={"command": cmd})
+    elif kind == "pr-watch-nudge":
+        cmd = unquote(args.get("CommandLine"))
+        if name != "run_command" or not cmd or d.get("error"):
+            return None
+        tr = d.get("toolResult") or d.get("result") or d.get("output") or ""
+        if isinstance(tr, dict):
+            tr = tr.get("output") or tr.get("stdout") or json.dumps(tr)
+        base.update(
+            hook_event_name="PostToolUse",
+            tool_name="Bash",
+            tool_input={"command": cmd},
+            tool_response={"stdout": str(tr)},
+        )
     elif kind == "goal-continue":
         active = d.get("continuationActive")
         # Act only on a plain turn end, and only when loop protection exists
@@ -130,13 +143,23 @@ def build_in(kind, d):
 
 
 def build_out(kind, rc, out_path, err_path):
-    if kind in ("skill-nudge", "guard-live-gate"):
+    if kind in ("skill-nudge", "guard-live-gate", "pr-watch-guard"):
         if rc != 2:
             return {}
         reason = read(err_path).strip()[:3500] or "blocked by an eshu-agent-kit hook"
         if kind == "skill-nudge":
             reason += "\n" + NUDGE_GUIDE
         return {"decision": "deny", "reason": reason}
+    if kind == "pr-watch-nudge" and rc == 0:
+        text = read(out_path).strip()
+        try:
+            v = json.loads(text) if text else {}
+            ctx = (v.get("hookSpecificOutput") or {}).get("additionalContext") or ""
+            if isinstance(ctx, str) and ctx:
+                return {"additionalContext": ctx}
+        except ValueError:
+            pass
+        return {}
     if kind == "goal-continue" and rc == 0:
         text = read(out_path).strip()
         for cand in (text, text.splitlines()[-1] if text else ""):

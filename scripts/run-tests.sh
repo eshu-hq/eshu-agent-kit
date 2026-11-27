@@ -46,11 +46,13 @@ suites=(
 	scripts/tests/test-replay-history.sh
 	scripts/tests/test-eval-suites.sh
 	scripts/tests/test-eval-flywheel.sh
+	scripts/tests/test-watch-pr.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh
 	hooks/tests/test-guard-live-gate.sh
 	hooks/tests/test-muse-wrappers.sh
+	hooks/tests/test-pr-watch-hooks.sh
 	hooks/tests/test-stop-failure.sh
 )
 
