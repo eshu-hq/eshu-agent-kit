@@ -70,30 +70,42 @@ When those disagree, the answer is "assume alive": leave it and keep working.
 Heads move while a request is in flight, so a request can arrive after the
 state it describes is gone. This applies across every playbook.
 
-1. **Resolve branch HEAD, BASE, and verified worktree path.** Measure `HEAD`,
-   `BASE`, and the live worktree path in the branch's worktree rather than
-   guessing `.worktrees/<branch>`:
+1. **Resolve branch HEAD, BASE, and verified worktree path.** Run
+   [branch-head.sh](scripts/branch-head.sh)
+   (`.agents/skills/session-lifecycle/scripts/branch-head.sh` in a consumer
+   checkout) inside or targeting the branch's worktree rather than guessing
+   `.worktrees/<branch>`:
 
    ```bash
-   git rev-parse HEAD
-   git merge-base HEAD origin/main
-   git worktree list --porcelain
+   bash .agents/skills/session-lifecycle/scripts/branch-head.sh --repo <worktree> --re <request-id>
    ```
 
-   Done when the brief names a path present in `git worktree list --porcelain`
-   and a 10+ character `HEAD` and `BASE` SHA.
+   Pass `--base <ref>` to override `origin/main` (falls back to `main`; a base
+   that does not resolve is exit 2, never a placeholder) and `--expect-head
+   <sha>` (10-64 hex characters) to guard against a moved tip. The script
+   prints `HEAD=<sha> BASE=<sha> RE:<request-id>` first, followed by `BRANCH`
+   (`(detached)` when detached), `WORKTREE` verified against
+   `git worktree list --porcelain`, and `STATUS`. Done when the brief names that
+   verified `WORKTREE` path and the printed `HEAD` and `BASE` SHAs.
 2. **Stamp the head line first.** Put one line in every message that carries a
    verdict, handoff, ruling, or request about a branch:
    `HEAD=<sha> BASE=<sha> RE:<request-id>`. Put it first, after any status token
    the message must start with, such as `RULING:` or `BLOCKED:`, and name the
    branch in the same message. Done when the sender picks a short request id and
    the reply copies it.
-3. **Reject stale requests before starting work.** If a request names a `HEAD`
-   that is not the current tip of that branch, reply `STALE` with the current
-   tip and do not start the work. If the named worktree path does not exist on
-   disk, check `git worktree list --porcelain` (or reply `STALE` when read-only
-   without shell access) instead of probing guessed paths. Done when work begins
-   only on a live, matching tip and path.
+3. **Reject stale requests before starting work.** Pass `--expect-head <sha>`
+   to `scripts/branch-head.sh` before starting work on a handed-off tip:
+
+   ```bash
+   bash .agents/skills/session-lifecycle/scripts/branch-head.sh --repo <worktree> --re <request-id> --expect-head <sha>
+   ```
+
+   Recovery: if `branch-head.sh` exits 1 with `STALE: expected <expect> got <head>`,
+   do not edit the worktree — reply `STALE` with the printed `HEAD=<sha>` tip
+   and wait for a refreshed request. If `--repo` fails because the named
+   worktree path does not exist on disk, run `git worktree list --porcelain`
+   (or reply `STALE` when read-only without shell access) instead of probing
+   guessed paths. Done when work begins only on a live, matching tip and path.
 
 ## Common mistakes
 
