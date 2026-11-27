@@ -173,4 +173,4 @@ Reply concisely with:
 1. Clickable `file://` link to the generated HTML report (and `report-latest.html`).
 2. Coverage line (window, harnesses, top-level sessions, facets analyzed, any deferred by the 100-session cap).
 3. The **Key Insight** and **Top 3 Actionable Fixes**.
-4. What the data could not answer (unwired `agy` hooks, Codex/OpenCode exclusions, correlation caveats).
+4. What the data could not answer (the `not_tracked` list: agy hook telemetry absent when agy hooks are not installed, Codex/OpenCode exclusions, correlation caveats).

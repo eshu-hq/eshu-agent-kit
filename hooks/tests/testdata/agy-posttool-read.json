@@ -1,0 +1,17 @@
+{
+  "_synthetic": "NOT a live capture: built from ~/.gemini/antigravity-cli/builtin/skills/agy-customizations/docs/hooks.md (agy 1.5.18) plus tool/arg names seen in local agy transcripts. Scrubbed placeholders: SID, REPO.",
+  "conversationId": "SID",
+  "workspacePaths": ["REPO"],
+  "transcriptPath": "REPO/.gemini/antigravity-cli/transcript.jsonl",
+  "modelName": "auto",
+  "hookEventName": "PostToolUse",
+  "cwd": "REPO",
+  "stepIdx": 5,
+  "toolCall": {
+    "id": "toolu_01",
+    "name": "read_file",
+    "args": {
+      "Path": "REPO/.agents/skills/golang-engineering/SKILL.md"
+    }
+  }
+}

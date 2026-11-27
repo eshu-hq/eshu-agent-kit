@@ -121,7 +121,7 @@ for candidate in \
 	"${CLAUDE_GOAL_FILE:-}" \
 	"${cwd}/.claude/active-goal.${sid_safe}" \
 	"${cwd}/.claude/active-goal" \
-	"${HOME}/.claude/active-goal"; do
+	"${HOME:+${HOME}/.claude/active-goal}"; do
 	[ -n "${candidate}" ] || continue
 	if [ -f "${candidate}" ]; then
 		# A retired candidate is passed over, so an active one further down the
