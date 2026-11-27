@@ -22,6 +22,10 @@ from debrief_common import (  # noqa: E402
     safe_key,
     validate_facet,
 )
+from debrief_diff import (  # noqa: E402
+    build_snapshot,
+    diff_snapshots,
+)
 from debrief_scope import (  # noqa: E402
     build_scope_meta,
     filter_metas_by_sessions,
@@ -379,6 +383,23 @@ def cmd_cache_write(args):
         raise SystemExit(1)
 
 
+def cmd_diff(args):
+    prev_obj = read_json(args.prev)
+    curr_obj = read_json(args.curr)
+    if not isinstance(prev_obj, dict):
+        sys.stderr.write(f"debrief diff: invalid or missing --prev JSON: {args.prev}\n")
+        raise SystemExit(2)
+    if not isinstance(curr_obj, dict):
+        sys.stderr.write(f"debrief diff: invalid or missing --curr JSON: {args.curr}\n")
+        raise SystemExit(2)
+    prev_snap = prev_obj if prev_obj.get("schema_version") and "kpis" in prev_obj else build_snapshot(prev_obj, repo_paths=args.repo, skills_dirs=args.skills_dir)
+    curr_snap = curr_obj if curr_obj.get("schema_version") and "kpis" in curr_obj else build_snapshot(curr_obj, repo_paths=args.repo, skills_dirs=args.skills_dir)
+    res = diff_snapshots(prev_snap, curr_snap, repo_paths=args.repo, skills_dirs=args.skills_dir)
+    if args.out:
+        atomic_write_json(args.out, res)
+    sys.stdout.write(json.dumps(res, indent=2, sort_keys=True) + "\n")
+
+
 def _add_scope_args(parser):
     parser.add_argument("--since", default="")
     parser.add_argument("--days", type=int, default=None)
@@ -440,7 +461,17 @@ def main(argv=None):
                             "feeds the Skill Quality Trends card together with --evals")
     p_agg.add_argument("--trigger-evals", action="append", default=[],
                        help="JSON file or directory of trigger-eval summaries (replay-eval.sh trigger --json-out); never use --evals")
+    p_agg.add_argument("--compare-prev", action="store_true", help="Diff against the most recent saved snapshot for this scope")
+    p_agg.add_argument("--compare", default="", help="Diff against an explicit previous snapshot JSON file")
+    p_agg.add_argument("--reports-dir", default="", help="Override debrief reports dir (for --compare-prev snapshot lookup)")
     p_agg.add_argument("--out", default="")
+
+    p_diff = sub.add_parser("diff")
+    p_diff.add_argument("--prev", required=True, help="Previous snapshot or aggregate JSON")
+    p_diff.add_argument("--curr", required=True, help="Current snapshot or aggregate JSON")
+    p_diff.add_argument("--repo", action="append", default=[])
+    p_diff.add_argument("--skills-dir", action="append", default=[])
+    p_diff.add_argument("--out", default="")
 
     args = ap.parse_args(argv)
     if getattr(args, "aliases", ""):
@@ -453,6 +484,8 @@ def main(argv=None):
         cmd_cache_write(args)
     elif args.cmd == "aggregate":
         cmd_aggregate(args)
+    elif args.cmd == "diff":
+        cmd_diff(args)
 
 
 if __name__ == "__main__":
