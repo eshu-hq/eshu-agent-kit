@@ -87,7 +87,8 @@ arbiters immediately; stop a reviewer when its PR merges or closes.
    (`resolve-review-threads`), and re-query to confirm zero unresolved threads.
 8. Merge only when authorized, checks are stably green (two consecutive reads),
    threads/findings are dispositioned, and local HEAD equals PR head. Run
-   `bash scripts/dev/pre-enqueue-check.sh <pr> <reviewed-head-sha>` before merge
+   `bash .agents/skills/issue-driver/scripts/pr-readiness.sh --pr <pr> --expect-head <sha>`
+   (and `bash scripts/dev/pre-enqueue-check.sh <pr> <reviewed-head-sha>` in Eshu) before merge
    (an authorized merge with clean preliminary + hosted reviews needs no third
    arbiter unless a finding is disputed or a shared contract moved). Verify
    `MERGED` via GitHub API.

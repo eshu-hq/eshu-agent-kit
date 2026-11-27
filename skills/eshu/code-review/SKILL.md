@@ -85,7 +85,8 @@ on untouched paths on the bare base before attributing it to the diff and record
 it as an inherited-breakage disposition ([rebase-verify.md](../session-lifecycle/references/rebase-verify.md)).
 
 ```bash
-# Run from repo root — pre-check PR body shape and select blocking gates for changed paths:
+# Run from repo root — collect diff/surface packet, pre-check PR body shape, and select gates:
+bash .agents/skills/code-review/scripts/review-context.sh --base origin/main --pr <number>
 bash .agents/skills/publish/scripts/check-shape.sh --pr <body-file>
 bash scripts/dev/select-gates.sh --base origin/main --tier pre-pr --explain
 
