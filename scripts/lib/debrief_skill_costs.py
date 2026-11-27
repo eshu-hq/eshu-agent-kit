@@ -24,30 +24,49 @@ from collections import Counter, defaultdict
 from debrief_common import canon_skill, gap_bucket, safe_int  # noqa: E402
 
 
-def load_skill_sizes(kit_root=None):
-    """Map canonical skill name -> SKILL.md byte size under skills/*/*/SKILL.md."""
-    root = kit_root or os.path.abspath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
-    )
-    skills_dir = os.path.join(root, "skills")
+def load_skill_sizes(kit_root=None, skills_dirs=None):
+    """Map canonical skill name -> SKILL.md byte size across flat or layered skill dirs."""
+    roots = []
+    if skills_dirs:
+        roots.extend(os.path.expanduser(str(d)) for d in skills_dirs if str(d).strip())
+    else:
+        env_dirs = (os.environ.get("DEBRIEF_SKILLS_DIRS") or "").strip()
+        if env_dirs:
+            roots.extend(os.path.expanduser(d) for d in env_dirs.split(os.pathsep) if d.strip())
+    if not roots:
+        root = kit_root or os.path.abspath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+        )
+        roots.append(os.path.join(root, "skills"))
+
     sizes = {}
-    if not os.path.isdir(skills_dir):
-        return sizes
-    for layer in sorted(os.listdir(skills_dir)):
-        ldir = os.path.join(skills_dir, layer)
-        if not os.path.isdir(ldir):
+    for sroot in roots:
+        if not os.path.isdir(sroot):
             continue
-        for sname in sorted(os.listdir(ldir)):
-            md = os.path.join(ldir, sname, "SKILL.md")
-            if not os.path.isfile(md):
+        for entry in sorted(os.listdir(sroot)):
+            edir = os.path.join(sroot, entry)
+            if not os.path.isdir(edir):
                 continue
-            sk = canon_skill(sname)
-            if not sk:
+            direct_md = os.path.join(edir, "SKILL.md")
+            if os.path.isfile(direct_md):
+                sk = canon_skill(entry)
+                if sk:
+                    try:
+                        sizes[sk] = os.path.getsize(direct_md)
+                    except OSError:
+                        pass
                 continue
-            try:
-                sizes[sk] = os.path.getsize(md)
-            except OSError:
-                continue
+            for sname in sorted(os.listdir(edir)):
+                md = os.path.join(edir, sname, "SKILL.md")
+                if not os.path.isfile(md):
+                    continue
+                sk = canon_skill(sname)
+                if not sk:
+                    continue
+                try:
+                    sizes[sk] = os.path.getsize(md)
+                except OSError:
+                    continue
     return sizes
 
 
@@ -193,17 +212,69 @@ def attribute_skill_costs(metas, skill_sizes=None):
             bucket["unattributed_errors"] += errs
             continue
 
-        n = len(skills)
-        share_in = tin / n
-        share_out = tout / n
-        share_cr = cr / n
-        share_cw = cw / n
-        share_err = errs / n
-        bucket["attributed_tokens_in"] += tin
-        bucket["attributed_tokens_out"] += tout
-        bucket["attributed_cache_read"] += cr
-        bucket["attributed_cache_write"] += cw
-        bucket["attributed_errors"] += errs
+        raw_pla = meta.get("post_load_attribution")
+        pla = {}
+        if isinstance(raw_pla, dict) and raw_pla:
+            for k, v in raw_pla.items():
+                ck = canon_skill(k)
+                if ck in skills and isinstance(v, dict):
+                    pla[ck] = {
+                        "in": _nonneg_float(v.get("tokens_in")),
+                        "out": _nonneg_float(v.get("tokens_out")),
+                        "cr": _nonneg_float(v.get("tokens_cache_read")),
+                        "cw": _nonneg_float(v.get("tokens_cache_write")),
+                        "err": _nonneg_float(v.get("errors")),
+                    }
+        use_pla = bool(pla) and (
+            sum(v["in"] + v["out"] + v["err"] for v in pla.values()) > 0 or (tin + tout + errs) == 0
+        )
+
+        if use_pla:
+            sum_in = min(tin, sum(v["in"] for v in pla.values()))
+            sum_out = min(tout, sum(v["out"] for v in pla.values()))
+            sum_cr = min(cr, sum(v["cr"] for v in pla.values()))
+            sum_cw = min(cw, sum(v["cw"] for v in pla.values()))
+            sum_err = min(float(errs), sum(v["err"] for v in pla.values()))
+            raw_sum_in = sum(v["in"] for v in pla.values())
+            raw_sum_out = sum(v["out"] for v in pla.values())
+            raw_sum_cr = sum(v["cr"] for v in pla.values())
+            raw_sum_cw = sum(v["cw"] for v in pla.values())
+            raw_sum_err = sum(v["err"] for v in pla.values())
+            scale_in = (sum_in / raw_sum_in) if raw_sum_in > 0 else 0.0
+            scale_out = (sum_out / raw_sum_out) if raw_sum_out > 0 else 0.0
+            scale_cr = (sum_cr / raw_sum_cr) if raw_sum_cr > 0 else 0.0
+            scale_cw = (sum_cw / raw_sum_cw) if raw_sum_cw > 0 else 0.0
+            scale_err = (sum_err / raw_sum_err) if raw_sum_err > 0 else 0.0
+            pre_in, pre_out = max(0.0, tin - sum_in), max(0.0, tout - sum_out)
+            pre_cr, pre_cw = max(0.0, cr - sum_cr), max(0.0, cw - sum_cw)
+            pre_err = max(0.0, float(errs) - sum_err)
+            bucket["attributed_tokens_in"] += sum_in
+            bucket["attributed_tokens_out"] += sum_out
+            bucket["attributed_cache_read"] += sum_cr
+            bucket["attributed_cache_write"] += sum_cw
+            bucket["attributed_errors"] += sum_err
+            unattributed["tokens_in"] += pre_in
+            unattributed["tokens_out"] += pre_out
+            unattributed["tokens_cache_read"] += pre_cr
+            unattributed["tokens_cache_write"] += pre_cw
+            unattributed["errors"] += pre_err
+            bucket["unattributed_tokens_in"] += pre_in
+            bucket["unattributed_tokens_out"] += pre_out
+            bucket["unattributed_cache_read"] += pre_cr
+            bucket["unattributed_cache_write"] += pre_cw
+            bucket["unattributed_errors"] += pre_err
+        else:
+            n = len(skills)
+            share_in = tin / n
+            share_out = tout / n
+            share_cr = cr / n
+            share_cw = cw / n
+            share_err = errs / n
+            bucket["attributed_tokens_in"] += tin
+            bucket["attributed_tokens_out"] += tout
+            bucket["attributed_cache_read"] += cr
+            bucket["attributed_cache_write"] += cw
+            bucket["attributed_errors"] += errs
 
         raw_gaps = [
             float(g) for g in (meta.get("response_gaps") or [])
@@ -227,11 +298,19 @@ def attribute_skill_costs(metas, skill_sizes=None):
         for skill in skills:
             row = per_skill[skill]
             row["sessions"] += 1
-            row["attributed_tokens_in"] += share_in
-            row["attributed_tokens_out"] += share_out
-            row["attributed_cache_read"] += share_cr
-            row["attributed_cache_write"] += share_cw
-            row["attributed_errors"] += share_err
+            if use_pla:
+                pv = pla.get(skill) or {"in": 0.0, "out": 0.0, "cr": 0.0, "cw": 0.0, "err": 0.0}
+                row["attributed_tokens_in"] += pv["in"] * scale_in
+                row["attributed_tokens_out"] += pv["out"] * scale_out
+                row["attributed_cache_read"] += pv["cr"] * scale_cr
+                row["attributed_cache_write"] += pv["cw"] * scale_cw
+                row["attributed_errors"] += pv["err"] * scale_err
+            else:
+                row["attributed_tokens_in"] += share_in
+                row["attributed_tokens_out"] += share_out
+                row["attributed_cache_read"] += share_cr
+                row["attributed_cache_write"] += share_cw
+                row["attributed_errors"] += share_err
             if bearing:
                 row["token_bearing_sessions"] += 1
             if raw_gaps:
@@ -281,7 +360,7 @@ def attribute_skill_costs(metas, skill_sizes=None):
             "tokens_out": round(unattributed["tokens_out"], 2),
             "tokens_cache_read": round(unattributed["tokens_cache_read"], 2),
             "tokens_cache_write": round(unattributed["tokens_cache_write"], 2),
-            "errors": unattributed["errors"],
+            "errors": round(unattributed["errors"], 2),
         },
         "totals": {
             "sessions": totals["sessions"],
@@ -293,9 +372,7 @@ def attribute_skill_costs(metas, skill_sizes=None):
         },
         "mined_skills": dict(mined_skills),
         "caveats": [
-            "Token/error shares split each session's tokens_in, tokens_out, "
-            "and error count equally among its own distinct canonical "
-            "skills; sessions with no loaded skill land in unattributed.",
+            "Post-load attribution credits tokens and errors only to skills already loaded at each turn (pre-load work and skill-free sessions land in unattributed); legacy metas fall back to equal-split.",
             "Tokens are mined across Claude (assistant usage + cache), agy "
             "(PLANNER_RESPONSE input/output/cache_read), and Muse (main-session "
             "model_completed usage, falling back to subagent runtime_observed). "

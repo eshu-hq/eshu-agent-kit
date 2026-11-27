@@ -2,7 +2,7 @@
 """Claude Code transcript extractor + native ~/.claude/usage-data/facets importer."""
 import os
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 
 from debrief_common import (
     META_SCHEMA_VERSION,
@@ -203,6 +203,11 @@ def extract_session(path, mtime=0.0):
     tokens_out = 0
     tokens_cache_read = 0
     tokens_cache_write = 0
+    post_in = defaultdict(float)
+    post_out = defaultdict(float)
+    post_cr = defaultdict(float)
+    post_cw = defaultdict(float)
+    post_err = defaultdict(float)
 
     user_prompts = []
     interjection_reasons = Counter()
@@ -237,6 +242,7 @@ def extract_session(path, mtime=0.0):
             tokens_cache_write += cw_tok
             tokens_cache_read += cr_tok
             tokens_out += out_tok
+            turn_in = inp_tok + cw_tok + cr_tok
             txt_parts = []
             blocks = msg.get("content")
             for block in (blocks if isinstance(blocks, list) else []):
@@ -280,6 +286,13 @@ def extract_session(path, mtime=0.0):
                             git_commits += 1
                         if re.search(r"\bgit\s+push\b", cmd):
                             git_pushes += 1
+            if skill_loads and (turn_in or out_tok):
+                n_sk = float(len(skill_loads))
+                for sk in skill_loads:
+                    post_in[sk] += turn_in / n_sk
+                    post_out[sk] += out_tok / n_sk
+                    post_cr[sk] += cr_tok / n_sk
+                    post_cw[sk] += cw_tok / n_sk
             joined = truncate_text(" ".join(txt_parts), 280)
             if joined:
                 assistant_tail.append(joined)
@@ -306,6 +319,10 @@ def extract_session(path, mtime=0.0):
                     if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
                         tool = use_id_to_tool.get(str(block.get("tool_use_id") or ""), "unknown")
                         errors[tool] += 1
+                        if skill_loads:
+                            share = 1.0 / float(len(skill_loads))
+                            for sk in skill_loads:
+                                post_err[sk] += share
                         etxt = _block_text(block.get("content"))
                         error_cats[categorize_error(tool, etxt)] += 1
                         if len(error_samples) < 8:
@@ -367,6 +384,16 @@ def extract_session(path, mtime=0.0):
         "tokens_cache_read": tokens_cache_read,
         "tokens_cache_write": tokens_cache_write,
         "turns_after_skill_load": turns_after_skill_load,
+        "post_load_attribution": {
+            sk: {
+                "tokens_in": round(post_in[sk], 2),
+                "tokens_out": round(post_out[sk], 2),
+                "tokens_cache_read": round(post_cr[sk], 2),
+                "tokens_cache_write": round(post_cw[sk], 2),
+                "errors": round(post_err[sk], 2),
+            }
+            for sk in sorted(skill_loads)
+        } if skill_loads else {},
         "interjection_reasons": dict(interjection_reasons),
     }
     digest = {

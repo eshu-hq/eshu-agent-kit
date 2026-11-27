@@ -219,5 +219,37 @@ assert "For You (Habits &amp; Prompting)" in html_pb and "For Your Agents (Skill
 assert "Runaway &amp; High-Friction Threads" in html_sh and "mega-1" in html_sh and "90.0%" in html_sh
 PYEOF
 
+# 7. Eshu-agnostic config (DEBRIEF_DATA_DIR, --aliases, --skills-dir) and post-load attribution.
+mkdir -p "${work}/custom-skills/my-review" "${work}/standalone-data"
+printf -- '---\nname: my-review\ndescription: Custom standalone skill.\n---\n%s\n' "$(printf 'x%.0s' {1..400})" >"${work}/custom-skills/my-review/SKILL.md"
+printf 'alias-rev\tmy-review\n' >"${work}/custom-aliases.tsv"
+mkdir -p "${work}/standalone-home/.claude/projects/-Users-bob-code-webapp"
+cat >"${work}/standalone-home/.claude/projects/-Users-bob-code-webapp/s1.jsonl" <<'EOF'
+{"type":"user","timestamp":"2026-11-25T14:00:00Z","message":{"role":"user","content":"Fix failing build"}}
+{"type":"assistant","timestamp":"2026-11-25T14:00:05Z","message":{"role":"assistant","usage":{"input_tokens":5000,"output_tokens":500,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"content":[{"type":"tool_use","id":"e1","name":"Bash","input":{"command":"make test"}}]}}
+{"type":"user","timestamp":"2026-11-25T14:00:10Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"e1","is_error":true,"content":"build failed"}]}}
+{"type":"assistant","timestamp":"2026-11-25T14:00:20Z","message":{"role":"assistant","usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"content":[{"type":"tool_use","id":"s1","name":"Skill","input":{"skill":"alias-rev"}}]}}
+{"type":"assistant","timestamp":"2026-11-25T14:00:30Z","message":{"role":"assistant","usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"content":[{"type":"text","text":"Reviewed cleanly."}]}}
+EOF
+
+HOME="${work}/standalone-home" DEBRIEF_DATA_DIR="${work}/standalone-data" \
+	bash "${DEBRIEF}" prepare --since 2026-11-20 --max-new 0 --aliases "${work}/custom-aliases.tsv" >/dev/null &&
+	HOME="${work}/standalone-home" DEBRIEF_DATA_DIR="${work}/standalone-data" \
+		bash "${DEBRIEF}" aggregate --since 2026-11-20 --aliases "${work}/custom-aliases.tsv" --skills-dir "${work}/custom-skills" --out "${work}/standalone-agg.json" >/dev/null &&
+	python3 - "${work}/standalone-agg.json" "${work}/standalone-data" <<'PYEOF' && ok "standalone DEBRIEF_DATA_DIR/--aliases/--skills-dir and post-load attribution isolate pre-load errors/tokens" || no "standalone DEBRIEF_DATA_DIR/--aliases/--skills-dir and post-load attribution isolate pre-load errors/tokens"
+import json, os, sys
+agg = json.load(open(sys.argv[1]))
+assert os.path.isdir(os.path.join(sys.argv[2], "debrief-cache")), "DEBRIEF_DATA_DIR not honored"
+sc = agg["skill_costs"]
+by_sk = {r["skill"]: r for r in sc["per_skill"]}
+assert "my-review" in by_sk, by_sk
+mr = by_sk["my-review"]
+assert mr["attributed_tokens_in"] == 2000.0 and mr["attributed_tokens_out"] == 200.0, mr
+assert mr["attributed_errors"] == 0.0, f"pre-load error leaked onto late-loaded skill: {mr}"
+assert mr["estimated_context_tax_tokens"] > 0, mr
+assert sc["unattributed"]["tokens_in"] == 5000.0 and sc["unattributed"]["errors"] == 1.0, sc["unattributed"]
+assert abs(mr["attributed_tokens_in"] + sc["unattributed"]["tokens_in"] - sc["totals"]["tokens_in"]) < 0.01
+PYEOF
+
 printf '\ndebrief-insights: %d passed, %d failed\n' "${passed}" "${failed}"
 [ "${failed}" -eq 0 ]

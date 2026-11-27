@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 
-META_SCHEMA_VERSION = 3
+META_SCHEMA_VERSION = 4
 FIXTURE_SESSIONS = frozenset({"abcdefghijkl", "ses9"})
 FIXTURE_SESSION_RE = re.compile(r"^t[0-9]{4,}$")
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -52,16 +52,24 @@ def xdg_data_home():
     return os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
 
 
+def default_data_dir():
+    override = (os.environ.get("DEBRIEF_DATA_DIR") or "").strip()
+    if override:
+        return os.path.expanduser(override)
+    app = (os.environ.get("DEBRIEF_APP_NAME") or "eshu-agent-kit").strip() or "eshu-agent-kit"
+    return os.path.join(xdg_data_home(), app)
+
+
 def default_cache_dir():
-    return os.path.join(xdg_data_home(), "eshu-agent-kit", "debrief-cache")
+    return os.path.join(default_data_dir(), "debrief-cache")
 
 
 def default_reports_dir():
-    return os.path.join(xdg_data_home(), "eshu-agent-kit", "debrief-reports")
+    return os.path.join(default_data_dir(), "debrief-reports")
 
 
 def default_usage_log():
-    return os.path.join(xdg_data_home(), "eshu-agent-kit", "skills-usage.jsonl")
+    return os.path.join(default_data_dir(), "skills-usage.jsonl")
 
 
 def is_fixture_session(sid):
@@ -69,11 +77,13 @@ def is_fixture_session(sid):
     return s in FIXTURE_SESSIONS or bool(FIXTURE_SESSION_RE.match(s))
 
 
-def load_aliases():
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "templates", "repo-overlay", "eshu-aliases.tsv")
+def load_aliases(path=None):
+    target = (path or os.environ.get("DEBRIEF_ALIASES_FILE") or "").strip()
+    if not target:
+        target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "..", "..", "templates", "repo-overlay", "eshu-aliases.tsv")
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(target, encoding="utf-8") as fh:
             out = {}
             for line in fh:
                 s = line.strip()
@@ -88,6 +98,14 @@ def load_aliases():
 
 
 ALIASES = load_aliases()
+
+
+def configure_aliases(path):
+    """Reload global ALIASES from an explicit TSV path (for standalone / repo-agnostic use)."""
+    global ALIASES
+    if path:
+        ALIASES = load_aliases(path)
+    return ALIASES
 
 
 def canon_skill(name):

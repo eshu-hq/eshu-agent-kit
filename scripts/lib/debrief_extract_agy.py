@@ -5,7 +5,7 @@ import os
 import re
 import sqlite3
 import urllib.parse
-from collections import Counter
+from collections import Counter, defaultdict
 
 from debrief_common import (
     META_SCHEMA_VERSION,
@@ -182,6 +182,10 @@ def extract_session(path, mtime=0.0, db_cache=None):
     tokens_in = 0
     tokens_out = 0
     tokens_cache_read = 0
+    post_in = defaultdict(float)
+    post_out = defaultdict(float)
+    post_cr = defaultdict(float)
+    post_err = defaultdict(float)
     nesting = int(smeta.get("nesting_depth") or 0)
     max_depth = nesting
 
@@ -261,11 +265,21 @@ def extract_session(path, mtime=0.0, db_cache=None):
                             "role": role[:60],
                             "objective": truncate_text(_unquote(args.get("Prompt") or ""), 160),
                         })
+            if skill_loads and ((inp_tok + cr_tok) or out_tok):
+                n_sk = float(len(skill_loads))
+                for sk in skill_loads:
+                    post_in[sk] += (inp_tok + cr_tok) / n_sk
+                    post_out[sk] += out_tok / n_sk
+                    post_cr[sk] += cr_tok / n_sk
         elif rtype == "GENERIC":
             tname = pending[pending_idx] if pending_idx < len(pending) else "unknown"
             pending_idx += 1
             if rec.get("error") or rec.get("status") in ("ERROR", "INVALID"):
                 errors[tname] += 1
+                if skill_loads:
+                    share = 1.0 / float(len(skill_loads))
+                    for sk in skill_loads:
+                        post_err[sk] += share
                 err_txt = str(rec.get("error") or rec.get("output") or rec.get("status") or "")
                 error_cats[categorize_error(tname, err_txt)] += 1
                 if len(error_samples) < 8:
@@ -334,6 +348,16 @@ def extract_session(path, mtime=0.0, db_cache=None):
         "tokens_cache_read": tokens_cache_read,
         "tokens_cache_write": 0,
         "turns_after_skill_load": turns_after_skill_load,
+        "post_load_attribution": {
+            sk: {
+                "tokens_in": round(post_in[sk], 2),
+                "tokens_out": round(post_out[sk], 2),
+                "tokens_cache_read": round(post_cr[sk], 2),
+                "tokens_cache_write": 0.0,
+                "errors": round(post_err[sk], 2),
+            }
+            for sk in sorted(skill_loads)
+        } if skill_loads else {},
         "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
