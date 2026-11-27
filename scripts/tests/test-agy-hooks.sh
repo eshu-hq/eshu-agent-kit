@@ -3,9 +3,10 @@
 #
 # agy speaks camelCase JSON on stdin and JSON on stdout; the kit siblings
 # under .claude/hooks block with exit 2 + stderr, which agy does not read.
-# So every adapter must translate in and out, print EXACTLY ONE JSON object
+# So every adapter must translate in and out, print at most one JSON object
 # and exit 0 -- including on garbage input, a missing sibling and a missing
-# python3. Neutral is `{}`; "allow" is never emitted (agy defines it as an
+# python3. Neutral is EMPTY stdout (live: agy 1.5.18 treats a PreToolUse `{}` as
+# a deny); "allow" is never emitted (agy defines it as an
 # automatic approval that would bypass the user's permission prompts).
 #
 # Cases run the real command string from the installed .agents/hooks.json
@@ -93,7 +94,7 @@ run() {
 one_json() { # stdout is exactly one JSON object
 	python3 -c 'import json,sys; sys.exit(0 if isinstance(json.loads(sys.stdin.read()), dict) else 1)' <<<"${out}" 2>/dev/null
 }
-is_neutral() { [ "${out}" = "{}" ] && [ "${rc}" -eq 0 ]; }
+is_neutral() { [ -z "${out}" ] && [ "${rc}" -eq 0 ]; }
 quiet_neutral() { [ ! -s "${LOG}" ] && is_neutral; }
 reason_has() { field reason | rg -q -- "$1"; }
 reason_lacks() { ! reason_has "$1"; }
@@ -115,8 +116,7 @@ PY
 # 1. PostToolUse: a SKILL.md read records one agy skill-load and the marker.
 fresh
 run skill-loaded "$(pl agy-posttool-read.json)"
-check "skill read prints one JSON object and exits 0" one_json
-check "skill read prints {} (never allow)" is_neutral
+check "skill read is empty (never allow)" is_neutral
 check "skill read logs one agy skill-load event" test "$(ev_count skill-load golang-engineering)" = 1
 check "skill read writes the shared marker" test -f "/tmp/claude-skill-loaded-${sid12}-golang-engineering"
 check "skill-load event session is the conversation id prefix" rg -q "\"session\": \"${sid12}\"" "${LOG}"
@@ -133,7 +133,7 @@ check "a JSON-quoted Path counts" test "$(ev_count skill-load code-review)" = 1
 for p in '"/w/src/main.go"' '"/w/skills/publish/README.md"' '"/w/skills/SKILL.md"' '"/w/notskills/x/SKILL.md"'; do
 	fresh
 	run skill-loaded "$(pl agy-posttool-read.json "d['toolCall']['args']['Path'] = ${p}")"
-	check "non-skill read ${p} logs nothing and prints {}" quiet_neutral
+	check "non-skill read ${p} logs nothing and prints nothing" quiet_neutral
 done
 fresh
 run skill-loaded "$(pl agy-posttool-read.json 'd["toolCall"]["name"] = "edit_file"')"
@@ -199,13 +199,13 @@ check "a non-NO_TOOL_CALL stop is neutral" is_neutral
 run goal-continue "$(pl agy-stop.json 'del d["continuationActive"]')"
 check "missing continuationActive (agy < 1.5.6) is neutral" is_neutral
 CLAUDE_GOAL_MAX_NUDGES=0 run goal-continue "$(pl agy-stop.json)"
-check "an exhausted budget releases with {}" is_neutral
+check "an exhausted budget releases with empty output" is_neutral
 printf 'DONE\nFinished.\n' >"${goalf}"
 run goal-continue "$(pl agy-stop.json)"
-check "a DONE goal releases with {}" is_neutral
+check "a DONE goal releases with empty output" is_neutral
 rm -f "${goalf}"
 run goal-continue "$(pl agy-stop.json)"
-check "no goal releases with {}" is_neutral
+check "no goal releases with empty output" is_neutral
 
 # 5b. Turn id: minted when continuationActive is false, reused while true.
 printf 'SESSION: %s\nFinish the migration.\n' "${sid}" >"${goalf}"
@@ -220,12 +220,12 @@ c="$(nfiles)"
 check "continuationActive true reuses the turn id; false starts a new one" test "${a}/${b}/${c}" = "1/1/2"
 rm -f "${goalf}"
 
-# 6. Failure safety: every path prints one JSON object, exit 0, nothing denied.
+# 6. Failure safety: every path exits 0 and prints no verdict (never a deny).
 fresh
 for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
 	for junk in 'garbage' '' '[]' '{"toolCall":"x"}' 'null'; do
 		run "${w}" "${junk}"
-		check "${w}: payload '${junk}' -> neutral {}" is_neutral
+		check "${w}: payload '${junk}' -> neutral (empty)" is_neutral
 	done
 done
 repo2="${work}/repo2"
@@ -237,9 +237,21 @@ out="$(cd "${repo2}/.agents" && pl agy-pretool-edit.json | sh -c "$(hook_cmd "${
 rc=$?
 check "a missing .claude sibling is neutral" is_neutral
 rm -f "${repo2}/.agy/hooks/skill-nudge.sh"
-out="$(cd "${repo2}/.agents" && pl agy-pretool-edit.json | sh -c "$(hook_cmd "${repo2}" skill-nudge)" 2>/dev/null)"
+# From a file, not a pipe: the fallback exits without reading stdin, and a pipe
+# writer would die of SIGPIPE under pipefail.
+pl agy-pretool-edit.json >"${work}/missing-wrapper.json"
+out="$(cd "${repo2}/.agents" && sh -c "$(hook_cmd "${repo2}" skill-nudge)" <"${work}/missing-wrapper.json" 2>/dev/null)"
 rc=$?
-check "a missing wrapper prints {} from the hooks.json command itself" is_neutral
+check "a missing wrapper prints nothing from the hooks.json command itself" is_neutral
+for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
+	rm -rf "${work}/nolib" && mkdir -p "${work}/nolib/lib" && cp "${repo}/.agy/hooks/${w}.sh" "${work}/nolib/${w}.sh"
+	# A file, not a pipe: the wrapper exits without reading stdin, and a pipe
+	# writer would die of SIGPIPE under pipefail.
+	pl agy-pretool-edit.json >"${work}/nolib/payload.json"
+	out="$("${work}/nolib/${w}.sh" <"${work}/nolib/payload.json" 2>/dev/null)"
+	rc=$?
+	check "${w}: a lib/ without agy-root.sh prints nothing and exits 0" is_neutral
+done
 nopy="${work}/nopy"
 mkdir -p "${nopy}"
 for t in bash sh cat dirname rm mkdir mktemp env; do ln -sf "$(command -v "${t}")" "${nopy}/${t}"; done
@@ -287,7 +299,7 @@ exec(sys.argv[2])
 json.dump(doc, open(p, "w"))
 ' "${r}" "$2"
 	case "${3:-}" in rm | stub) rm -f "${r}/.claude/hooks/skill-loaded.sh" ;; esac
-	[ "${3:-}" != libstub ] || { rm -f "${r}/.agy/hooks/lib/agy-root.sh" && printf '#!/bin/sh\nagy_run() { printf "{}\\n"; exit 0; }\n' >"${r}/.agy/hooks/lib/agy-root.sh"; }
+	[ "${3:-}" != libstub ] || { rm -f "${r}/.agy/hooks/lib/agy-root.sh" && printf '#!/bin/sh\nagy_run() { exit 0; }\n' >"${r}/.agy/hooks/lib/agy-root.sh"; }
 	[ "${3:-}" != stub ] || { printf '#!/bin/sh\nexit 0\n' >"${r}/.claude/hooks/skill-loaded.sh" && chmod +x "${r}/.claude/hooks/skill-loaded.sh"; }
 	[ -z "${4:-}" ] || sed -i.bk "$4" "${r}/.agents/hooks.json"
 	pl agy-posttool-read.json 'd["cwd"] = "'"${r}"'"; d["workspacePaths"] = ["'"${r}"'"]' | KIT_GLOBAL_HOOK=1 "${repo}/.agy/hooks/skill-loaded.sh" >/dev/null 2>&1

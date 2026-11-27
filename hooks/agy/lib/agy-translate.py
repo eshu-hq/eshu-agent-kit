@@ -8,12 +8,13 @@ on stdout, so each adapter translates in and out:
   agy-translate.py in  <kind>   agy payload on stdin -> sibling payload on
       stdout; nothing when the event is not applicable (a non-SKILL.md read,
       an unguarded tool, a Stop that is not a plain turn end, ...), which the
-      wrapper turns into the neutral `{}`.
+      wrapper turns into the neutral empty reply.
   agy-translate.py out <kind> <rc> <stdout-file> <stderr-file>
       sibling result -> the agy verdict JSON object on stdout.
 
 kind: skill-loaded | skill-nudge | guard-live-gate | goal-continue. Never
-raises: failure prints nothing (in) or `{}` (out). "allow" is never produced
+raises: failure prints nothing (in) or `{}` (out; agy_run turns that into
+empty output). "allow" is never produced
 (agy defines it as an automatic approval).
 """
 import json

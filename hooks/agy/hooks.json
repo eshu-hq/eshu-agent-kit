@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "h=../.agy/hooks/skill-nudge.sh; [ -x \"$h\" ] || { printf '{}'; exit 0; }; exec \"$h\"",
+            "command": "h=../.agy/hooks/skill-nudge.sh; [ -x \"$h\" ] || exit 0; exec \"$h\"",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "h=../.agy/hooks/guard-live-gate.sh; [ -x \"$h\" ] || { printf '{}'; exit 0; }; exec \"$h\"",
+            "command": "h=../.agy/hooks/guard-live-gate.sh; [ -x \"$h\" ] || exit 0; exec \"$h\"",
             "timeout": 10
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "h=../.agy/hooks/skill-loaded.sh; [ -x \"$h\" ] || { printf '{}'; exit 0; }; exec \"$h\"",
+            "command": "h=../.agy/hooks/skill-loaded.sh; [ -x \"$h\" ] || exit 0; exec \"$h\"",
             "timeout": 10
           }
         ]
@@ -37,7 +37,7 @@
     "Stop": [
       {
         "type": "command",
-        "command": "h=../.agy/hooks/goal-continue.sh; [ -x \"$h\" ] || { printf '{}'; exit 0; }; exec \"$h\"",
+        "command": "h=../.agy/hooks/goal-continue.sh; [ -x \"$h\" ] || exit 0; exec \"$h\"",
         "timeout": 30
       }
     ]
