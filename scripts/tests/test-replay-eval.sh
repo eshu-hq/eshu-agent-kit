@@ -3,7 +3,7 @@
 # Tests mine (muse/claude/agy/all), unlocked skills, blind_traj & unbiased
 # rubric_score, strip-proof gate (incl. skill_count), replay-runner.sh dry-run
 # & output parsers, trajectory expectations & sweet-spot warning, blind judge
-# verdict parser, report --json-out contract, and committed starter evals.
+# verdict parser, report --json-out contract. Starter suites: test-eval-suites.sh.
 set -uo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -152,7 +152,7 @@ raw = json.dumps(pairs).lower()
 for bad in ("with-skill", "without-skill", "with_skill", "without_skill", '"skill_count"', '"mode"', '"arm"'):
     assert bad not in raw, f"leaked {bad}: {raw}"
 assert all("cache_read_tokens" in p["traj_a"] and "wall_time_s" in p["traj_a"] and "cost_usd" in p["traj_a"] for p in pairs)
-assert seal["meta"] == {"skill": "code-review", "harness": "claude"}, seal
+assert len(seal["meta"].pop("skill_sha")) == 64 and seal["meta"] == {"skill": "code-review", "harness": "claude"}, seal
 assert set(seal["arms"]) == {"p0", "p1"}, seal
 PYEOF
 
@@ -290,6 +290,7 @@ expected_keys = {
     "with_skill_wins", "win_rate", "noise_band", "aa_pairs",
     "pass_rate_with", "pass_rate_without", "cost_delta_in",
     "cost_delta_out", "latency_delta_s", "recorded_at",
+    "tool_calls_delta", "tool_errors_delta", "tool_pairs", "skill_sha", "kind",
 }
 assert set(s) == expected_keys, set(s) ^ expected_keys
 assert s["skill"] == "performance-rigor" and s["harness"] == "agy"
@@ -298,6 +299,7 @@ assert s["noise_band"] == 0.0 and s["aa_pairs"] == 6
 assert s["pass_rate_with"] == 1.0 and s["pass_rate_without"] == 0.0
 assert s["cost_delta_in"] == 60.0 and s["cost_delta_out"] == 120.0
 assert abs(s["latency_delta_s"] - 2.1) < 0.01
+assert s["tool_calls_delta"] == 2.0 and s["tool_errors_delta"] == -2.0 and s["tool_pairs"] == 3 and s["kind"] == "ablation"
 # Emit flat seal for backward-compat test
 seal = json.load(open(sys.argv[2]))
 json.dump(seal["arms"], open(sys.argv[3], "w"))
@@ -338,37 +340,6 @@ aa = [c for c in vf["comparisons"] if c.get("kind") == "aa"]
 assert aa and any(c["winner"] != "tie" for c in aa), aa
 vt = json.load(open(sys.argv[2]))
 assert vt["comparisons"] and all(c["winner"] == "tie" for c in vt["comparisons"]), vt
-PYEOF
-
-# 10. Starter suites: valid JSON, untainted, AND realistic positive+negative grading (F3).
-python3 -B - "${LIB}" "${KIT_DIR}/evals/code-review.json" "${KIT_DIR}/evals/performance-rigor.json" <<'PYEOF' && ok "starter suites pass positive compliant and fail affirmative bad transcripts" || no "starter suites pass positive compliant and fail affirmative bad transcripts"
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from replay_eval import _taint_scan
-from replay_judge import grade_expectations
-items = {}
-for path in sys.argv[2:]:
-    arr = json.load(open(path))
-    cats = [i["category"] for i in arr]
-    assert len(arr) >= 4 and cats.count("golden") >= 3 and cats.count("edge") >= 1, path
-    for i in arr:
-        assert i.get("prompt") and isinstance(i.get("expectations"), dict) and not _taint_scan({"prompt": i["prompt"], "expectations": i["expectations"]}), i
-        items[i["id"]] = i["expectations"]
-cases = {
-    "code-review-golden-1": ("P1 missing live postgres proof; Verdict: not ready to merge, not LGTM.", "P1 proof postgres; looks ready to merge and LGTM."),
-    "code-review-golden-2": ("P3 derivable count mismatch; P0=0, P1=0, P2-blocking=0, P3=1; never restarts review.", "P3 derivable does not restart; Severity: P0 this is a blocking finding."),
-    "code-review-golden-3": ("Do not ignore bot comments; triage with equal code severity and evidence.", "Treat bot code with severity, or ignore bot comments."),
-    "code-review-edge-1": ("Self-review limitation: process wording changes merge bar.", "Self-review limitation for merge; docs-only so no review needed."),
-    "performance-rigor-golden-1": ("Check accuracy, conflict contention, headroom; do not double workers immediately.", "Accuracy conflict headroom; double workers immediately."),
-    "performance-rigor-golden-2": ("Measure before/after with commit hash; do not infer from query shape or accept the 40% claim.", "Before/after commit query shape; accept the 40% claim."),
-    "performance-rigor-golden-3": ("Gap is 30s, stage is 8s maximum_recoverable so will not meet the 90-second target.", "Gap 30s stage 8s budget; will meet the 90-second target."),
-    "performance-rigor-edge-1": ("Warm vs cold on mismatched resource profile is not directly comparable; relative only, cannot claim the absolute target is met.", "Warm vs cold resource profile relative; directly comparable and absolute target is met."),
-}
-for cid, (good, bad) in cases.items():
-    g = grade_expectations({"transcript": good, "tools": [], "errors": 0}, items[cid])
-    b = grade_expectations({"transcript": bad, "tools": [], "errors": 0}, items[cid])
-    assert g["passed"], f"{cid} good failed: {g}"
-    assert not b["passed"], f"{cid} bad unexpectedly passed: {b}"
 PYEOF
 
 # 11. Built-in runner (claude + muse git-clean isolation F2), judge-harness, F1/F8/F9 checks.

@@ -68,6 +68,10 @@ def default_reports_dir():
     return os.path.join(default_data_dir(), "debrief-reports")
 
 
+def default_eval_history():
+    return os.path.join(default_data_dir(), "replay-eval-history.jsonl")
+
+
 def default_usage_log():
     return os.path.join(default_data_dir(), "skills-usage.jsonl")
 

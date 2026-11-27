@@ -7,6 +7,18 @@ separate trigger precision/recall suite for `replay-eval.sh trigger` (see
 [trigger-evals.md](../docs/guides/trigger-evals.md)); its top-level key is
 `cases`, so it never loads through `--evals`.
 
+## Committed Suites
+
+Ten skills have a suite, each with at least three `golden` items and one
+`edge` item: `code-review`, `performance-rigor`, `golang-engineering`,
+`postgres-rigor`, `diagnostic-rigor`, `correlation-truth`, `executor-preflight`,
+`publish`, `issue-driver`, and `session-lifecycle`. Item ids follow
+`<skill>-golden-N` and `<skill>-edge-N`. `scripts/tests/test-eval-suites.sh`
+lists the ten paths explicitly (never a glob, because `triggers.json` has a
+different shape) and grades a compliant and a violating transcript for every
+item, so a `must_not_mention` pattern that never fires fails the suite. Follow-up
+suite not yet written: `telemetry-coverage-discipline`.
+
 ## Suite Mix (5 / 80 / 15)
 
 Target a balanced eval distribution across three categories:

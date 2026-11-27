@@ -1,0 +1,71 @@
+[
+  {
+    "id": "correlation-truth-golden-1",
+    "category": "golden",
+    "skill": "correlation-truth",
+    "prompt": "A reducer change materializes workloads from a deployment repo. Unit tests pass. A teammate says the work is done and asks what else is needed.",
+    "expectations": {
+      "must_mention": [
+        "positive",
+        "negative",
+        "ambiguous",
+        "graph"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bdone once unit tests pass\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "correlation-truth-golden-2",
+    "category": "golden",
+    "skill": "correlation-truth",
+    "prompt": "A direct graph check shows the right edges, but the service-context API answer disagrees with the repo-context answer. The author wants to ship because the graph is correct.",
+    "expectations": {
+      "must_mention": [
+        "query surface|service context",
+        "repo context",
+        "disagree"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bship it\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "correlation-truth-golden-3",
+    "category": "golden",
+    "skill": "correlation-truth",
+    "prompt": "Controller-only repos must not materialize as services. A fix filters those repos out of the API response and leaves the reducer untouched. Is that acceptable?",
+    "expectations": {
+      "must_mention": [
+        "invariant",
+        "stage|admission|materialization",
+        "actual stage|wrong stage|fix the"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bfilter(?:ing)? (?:it )?in the (?:API|query) output\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "correlation-truth-edge-1",
+    "category": "edge",
+    "skill": "correlation-truth",
+    "prompt": "A correlation fixture changed. Focused Go tests pass, but the compose stack was last rebuilt yesterday, before the final logic patch. The author offers the compose run as evidence.",
+    "expectations": {
+      "must_mention": [
+        "fresh|rebuild",
+        "compose",
+        "stale"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!isn't )\\bstale (?:container|run) is valid evidence\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

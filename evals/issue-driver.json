@@ -1,0 +1,72 @@
+[
+  {
+    "id": "issue-driver-golden-1",
+    "category": "golden",
+    "skill": "issue-driver",
+    "prompt": "You are assigned issue 118 and it has several acceptance criteria. A teammate says to start editing immediately in the main checkout.",
+    "expectations": {
+      "must_mention": [
+        "claim comment",
+        "worktree",
+        "acceptance criteri",
+        "origin/main"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bstart editing (?:now|immediately)\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "issue-driver-golden-2",
+    "category": "golden",
+    "skill": "issue-driver",
+    "prompt": "The PR is open and CI is green on its first read. The owner is away. A teammate says to merge now to keep things moving.",
+    "expectations": {
+      "must_mention": [
+        "unresolved",
+        "thread",
+        "two consecutive|stable",
+        "authoriz"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bmerge (?:it )?now\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "issue-driver-golden-3",
+    "category": "golden",
+    "skill": "issue-driver",
+    "prompt": "You want to dispatch an executor with the work still uncommitted and tell it the worktree is probably at .worktrees/feat-x.",
+    "expectations": {
+      "must_mention": [
+        "commit",
+        "git worktree list --porcelain|verified path",
+        "file list|git diff --name-only"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\bpass(?:ing)? (?:the )?guessed path\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "issue-driver-edge-1",
+    "category": "edge",
+    "skill": "issue-driver",
+    "prompt": "A PR has been open for an hour with no review. Someone proposes requesting a GitHub Copilot review to speed things up.",
+    "expectations": {
+      "must_mention": [
+        "never request|do not request|not request",
+        "Copilot",
+        "triage"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )(?<!don't )\\brequest(?:ing)? (?:a )?(?:GitHub )?Copilot review\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]

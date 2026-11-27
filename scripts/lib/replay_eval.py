@@ -29,6 +29,7 @@ from debrief_common import (  # noqa: E402
     canon_skill, is_fixture_session, load_json_lines,
     safe_float, safe_int, truncate_text,
 )
+from replay_history import skill_sha  # noqa: E402
 
 VALID_HARNESSES = ("muse", "claude", "agy")
 VALID_CATEGORIES = ("golden", "production", "edge")
@@ -261,7 +262,7 @@ def blind_traj(traj):
     """Strip arm identity and skill_count; keep behavior and cost metrics."""
     raw_tools = traj.get("tools")
     tools = [ARM_TOKEN_RE.sub("[arm]", str(t)) for t in raw_tools[:50]] if isinstance(raw_tools, list) else []
-    return {
+    out = {
         "transcript": ARM_TOKEN_RE.sub("[arm]", traj.get("transcript") or ""),
         "tools": tools,
         "errors": max(0, safe_int(traj.get("errors"), 0)),
@@ -271,6 +272,9 @@ def blind_traj(traj):
         "wall_time_s": round(max(0.0, safe_float(traj.get("wall_time_s"), 0.0)), 3),
         "cost_usd": round(max(0.0, safe_float(traj.get("cost_usd"), 0.0)), 6),
     }
+    if isinstance(raw_tools, list):  # absent means unmeasured, not zero
+        out["tool_calls"] = len(raw_tools)
+    return out
 
 
 def cmd_replay(args):
@@ -336,6 +340,7 @@ def cmd_replay(args):
     if not isinstance(evals, list):
         fail("evals file must be a JSON array")
     rng = random.Random()
+    sha_start = skill_sha(kit_dir, skill)
     pairs, arms_map = [], {}
     with tempfile.TemporaryDirectory(prefix="replay-run-") as run_tmp:
         for idx, item in enumerate(evals):
@@ -386,7 +391,12 @@ def cmd_replay(args):
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
     with open(seal, "w", encoding="utf-8") as fh:
-        json.dump({"meta": {"skill": skill, "harness": harness}, "arms": arms_map}, fh, indent=1, sort_keys=True)
+        sha_end = skill_sha(kit_dir, skill)
+        if sha_end != sha_start:
+            print("replay: SKILL.md changed during replay; skill_sha recorded as null", file=sys.stderr)
+            sha_end = None
+        meta = {"skill": skill, "harness": harness, "skill_sha": sha_end}
+        json.dump({"meta": meta, "arms": arms_map}, fh, indent=1, sort_keys=True)
         fh.write("\n")
     print("replay: %d pairs (%d evals, skill=%s, harness=%s, repeats=%d) -> %s" % (
         len(pairs), len(evals), skill, harness, repeats, out))
