@@ -55,6 +55,10 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
 	failing)
 		printf '{"number":42,"state":"OPEN","headRefOid":"%s","headRefName":"feat/test","baseRefName":"main","mergeStateStatus":"UNSTABLE","isDraft":false,"reviewDecision":"CHANGES_REQUESTED","statusCheckRollup":[{"name":"ci/test","status":"COMPLETED","conclusion":"FAILURE"}]}\n' "${GH_STUB_HEAD}"
 		;;
+	gh-error)
+		echo "gh: pull request not found" >&2
+		exit 1
+		;;
 	*)
 		printf '{"number":42,"state":"OPEN","headRefOid":"%s","headRefName":"feat/test","baseRefName":"main","mergeStateStatus":"CLEAN","isDraft":false,"reviewDecision":"APPROVED","statusCheckRollup":[{"name":"ci/test","status":"COMPLETED","conclusion":"SUCCESS"}]}\n' "${GH_STUB_HEAD}"
 		;;
@@ -101,6 +105,13 @@ PYEOF
 	ok "review-context.sh classifies multi-surface diff and PR check rollup"
 else
 	no "review-context.sh classifies multi-surface diff and PR check rollup"
+fi
+
+if ! (cd "${repo}" && PATH="${FAKE_BIN}:${PATH}" GH_STUB_MODE=gh-error GH_STUB_HEAD="${head_sha}" \
+	bash "${REVIEW_CTX}" --base main --pr 999 >/dev/null 2>&1); then
+	ok "review-context.sh fails loudly when gh pr view fails"
+else
+	no "review-context.sh fails loudly when gh pr view fails"
 fi
 
 # 2. threads.sh list filters open threads, refuses MERGED PRs, and exits 3 on truncation.

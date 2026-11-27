@@ -79,7 +79,10 @@ if [ -n "${pr}" ]; then
 		echo "review-context: gh CLI is required for --pr" >&2
 		exit 1
 	fi
-	pr_json="$(gh pr view "${pr}" --json number,state,url,headRefOid,baseRefName,mergeStateStatus,statusCheckRollup,reviewDecision 2>/dev/null || true)"
+	if ! pr_json="$(gh pr view "${pr}" --json number,state,url,headRefOid,baseRefName,mergeStateStatus,statusCheckRollup,reviewDecision)"; then
+		echo "review-context: failed to query PR #${pr} via gh" >&2
+		exit 1
+	fi
 fi
 
 RC_FILES="${changed_files}" RC_NUMSTAT="${numstat}" RC_PR="${pr_json}" \
