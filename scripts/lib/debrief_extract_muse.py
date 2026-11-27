@@ -137,6 +137,10 @@ def extract_session(path, mtime=0.0):
     post_out = defaultdict(float)
     post_cr = defaultdict(float)
     post_cw = defaultdict(float)
+    fb_post_in = defaultdict(float)
+    fb_post_out = defaultdict(float)
+    fb_post_cr = defaultdict(float)
+    fb_post_cw = defaultdict(float)
     post_err = defaultdict(float)
     max_depth = 0
 
@@ -231,10 +235,21 @@ def extract_session(path, mtime=0.0):
                 subagent_runs.append({"role": "subagent", "summary": summ, "error_kind": errk})
         elif pt == "subagent.control.runtime_observed":
             usage = inner.get("usage") if isinstance(inner.get("usage"), dict) else {}
-            fb_tokens_in += max(0, safe_int(usage.get("input_tokens"), 0))
-            fb_tokens_out += max(0, safe_int(usage.get("output_tokens"), 0))
-            fb_cache_read += _usage_cache_read(usage)
-            fb_cache_write += max(0, safe_int(usage.get("cache_write_tokens"), 0))
+            f_in = max(0, safe_int(usage.get("input_tokens"), 0))
+            f_out = max(0, safe_int(usage.get("output_tokens"), 0))
+            f_cr = _usage_cache_read(usage)
+            f_cw = max(0, safe_int(usage.get("cache_write_tokens"), 0))
+            fb_tokens_in += f_in
+            fb_tokens_out += f_out
+            fb_cache_read += f_cr
+            fb_cache_write += f_cw
+            if skill_loads and (f_in or f_out):
+                n_sk = float(len(skill_loads))
+                for sk in skill_loads:
+                    fb_post_in[sk] += f_in / n_sk
+                    fb_post_out[sk] += f_out / n_sk
+                    fb_post_cr[sk] += f_cr / n_sk
+                    fb_post_cw[sk] += f_cw / n_sk
         elif pt == "tool_batch.effect.started":
             cid = inner.get("call_id")
             if cid:
@@ -360,9 +375,11 @@ def extract_session(path, mtime=0.0):
     if has_model_completed:
         tokens_in, tokens_out = mc_tokens_in, mc_tokens_out
         tokens_cache_read, tokens_cache_write = mc_cache_read, mc_cache_write
+        attr_in, attr_out, attr_cr, attr_cw = post_in, post_out, post_cr, post_cw
     else:
         tokens_in, tokens_out = fb_tokens_in, fb_tokens_out
         tokens_cache_read, tokens_cache_write = fb_cache_read, fb_cache_write
+        attr_in, attr_out, attr_cr, attr_cw = fb_post_in, fb_post_out, fb_post_cr, fb_post_cw
     turns_after_skill_load = {
         sk: (
             max(1, model_turns - skill_first_model_turn.get(sk, 1) + 1)
@@ -413,10 +430,10 @@ def extract_session(path, mtime=0.0):
         "turns_after_skill_load": turns_after_skill_load,
         "post_load_attribution": {
             sk: {
-                "tokens_in": round(post_in[sk], 2),
-                "tokens_out": round(post_out[sk], 2),
-                "tokens_cache_read": round(post_cr[sk], 2),
-                "tokens_cache_write": round(post_cw[sk], 2),
+                "tokens_in": round(attr_in[sk], 2),
+                "tokens_out": round(attr_out[sk], 2),
+                "tokens_cache_read": round(attr_cr[sk], 2),
+                "tokens_cache_write": round(attr_cw[sk], 2),
                 "errors": round(post_err[sk], 2),
             }
             for sk in sorted(skill_loads)

@@ -168,9 +168,10 @@ def render_harness_skill_section(agg):
         )
     harness_tok_foot = (
         "Tokens mined across Claude (assistant usage + cache), agy "
-        "(PLANNER_RESPONSE input/output/cache_read), and Muse (main-session "
-        "model_completed, falling back to subagent runtime_observed). Older "
-        "sessions without usage fields report 0. Per-harness rollups are never ranked."
+        "(PLANNER_RESPONSE input/output/cache_read), Muse (model_completed or "
+        "subagent runtime_observed fallback), Codex (token_usage_record / "
+        "token_count), and OpenCode (v2 session_message + v1 step-finish). "
+        "Older sessions without usage fields report 0. Per-harness rollups are never ranked."
     )
 
     has_papercuts = isinstance(agg.get("papercuts"), dict)

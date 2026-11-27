@@ -26,10 +26,12 @@ from debrief_common import (  # noqa: E402
 )
 import debrief_extract_agy as EX_AGY  # noqa: E402
 import debrief_extract_claude as EX_CLAUDE  # noqa: E402
+import debrief_extract_codex as EX_CODEX  # noqa: E402
 import debrief_extract_muse as EX_MUSE  # noqa: E402
+import debrief_extract_opencode as EX_OPENCODE  # noqa: E402
 
 
-def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache):
+def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache, opencode_db_cache=None):
     meta_dir = os.path.join(cache_dir, "meta")
     dig_dir = os.path.join(cache_dir, "digests")
     cand_id = None
@@ -39,6 +41,10 @@ def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache):
         cand_id = os.path.splitext(os.path.basename(path))[0]
     elif harness == "muse":
         cand_id = os.path.basename(os.path.dirname(path))
+    elif harness == "codex":
+        cand_id = EX_CODEX.session_id_from_path(path)
+    elif harness == "opencode":
+        cand_id = EX_OPENCODE.session_id_from_ref(path)
 
     if cand_id:
         key = safe_key(harness, cand_id)
@@ -55,6 +61,10 @@ def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache):
         meta, dig = EX_MUSE.extract_session(path, mtime)
     elif harness == "agy":
         meta, dig = EX_AGY.extract_session(path, mtime, agy_db_cache)
+    elif harness == "codex":
+        meta, dig = EX_CODEX.extract_session(path, mtime)
+    elif harness == "opencode":
+        meta, dig = EX_OPENCODE.extract_session(path, mtime, opencode_db_cache)
     else:
         meta, dig = EX_CLAUDE.extract_session(path, mtime)
 
@@ -71,19 +81,28 @@ def _load_or_extract(harness, path, mtime, cache_dir, agy_db_cache):
 def _discover_all(harnesses, since_epoch, roots_override=None):
     """Return list of (harness, path, mtime) across requested harnesses."""
     items = []
-    valid_roots = [r for r in (roots_override or []) if os.path.isdir(r)] if roots_override else None
+    valid_dirs = [r for r in (roots_override or []) if os.path.isdir(r)] if roots_override else None
+    valid_paths = [r for r in (roots_override or []) if os.path.exists(r)] if roots_override else None
     if "muse" in harnesses:
-        roots = valid_roots if valid_roots is not None else EX_MUSE.default_roots()
+        roots = valid_dirs if valid_dirs is not None else EX_MUSE.default_roots()
         for p, mt in EX_MUSE.discover(roots, since_epoch):
             items.append(("muse", p, mt))
     if "agy" in harnesses:
-        roots = valid_roots if valid_roots is not None else EX_AGY.default_roots()
+        roots = valid_dirs if valid_dirs is not None else EX_AGY.default_roots()
         for p, mt in EX_AGY.discover(roots, since_epoch):
             items.append(("agy", p, mt))
     if "claude" in harnesses:
-        roots = valid_roots if valid_roots is not None else EX_CLAUDE.default_roots()
+        roots = valid_dirs if valid_dirs is not None else EX_CLAUDE.default_roots()
         for p, mt in EX_CLAUDE.discover(roots, since_epoch):
             items.append(("claude", p, mt))
+    if "codex" in harnesses:
+        roots = valid_dirs if valid_dirs is not None else EX_CODEX.default_roots()
+        for p, mt in EX_CODEX.discover(roots, since_epoch):
+            items.append(("codex", p, mt))
+    if "opencode" in harnesses:
+        roots = valid_paths if valid_paths is not None else EX_OPENCODE.default_roots()
+        for p, mt in EX_OPENCODE.discover(roots, since_epoch):
+            items.append(("opencode", p, mt))
     items.sort(key=lambda x: x[2], reverse=True)
     return items
 
@@ -167,14 +186,22 @@ def cmd_prepare(args):
 
     discovered = _discover_all(harnesses, since_ep, args.transcript_root)
     agy_db_cache = {}
+    opencode_db_cache = {}
     metas_by_key = {}
     digests_by_key = {}
-    for h, p, mt in discovered:
-        m, d = _load_or_extract(h, p, mt, cache_dir, agy_db_cache)
-        k = safe_key(h, m["id"])
-        if k not in metas_by_key or mt > float(metas_by_key[k].get("source_mtime") or 0):
-            metas_by_key[k] = m
-            digests_by_key[k] = d
+    try:
+        for h, p, mt in discovered:
+            m, d = _load_or_extract(h, p, mt, cache_dir, agy_db_cache, opencode_db_cache)
+            k = safe_key(h, m["id"])
+            if k not in metas_by_key or mt > float(metas_by_key[k].get("source_mtime") or 0):
+                metas_by_key[k] = m
+                digests_by_key[k] = d
+    finally:
+        for con in opencode_db_cache.values():
+            try:
+                con.close()
+            except Exception:
+                pass
 
     inherit_parent_projects(metas_by_key)
     if args.project:
