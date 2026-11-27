@@ -18,15 +18,21 @@ no() {
 	failed=$((failed + 1))
 }
 
-# 1. papercut lives in skills/core/, debrief is extracted (absent from both tiers), and layer-lint.sh passes with zero T1 hits.
-if [ -f "${KIT_DIR}/skills/core/papercut/SKILL.md" ] &&
+# 1. core skills live in skills/core/, debrief is extracted, and layer-lint.sh passes with zero T1 hits.
+core_skills=(architect correct explain interrogate ketchup papercut show-me-your-work)
+core_present=1
+for s in "${core_skills[@]}"; do
+	if [ ! -f "${KIT_DIR}/skills/core/${s}/SKILL.md" ] || [ -e "${KIT_DIR}/skills/eshu/${s}" ]; then
+		core_present=0
+	fi
+done
+if [ "${core_present}" -eq 1 ] &&
 	[ ! -e "${KIT_DIR}/skills/core/debrief" ] &&
 	[ ! -e "${KIT_DIR}/skills/eshu/debrief" ] &&
-	[ ! -e "${KIT_DIR}/skills/eshu/papercut" ] &&
 	bash "${KIT_DIR}/scripts/layer-lint.sh" >/dev/null; then
-	ok "papercut lives in skills/core/, debrief is extracted, and layer-lint.sh passes"
+	ok "core skills live in skills/core/, debrief is extracted, and layer-lint.sh passes"
 else
-	no "papercut lives in skills/core/, debrief is extracted, and layer-lint.sh passes"
+	no "core skills live in skills/core/, debrief is extracted, and layer-lint.sh passes"
 fi
 
 # 2. install.sh --skills --repo links core skills cleanly and preserves external debrief symlinks.
@@ -36,16 +42,24 @@ mkdir -p "${repo}/.agents/skills" "${ext_debrief}"
 printf -- '---\nname: debrief\ndescription: standalone\n---\n' >"${ext_debrief}/SKILL.md"
 ln -sfn "${ext_debrief}" "${repo}/.agents/skills/debrief"
 git -C "${repo}" init -q -b main
-if bash "${KIT_DIR}/install.sh" --skills --repo "${repo}" </dev/null >/dev/null 2>&1 &&
-	[ -L "${repo}/.agents/skills/papercut" ] &&
-	target="$(readlink "${repo}/.agents/skills/papercut")" &&
-	[ "${target%/}" = "${KIT_DIR}/skills/core/papercut" ] &&
+links_ok=1
+if bash "${KIT_DIR}/install.sh" --skills --repo "${repo}" </dev/null >/dev/null 2>&1; then
+	for s in "${core_skills[@]}"; do
+		if [ ! -L "${repo}/.agents/skills/${s}" ] ||
+			[ "$(readlink "${repo}/.agents/skills/${s}" | sed 's|/$||')" != "${KIT_DIR}/skills/core/${s}" ]; then
+			links_ok=0
+		fi
+	done
+else
+	links_ok=0
+fi
+if [ "${links_ok}" -eq 1 ] &&
 	[ -L "${repo}/.agents/skills/debrief" ] &&
 	ext_target="$(readlink "${repo}/.agents/skills/debrief")" &&
 	[ "${ext_target%/}" = "${ext_debrief}" ]; then
-	ok "install.sh --skills --repo links core skills and preserves external debrief symlink"
+	ok "install.sh --skills --repo links all core skills and preserves external debrief symlink"
 else
-	no "install.sh --skills --repo links core skills and preserves external debrief symlink"
+	no "install.sh --skills --repo links all core skills and preserves external debrief symlink"
 fi
 
 # 3. file-papercut.sh honors PAPERCUT_REPO override outside any git remote.

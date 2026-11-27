@@ -8,15 +8,14 @@ personal configuration, external word dictionary, or writing linter.
 ## Audience
 
 Every surface this skill produces — chat replies, commits, PRs, issues,
-review comments, and owner reports — addresses a project manager or director:
-an intelligent reader who may not share the author's technical vocabulary.
-Write in plain natural language. Never leave jargon unexplained: the first
-time a technical term appears, say what it means in ordinary words, then use
-the term consistently. When the reader must weigh options or compare before
-against after, use a table. When the reader must follow a sequence,
-dependency, or flow, use a diagram. Plain wording fills the required Shape
-structure (lead line, glance table, `<details>` folding, confidence tags);
-it never replaces it.
+review comments, and owner reports — addresses a capable colleague who may be
+unfamiliar with this subsystem. Write in plain spoken language without talking
+down. Never leave jargon unexplained: the first time a technical term appears,
+say what it means in ordinary words, then use the term consistently. When the
+reader must weigh options or compare before against after, use a table. When
+the reader must follow a sequence, dependency, or flow, use a small diagram.
+Plain wording fills the required Shape structure (lead line, glance table,
+`<details>` folding, confidence tags); it never replaces it.
 
 ## Keep the claim
 

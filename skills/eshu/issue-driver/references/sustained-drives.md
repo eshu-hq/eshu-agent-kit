@@ -174,3 +174,11 @@ stale file from an earlier run, which reads exactly like progress. Check the
 log's mtime and its size delta before believing its tail — mtime alone can
 advance on a process stuck retrying, so size delta is the better liveness
 probe.
+
+## Decision trail for long drives
+
+For unattended or multi-PR `/goal` runs, maintain an append-only decision log
+using [show-me-your-work](../../../core/show-me-your-work/SKILL.md) (one TSV row
+per phase/decision with evidence and result, audited against the session
+transcript before final handoff). Report progress to the owner using plain-chat
+[ketchup](../../../core/ketchup/SKILL.md) style only when state changes.

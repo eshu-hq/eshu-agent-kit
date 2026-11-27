@@ -50,12 +50,18 @@ If part of the work remains, comment on the issue with what remains.
 ## Status comment
 
 Put the state first: `Done`, `Working`, `Blocked`, or `Needs a decision`. Then
-the reason in one sentence and the next step.
+state the reason in plain spoken English (no unexplained jargon) and the single
+next step. Never mark an item `Done` while it still waits on the owner.
 
 Use `Needs a decision` only after the arbiter route cannot settle the question,
-or for an act that only the owner can authorize. Say so plainly and give your
-recommendation. Otherwise report `Done` or `Working` and record the arbiter
-verdict.
+or for an act that only the owner can authorize. Make the comment decidable on
+its own: state the call, your recommendation, what changes, the evidence, and
+the risk (even when low). Otherwise report `Done` or `Working` and record the
+arbiter verdict.
+
+For multi-thread status lists, prefix each item with one controlled tag:
+`[merged #N]`, `[open PR #N]`, `[in flight <branch>]`, `[verified, uncommitted]`,
+`[reverted #N]`, or `[planned]`.
 
 ## Resume note or handoff
 

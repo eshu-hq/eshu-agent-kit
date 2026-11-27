@@ -73,6 +73,45 @@ bans. Keep necessary conditions together even when the sentence is longer. Use
 consistent names for technical concepts without forcing every ordinary verb to
 have only one synonym. Avoiding padding must not remove useful technical detail.
 
+## Anti-slop checks
+
+Scan finished prose for these concrete tells before sending, and cut or rewrite
+them when they weaken clarity (when a rule makes a sentence worse, fix it another
+way or leave it alone):
+
+- **Concrete words over filler.** Use "use", not "utilize" or "leverage"; say
+  "is" or "has", not "serves as", "stands as", "boasts", or "features". Replace
+  abstract metaphor nouns (`substrate`, `wedge`, `vector`, `nexus`, `scaffolding`,
+  `paradigm`, `ratchet`, `north star`, `flywheel`) with the real thing.
+- **No AI vocabulary or fluff.** Cut `additionally`, `crucial`, `delve`,
+  `enhance`, `foster`, `landscape`, `pivotal`, `showcase`, `testament`,
+  `underscore`, `vibrant`, trailing `-ing` padding (`"highlighting..."`,
+  `"ensuring..."`), `"not just X, but Y"`, forced triples, and vague attributions.
+- **No chatbot wrappers.** Drop praise or agreement openers and closers (`"Great
+  question"`, `"I hope this helps"`, `"Let me know if..."`), decorative emojis,
+  and generic conclusions.
+- **Specificity test.** Say what it does, not how it feels. Name the mechanism
+  or the number, and cut any sentence that could appear unchanged in another
+  project's docs.
+
+## Candor and epistemic labels
+
+- **No is an acceptable answer.** When asked whether to do something, add scope,
+  or adopt an approach, give your real judgment. Agreement is not the default.
+- **Label every claim's footing.** Attach evidence or an explicit label
+  (`measured`/`Proven`, `inferred`, or `guess`/`NOT_CHECKED`) to technical claims
+  in chat replies as well as reports. Never hand the human a check you could run.
+
+## Mode lock and ambiguity checks
+
+- **One doc, one mode (Diátaxis).** Keep tutorials (learning by doing), how-to
+  guides (steps to a goal), reference (dry facts), and explanation (why, history,
+  tradeoffs) separate. Opinion belongs in explanation and nowhere else.
+- **Zero-ambiguity instructions.** Put the warning or condition before the step
+  it guards. Never use `"simply"`, `"easy"`, or `"quickly"` in a procedure. Keep
+  `"only"` and `"not"` next to the word they modify, and never use `"this"` or
+  `"which"` to point vaguely at an entire preceding clause.
+
 ## Instructions and artifact formats
 
 Write actionable steps with clear conditions and completion checks. Preserve
@@ -94,9 +133,10 @@ observability, security, or authorization requirements.
 
 ## License notice
 
-The guidance above is adapted from `writing-for-agents` in
-[mattpocock/skills](https://github.com/mattpocock/skills). Its license text
-follows.
+The document-organization guidance above is adapted from `writing-for-agents` in
+[mattpocock/skills](https://github.com/mattpocock/skills), and the anti-slop,
+candor, and mode-lock rules adapt `unslop` and `technical-writing` from `pstack`
+(MIT License, Copyright (c) poteto). Both are MIT-licensed; the MIT text follows.
 
 ```text
 MIT License

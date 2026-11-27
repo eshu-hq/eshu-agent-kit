@@ -24,6 +24,11 @@ as timeout budget, query shape, missing schema/index, backend fallback,
 transaction validation, retry/idempotency behavior, stale image, or ambient
 backend work before patching.
 
+For large captured profiles, traces, or JSONL logs, dump samples/frames/events
+into a temporary SQLite table (or delegate parsing to a read-only subagent) and
+query hot frames, retainers, and blocked waits instead of reading raw dumps into
+the main context window.
+
 ## Common Eshu Reducer Lessons
 
 - Queue wait alone is not proof that more concurrency helps.

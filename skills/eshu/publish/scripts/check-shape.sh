@@ -115,6 +115,12 @@ function flush(   first, w, len) {
   t = line
   gsub(/`[^`]*`/, "", t)
   if (t ~ /REPLACE:/) replace++
+  if (!infence && !indet) {
+    low = tolower(t)
+    if (low ~ /(i hope this helps|let me know if|great question|happy to help)/) slop_chat++
+    if (low ~ /(^|[^a-z])(delve|tapestry|testament|pivotal|vibrant|flywheel|north star)([^a-z]|$)/) slop_vocab++
+    if (low ~ /not just .* but /) slop_contrast++
+  }
   t = line
   sub(/^[ \t]+/, "", t)
   if (infence) {
@@ -181,6 +187,9 @@ END {
     if (!accept) fail("acceptance", "no ## Acceptance criteria heading")
   }
   if (replace > 0) warn("placeholder", replace " line(s) still contain REPLACE:; fill or delete them")
+  if (slop_chat > 0) warn("slop", slop_chat " line(s) contain chatbot filler (I hope this helps / Let me know if); cut it")
+  if (slop_vocab > 0) warn("slop", slop_vocab " line(s) contain AI buzzwords (delve/pivotal/testament/flywheel/north star); use concrete words")
+  if (slop_contrast > 0) warn("slop", slop_contrast " line(s) use not-just-X-but-Y framing; state the point directly")
   if (fails == 0) print "OK shape check passed (" mode ")"
   exit (fails > 0)
 }

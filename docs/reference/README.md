@@ -9,17 +9,18 @@ index files.
 
 |  | Count | Lives in | Loads via |
 | --- | --- | --- | --- |
-| Skills | 21 | `skills/eshu/` | Claude Code plugin, or `install.sh` on any harness |
+| Eshu skills | 21 | `skills/eshu/` | Claude Code plugin, or `install.sh` on any harness |
+| Core skills | 7 | `skills/core/` | Claude Code plugin, or `install.sh` on any harness |
 | Subagent roles | 10 | `agents/` (source: `agents/roles.json`) | `install.sh --agents` |
 | Hooks | 8 | `hooks/` | Plugin via `hooks/hooks.json`, or `install.sh --hooks` plus manual wiring |
 | Path-scoped rules | 12 | `rules/` | `install.sh --rules` (Claude Code) |
 | Process docs | 16 | `docs/eshu/` | Linked from the skills that cite them |
 
-All 22 skills live in `skills/eshu/` today, written for Eshu-family
-repos. `skills/core/` exists but is empty. A skill only moves there
-after it passes the portability tests in
-[skills/registry.md](../../skills/registry.md), which is also the
-rename and layer map. Don't assume a generically named skill is
+Twenty-one skills live in `skills/eshu/`, written for Eshu-family repos, and
+seven portable skills live in `skills/core/` (`architect`, `correct`,
+`explain`, `interrogate`, `ketchup`, `papercut`, `show-me-your-work`).
+See [skills/registry.md](../../skills/registry.md) for the layer rules,
+portability tests, and rename map. Don't assume a generically named skill is
 portable — check the registry.
 
 ## Harness support

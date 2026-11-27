@@ -111,5 +111,6 @@ backup.
 
 - Never `git stash` to clean a tree for removal. The stash stack is shared
   across every worktree; you will corrupt a concurrent agent's parked work.
-- Never delete a worktree belonging to a goal that is not yours. Scope
-  discipline applies to disk as much as to code.
+- Never delete a worktree belonging to a goal that is not yours, or a sibling
+  repro/experiment worktree held by an active or pinned chat. Scope discipline
+  applies to disk as much as to code.

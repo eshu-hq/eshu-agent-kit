@@ -34,6 +34,12 @@ Before proposing or implementing a non-trivial change, MUST identify:
 
 ## Workflow
 
+0. **Separate before serializing shared state.** Before designing a lock, lease,
+   or CAS loop, check whether concurrent actors need to share the target at all.
+   Prefer per-actor isolation (partitioned conflict domains, separate files,
+   branches, or worktrees) merged on read. "We need a lock" is a smell to check
+   first, and prose instructions are never concurrency control. Serialize
+   structurally only when a single shared writer is a real domain invariant.
 1. Draw the sequence. Include producers, queues, leases, workers, graph/Postgres
    writes, retries, acknowledgements, and downstream consumers.
 2. List contested resources at the resource level, not just service level:

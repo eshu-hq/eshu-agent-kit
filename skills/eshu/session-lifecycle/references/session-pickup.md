@@ -71,7 +71,9 @@ turn after context compaction.
 
 Your report must contain:
 
-- worktree path, branch, HEAD SHA
+- worktree path, branch, HEAD SHA, and one controlled status tag (`[merged #N]`,
+  `[open PR #N]`, `[in flight <branch>]`, `[verified, uncommitted]`,
+  `[reverted #N]`, or `[planned]`)
 - base comparison, any rebase result, and whether the tree is clean
 - inherited artifacts verified and new checks run, with evidence locations
 - acceptance criteria already satisfied versus still open

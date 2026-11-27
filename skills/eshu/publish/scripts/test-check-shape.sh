@@ -349,6 +349,17 @@ expect "placeholder: unfilled template warns" 0 "WARN placeholder" pr "${tmp}/tp
 expect_not "placeholder: filled text is quiet" 0 "WARN placeholder" pr "${good}"
 printf 'Every placeholder starts with `REPLACE:`.\n' | with placeholder-mention
 expect_not "placeholder: a mention in inline code is quiet" 0 "WARN placeholder" pr "${tmp}/placeholder-mention.md"
+printf 'I hope this helps! Let me know if you need anything.\n' | with slop-chat
+expect "slop: chatbot filler warns" 0 "WARN slop" pr "${tmp}/slop-chat.md"
+printf 'This pivotal flywheel is a testament to our north star.\n' | with slop-vocab
+expect "slop: AI buzzwords warn" 0 "WARN slop" pr "${tmp}/slop-vocab.md"
+printf 'This is not just faster, but cleaner.\n' | with slop-contrast
+expect "slop: not-just-but warns" 0 "WARN slop" pr "${tmp}/slop-contrast.md"
+printf 'Mentioning `delve` in inline code stays quiet.\n' | with slop-inline-code
+expect_not "slop: buzzword in inline code is quiet" 0 "WARN slop" pr "${tmp}/slop-inline-code.md"
+printf '```text\nThis pivotal flywheel is inside a code fence.\n```\n' | with slop-fence
+expect_not "slop: buzzword inside a code fence is quiet" 0 "WARN slop" pr "${tmp}/slop-fence.md"
+expect_not "slop: clean fixture is quiet" 0 "WARN slop" pr "${good}"
 printf '```text\nnever closed\n' | with unclosed-fence
 expect "fence: unclosed fence warns" 0 "WARN fence" pr "${tmp}/unclosed-fence.md"
 printf '<details>\n<summary>x</summary>\n' | with unclosed-details
