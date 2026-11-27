@@ -6,7 +6,8 @@
 # --runner), blind-judge A/B pairs with trajectory grading, and report win rate,
 # noise band, pass rates, cost delta, and latency delta.
 #
-# Subcommands: mine | replay | judge | report (see --help on each).
+# Subcommands: mine | replay | judge | report | trigger (see --help on each).
+# `trigger` scores description trigger precision/recall (docs/guides/trigger-evals.md).
 # Nothing in this harness runs in CI by design.
 set -euo pipefail
 
@@ -15,13 +16,14 @@ LIB="${SCRIPT_DIR}/lib"
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: bash scripts/replay-eval.sh <mine|replay|judge|report> [options...]
+Usage: bash scripts/replay-eval.sh <mine|replay|judge|report|trigger> [options...]
 
 Examples:
   bash scripts/replay-eval.sh mine --harness all --skill code-review --top-steered --out evals.json
   bash scripts/replay-eval.sh replay --evals evals/code-review.json --skill code-review --harness claude --out pairs.json --seal seal.json --repeats 3
   bash scripts/replay-eval.sh judge --runs pairs.json --judge-harness claude --out verdict.json
   bash scripts/replay-eval.sh report --verdict verdict.json --seal seal.json --json-out summary.json
+  bash scripts/replay-eval.sh trigger --suite evals/triggers.json --harness rubric --json-out trigger.json
 EOF
 }
 
@@ -43,6 +45,9 @@ mine | replay)
 	;;
 judge | report)
 	exec python3 -B "${LIB}/replay_judge.py" "${cmd}" "$@"
+	;;
+trigger)
+	exec python3 -B "${LIB}/replay_trigger.py" "$@"
 	;;
 -h | --help)
 	usage

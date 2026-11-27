@@ -8,6 +8,7 @@ Task walkthroughs. Each assumes you've done
 | [Install and configure](install-and-configure.md) | You need a specific installer mode, harness, or model choice |
 | [Pin a product repo](pin-a-product-repo.md) | You're adding the kit to a product repo, or upgrading its pin |
 | [Replay evals](replay-evals.md) | You're measuring whether a skill changes agent outcomes |
+| [Trigger evals](trigger-evals.md) | You're measuring whether a skill's description makes agents load it |
 
 For the loop these tasks serve, see [Concepts](../concepts/README.md).
 For tables, see [Reference](../reference/README.md).
