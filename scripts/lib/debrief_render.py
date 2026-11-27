@@ -18,6 +18,7 @@ from debrief_insights import (  # noqa: E402
     render_repo_activity_section,
     render_skill_recommendations_card,
 )
+from debrief_changepoints import render_changepoint_card  # noqa: E402
 from debrief_diff import build_snapshot, save_snapshot  # noqa: E402
 from debrief_pareto import render_pareto_card  # noqa: E402
 from debrief_radar import render_diff_accountability_card, render_radar_card  # noqa: E402
@@ -285,6 +286,8 @@ def render_html(agg, syn):
   </div>
 
   {render_diff_accountability_card(agg)}
+
+  {render_changepoint_card(agg)}
 
   {render_radar_card(agg)}
 

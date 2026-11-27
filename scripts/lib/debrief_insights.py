@@ -156,7 +156,7 @@ def interjection_reason_stats(top_metas, all_metas):
     )
 
 
-def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_reasons, days_active=14, pareto=None):
+def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_reasons, days_active=14, pareto=None, changepoints=None):
     """Generate evidence-backed Create / Modify / Remove skill recommendations."""
     recs = []
     seen = set()
@@ -168,7 +168,8 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
         seen.add(key)
         recs.append({"action": action, "target": target, "reason": reason, "suggestion": suggestion})
 
-    # 0. PARETO: surface HEAD version regressions and strictly dominated portfolio skills first.
+    cp_skills = (changepoints or {}).get("skills") or {} if isinstance(changepoints, dict) else {}
+    pareto_dom_by_skill = {}
     if isinstance(pareto, dict):
         for reg in pareto.get("head_regressions") or []:
             peers = ", ".join(reg.get("dominated_by") or [])
@@ -179,13 +180,10 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
                 f"Revert to {peers} or beat its quality/cost/friction frontier before keeping this edit.",
             )
         for dom in pareto.get("portfolio_dominated") or []:
-            peers = ", ".join(dom.get("dominated_by") or [])
-            add(
-                "modify",
-                dom.get("skill") or "",
-                f"Strictly Pareto-dominated in {dom.get('stratum')} ({dom.get('quality_source')}) by {peers} (eff={dom.get('effectiveness'):.2f}, ov={dom.get('overhead_per_load', 0)/1e6:.2f}M/load, fric={dom.get('friction_per_load'):.2f}).",
-                f"Trim overhead or reduce friction to reach the frontier defined by {peers}.",
-            )
+            dsk = dom.get("skill") or ""
+            if dsk in cp_skills and cp_skills[dsk].get("verdict") in ("awaiting_data", "improved"):
+                continue
+            pareto_dom_by_skill[dsk] = dom
 
     # 1. MODIFY: existing skills with concrete quality, overhead, nudge, error, redirect, or eval issues.
     used_skills = set()
@@ -197,29 +195,49 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
         loads = mined + safe_int(row.get("hook_loads"), 0)
         if loads > 0:
             used_skills.add(sk)
+        cp_info = cp_skills.get(sk)
+        cp_note = ""
+        if cp_info:
+            if cp_info.get("verdict") == "awaiting_data":
+                # Edited recently inside the window with <3 post-edit sessions: do not nag from stale pre-edit history.
+                continue
+            post = cp_info.get("post") or {}
+            if safe_int(post.get("loads"), 0) >= 3:
+                mined = safe_int(post.get("loads"), 0)
+                sha_lbl = cp_info.get("edited_sha") or str(cp_info.get("edited_at") or "")[:10]
+                cp_note = f" (post-edit since {sha_lbl}, {mined} sess)"
+                row = dict(row)
+                if post.get("forced_pct") is not None:
+                    row["forced_pct"] = post["forced_pct"]
+                if post.get("errors_per_session") is not None:
+                    row["error_rate_per_session"] = post["errors_per_session"]
+                if post.get("redirects_per_session") is not None:
+                    row["redirect_interjections"] = round(post["redirects_per_session"] * mined)
+                if post.get("overhead_per_load") is not None:
+                    row["estimated_context_tax_tokens"] = post["overhead_per_load"] * mined
         reasons = []
         suggestions = []
         is_review_diag = sk in _REVIEW_DIAGNOSTIC_SKILLS
         fp = row.get("forced_pct")
         if fp is not None and safe_int(row.get("hook_loads"), 0) >= 3 and safe_float(fp, 0.0) >= 25.0:
-            reasons.append(f"{fp}% nudged loads")
+            reasons.append(f"{fp}% nudged loads{cp_note}")
             suggestions.append("tighten frontmatter description trigger keywords")
         tax = safe_float(row.get("estimated_context_tax_tokens"), 0.0)
         if tax >= 50_000_000:
             sz = safe_int((skill_sizes or {}).get(sk), 0)
             sz_note = f" (SKILL.md is {sz / 1024.0:.1f} KB)" if sz > 0 else ""
-            reasons.append(f"{_fmt_tok(tax)} skill overhead tokens{sz_note}")
+            reasons.append(f"{_fmt_tok(tax)} skill overhead tokens{sz_note}{cp_note}")
             suggestions.append("trim SKILL.md and move detailed tables/procedures into references/")
         err_rate = safe_float(row.get("error_rate_per_session"), 0.0)
-        if not is_review_diag and mined >= 5 and err_rate >= 2.0:
-            reasons.append(f"{err_rate:.2f} errors/session")
+        if not is_review_diag and mined >= 3 and err_rate >= 2.0:
+            reasons.append(f"{err_rate:.2f} errors/session{cp_note}")
             suggestions.append("add explicit verification commands and recovery steps")
         if safe_int(row.get("papercut_open"), 0) > 0:
             reasons.append(f"{safe_int(row.get('papercut_open'), 0)} open papercut issue(s)")
             suggestions.append("resolve open papercut issues tied to this skill")
         redirs = safe_int(row.get("redirect_interjections"), 0)
-        if not is_review_diag and mined >= 5 and redirs >= 5 and (redirs / float(mined)) >= 0.30:
-            reasons.append(f"{redirs} goal-redirect interjections ({redirs / float(mined):.2f}/sess)")
+        if not is_review_diag and mined >= 3 and redirs >= 3 and (redirs / float(mined)) >= 0.30:
+            reasons.append(f"{redirs} goal-redirect interjections ({redirs / float(mined):.2f}/sess){cp_note}")
             suggestions.append("add a concise pre-flight checklist so the agent stays on goal")
         wr = row.get("eval_win_rate")
         nb = row.get("eval_noise_band")
@@ -242,6 +260,11 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
             elif wr_f <= 0.5 or wr_f <= nb_f:
                 reasons.append(f"A/B win rate {round(wr_f * 100)}% (±{round(nb_f * 100)}% noise) inconclusive")
                 suggestions.append("sharpen skill instructions or expand eval edge cases")
+        dom = pareto_dom_by_skill.get(sk)
+        if dom:
+            peers = ", ".join(dom.get("dominated_by") or [])
+            reasons.append(f"Pareto-dominated by {peers}")
+            suggestions.append(f"trim overhead or reduce friction to match {peers}")
         if reasons:
             add("modify", sk, "; ".join(reasons) + ".", "; ".join(dict.fromkeys(suggestions)).capitalize() + ".")
 
