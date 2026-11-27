@@ -172,29 +172,28 @@ unlike Muse one-entry-per-tool. Read this before opting in:
 ### Global install for OpenCode (machine-wide, opt-in)
 
 OpenCode has no shell-hook lifecycle: behavior ships as a small JavaScript
-plugin on its event bus instead. `./install.sh --hooks --global opencode`
+V2 server plugin (`{ id, setup(context) }`) instead. `./install.sh --hooks --global opencode`
 copies one generated file,
 `~/.config/opencode/plugins/eshu-bridge.js` (auto-discovered, no settings
-merge), with this checkout's path baked in. The bridge translates OpenCode
-events into the same sibling envelopes the Muse wrappers use, then runs the
-shared bash scripts — the hook logic stays in one copy per event. Every
-mapping below was verified live against OpenCode 1.19.6 with a real model,
-not just fixtures; the verification record lives on issue #46.
+merge), with this checkout's path baked in. The bridge translates OpenCode V2
+hooks and events into the same sibling envelopes the other harnesses use, then
+runs the shared bash scripts with `KIT_HARNESS=opencode` — the hook logic stays
+in one copy per event. Every mapping below was verified live against OpenCode
+v2.4.0.
 
-| Kit hook | OpenCode event | Status |
+| Kit hook | OpenCode V2 hook / event | Status |
 |---|---|---|
-| goal-refresh plus resume note | `chat.message` appends the restated goal as a text part | Shipped, verified live |
-| stop-failure note | `session.error` records a note on terminal provider failure | Shipped, verified live |
-| on-compact warning | `experimental.session.compacting` appends the warning to the compaction context | V1-only (bridge is a V1 plugin; does not load on the v2 host) — see #97 (V2 port); live firing still unobserved (was #54, now tracked by #97) |
-| skill-nudge, live-gate blocks | throwing in `tool.execute.before` blocks the call and the session survives, but V1 omits the command text the guard and nudge decide on | Designed, not built |
-| issue-capture | same missing command text: the extractor cannot tell a create from a read | Designed, not built |
+| goal-refresh plus resume note | `session.hook("prompt")` appends the restated goal to `input.prompt.text` | Shipped on V2, verified live |
+| stop-failure note | `event.subscribe` (`session.execution.failed` / `session.error`) records a note on terminal provider failure | Shipped on V2, verified live |
+| on-compact warning | `session.hook("compaction")` pushes the warning text block to `input.system` | Shipped on V2, verified live |
+| skill-loaded markers | `tool.hook("execute.after")` records `skill` tool and `SKILL.md` reads with `KIT_HARNESS=opencode` | Shipped on V2, verified live |
+| skill-nudge, live-gate blocks | `tool.hook("execute.before")` enforcement (future adapter) | Designed, not built |
+| issue-capture | `tool.hook("execute.after")` bash issue capture (future adapter) | Designed, not built |
 | doc-staleness | global hooks never execute repo code, so the checker no-ops by rule | Not applicable |
-| skill-loaded markers | OpenCode has no skill-load event to observe | Not applicable |
 
-A plugin file must carry exactly one export: the default plugin function.
-V1 silently skips files with extra named exports, with no error logged, so
-the bridge keeps every helper module-local and the tests drive it through
-the default export.
+The plugin uses Node builtins only (zero external `@opencode/plugin` package
+import required) and default-exports `{ id: "eshu-bridge", setup(context) }`
+returning an async cleanup disposer. All handlers fail open and never throw.
 
 - **Trust model.** The plugin is in-process code, so the global bridge shells
   out only to this kit checkout, never to repo code. Sibling writes stay
@@ -336,16 +335,16 @@ fixture session ids then pollute every later debrief. Export
 `ESHU_SKILLS_TELEMETRY_OFF=1` for such runs; the suites already run hermetic
 and need no change.
 
-**Coverage.** Hook telemetry (`skills-usage.jsonl`) exists on Claude, Muse
-and, once the `agy` hooks above are installed, Antigravity; neither Codex nor
-OpenCode exposes a skill-load event. When agy sessions appear in a window
-with no agy hook event at all, the debrief says so in `not_tracked` (agy
-hooks are opt-in). Transcript mining covers Claude, Muse, and
-Antigravity (`agy`), including `agy` skill loads (`read_file`/`view_file`
-reads of `SKILL.md`), tool mix, errors, response gaps, subagents, models,
-and workspace projects; Codex and OpenCode remain labeled exclusions, never
-ranked. Multi-machine: each machine writes its own log;
-`scripts/debrief.sh aggregate --log a.jsonl --log b.jsonl` merges them.
+**Coverage.** Hook telemetry (`skills-usage.jsonl`) covers all five harnesses:
+Claude, Muse, Antigravity (`agy`), Codex (`codex/skill-loaded.sh`,
+`codex/skill-nudge.sh`), and OpenCode (V2 `eshu-bridge.js` via
+`tool.hook("execute.after")` and `KIT_HARNESS=opencode`). When a harness's
+sessions appear in a window with no hook events at all, `/debrief` notes that
+hooks are opt-in. Transcript mining covers all five harnesses (Muse, `agy`,
+Claude, Codex, and OpenCode v1+v2), including skill loads, tool mix, errors,
+response gaps, subagents, models, and workspace projects. Multi-machine: each
+machine writes its own log; `scripts/debrief.sh aggregate --log a.jsonl --log b.jsonl`
+merges them.
 
 **Debrief v2 pipeline.** `scripts/debrief.sh` replaces the old single-stage
 text report with a four-subcommand local pipeline:

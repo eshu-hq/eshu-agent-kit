@@ -1,42 +1,32 @@
-// eshu-bridge.js -- OpenCode global hooks bridge (V1 runtime: the `npm i
-// opencode-ai` 1.x line). The default export is the whole plugin: V1 calls
-// it per project and uses the returned hooks.
-//
-// This file intentionally has exactly one export. V1 silently skips plugin
-// files that carry extra named exports, so every helper below is a plain
-// module-local function. The node:test suite drives the default export
-// directly with fixture events and the real bash siblings, which covers
-// the wiring the unit tests would otherwise pin one function at a time.
-// No external imports (node builtins only): a missing package import would
-// break V1 load, and the bridge must never fail a session it cannot help.
+// eshu-bridge.js -- OpenCode global hooks bridge (V2 runtime: opencode v2.x).
+// Default export is a V2 server plugin definition `{ id, setup(context) }`
+// with zero external imports (node builtins only): a missing package import
+// would break plugin load, and the bridge must never fail a session it cannot
+// help.
 //
 // The installer bakes KIT_DIR in and copies this one file to the
-// auto-discovered global plugins dir; the hook logic stays in the shared
-// bash siblings, so there is one copy per event. Every handler fails open
-// and never throws: a throwing prompt hook would block admission, and a
-// throwing retry hook could disturb the decision the bridge never touches.
+// auto-discovered global plugins dir (~/.config/opencode/plugins/); the hook
+// logic stays in the shared bash siblings, so there is one copy per event.
+// Every handler fails open and never throws: a throwing prompt hook would
+// block admission, and a throwing event or tool observer must never disturb
+// the host.
 //
-// Shipped mappings (each proven live against OpenCode 1.19.6):
-//   chat.message -> goal-refresh plus the resume note, appended as a text
-//     part. Firing and mutation verified with a live model.
-//   session.error (event bus) -> stop-failure note on a terminal provider
-//     failure. Firing and payload shape verified live.
-//   experimental.session.compacting -> on-compact warning appended to the
-//     compaction context. Registered without errors; first live firing
-//     still to be observed (tracked in #54).
-// Deliberately not here (see hooks/README.md):
-//   tool.execute.before blocks: V1 tool hooks carry no command text or
-//     file path, and permission.ask stays silent on allowed calls.
-//   tool.execute.after capture: same missing command text.
-//   skill-loaded markers: no skill-load event to observe.
+// Shipped V2 mappings (proven live against opencode v2.4.0):
+//   session.hook("prompt")     -> goal-refresh plus resume note appended to
+//     input.prompt.text.
+//   session.hook("compaction") -> on-compact warning pushed to input.system
+//     as a `{ type: "text", text }` block.
+//   event.subscribe            -> stop-failure note on
+//     `session.execution.failed` (or `session.error`).
+//   tool.hook("execute.after") -> skill-loaded marker + telemetry
+//     (`KIT_HARNESS=opencode`) when the `skill` tool or a `SKILL.md` read
+//     completes.
 import { spawn } from "node:child_process";
 
 // Kit-owned paths are baked in at install time: the global plugin must
 // resolve its siblings without trusting the repo it runs in. ESHU_KIT_DIR
 // overrides the baked path (relocating a checkout without reinstalling,
 // and the node:test suites, which run the template before install).
-// Read per call, not once at load, so a relocated checkout takes effect
-// without restarting the host -- and so tests can point at fixture kits.
 const KIT_DIR = "%%KIT_DIR%%";
 
 function resolveKitDir() {
@@ -44,17 +34,6 @@ function resolveKitDir() {
     typeof process !== "undefined" ? process.env?.ESHU_KIT_DIR : undefined;
   if (typeof override === "string" && override !== "") return override;
   return KIT_DIR;
-}
-
-// Sibling part ids must be unique even for two restatements in the same
-// millisecond, so a counter rides along with the timestamp.
-let partCounter = 0;
-
-function nextPartId() {
-  partCounter = (partCounter + 1) % 1296;
-  return `prt_eshu_bridge_${Date.now().toString(36)}_${partCounter
-    .toString(36)
-    .padStart(2, "0")}`;
 }
 
 // A hung sibling must never stall the in-process host. Tests shrink the
@@ -75,8 +54,6 @@ function joinKit(kitDir, name) {
   return `${dir}/hooks/${name}`;
 }
 
-// The sibling UserPromptSubmit envelope for a goal refresh. An empty cwd
-// takes the sibling have_cwd=0 path (standalone note, still silent).
 function buildPromptEnvelope({ sessionID, text, cwd }) {
   return {
     hook_event_name: "UserPromptSubmit",
@@ -88,9 +65,8 @@ function buildPromptEnvelope({ sessionID, text, cwd }) {
 }
 
 // The sibling StopFailure envelope for a dead turn. Category prefers the
-// numeric provider status (what operators grep for), then the error type
-// or name -- including the V1 nested data.message shape. Anything missing
-// degrades to unknown/empty.
+// numeric provider status, then the V2 error type or name (including nested
+// data.message). Anything missing degrades to unknown/empty.
 function buildStopEnvelope({ sessionID, cwd, error }) {
   const err = error && typeof error === "object" ? error : {};
   const data = err.data && typeof err.data === "object" ? err.data : {};
@@ -109,10 +85,18 @@ function buildStopEnvelope({ sessionID, cwd, error }) {
   };
 }
 
-// Pull the restated goal out of a sibling's stdout. Returns the
-// additionalContext string, or null when there is nothing to add: garbage,
-// empty output, or an envelope without context all mean the prompt passes
-// through untouched.
+function buildSkillLoadedEnvelope({ sessionID, skill, cwd }) {
+  return {
+    hook_event_name: "PostToolUse",
+    tool_name: "Skill",
+    session_id: asText(sessionID),
+    cwd: asText(cwd),
+    tool_input: { skill: asText(skill) },
+  };
+}
+
+// Pull the restated goal or compaction warning out of a sibling's stdout.
+// Returns the additionalContext string, or null when there is nothing to add.
 function extractContext(stdout) {
   if (typeof stdout !== "string" || stdout.trim() === "") return null;
   let parsed;
@@ -126,17 +110,33 @@ function extractContext(stdout) {
   return typeof context === "string" && context !== "" ? context : null;
 }
 
+// Extract a skill name from a completed V2 tool call (`skill` tool or a
+// `read` of `.../<skill-name>/SKILL.md`). Returns "" for all other calls.
+function extractSkillName(event) {
+  const tool = asText(event?.tool).toLowerCase();
+  const input =
+    event?.input && typeof event.input === "object" ? event.input : {};
+  if (tool === "skill") {
+    const raw =
+      asText(input.name) || asText(input.skill) || asText(input.skill_name);
+    return raw.trim();
+  }
+  if (tool === "read" || tool === "read_file" || tool === "view_file") {
+    const fp =
+      asText(input.filePath) || asText(input.file_path) || asText(input.path);
+    const match = fp.match(/(?:^|[/\\])([A-Za-z0-9._-]+)[/\\]SKILL\.md$/);
+    return match ? match[1] : "";
+  }
+  return "";
+}
+
 // Spawn is used instead of execFile's input option: the input is written
 // and the stream closed explicitly, so a stalled stream cannot wedge the
-// host. A timeout kills a hung sibling. Resolves the stdout string on a
-// clean exit, null on any failure -- every sibling exits 0 even when it
-// has nothing to say, so anything else means it never ran properly.
+// host. A timeout kills a hung sibling. Resolves stdout on exit 0, null on
+// any failure.
 function runSibling(kitDir, name, payload) {
   return new Promise((resolve) => {
     let done = false;
-    // Declared before finish runs: the sync spawn-throw path below calls
-    // finish before the timer exists, and clearTimeout on an
-    // uninitialized const would throw a TDZ error instead of resolving.
     let timer;
     const finish = (value) => {
       if (done) return;
@@ -148,6 +148,8 @@ function runSibling(kitDir, name, payload) {
     try {
       child = spawn("/bin/bash", [joinKit(kitDir, name)], {
         stdio: ["pipe", "pipe", "ignore"],
+        env: { ...process.env, KIT_HARNESS: "opencode" },
+        detached: true,
       });
     } catch {
       finish(null);
@@ -156,9 +158,17 @@ function runSibling(kitDir, name, payload) {
     let stdout = "";
     timer = setTimeout(() => {
       try {
-        child.kill("SIGKILL");
+        if (typeof child.pid === "number" && child.pid > 0) {
+          process.kill(-child.pid, "SIGKILL");
+        } else {
+          child.kill("SIGKILL");
+        }
       } catch {
-        // Already gone; finish below reports the failure.
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // Already gone; finish below reports the failure.
+        }
       }
       finish(null);
     }, siblingTimeoutMs());
@@ -166,13 +176,8 @@ function runSibling(kitDir, name, payload) {
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
     });
-    // A stream error with no listener throws into the host: every stream
-    // the child touches ends the run as a silent failure instead.
     child.stdout.on("error", () => finish(null));
     child.on("error", () => finish(null));
-    // An stdin stream error (the child died before reading) is async and
-    // uncaught by the try/catch around write: without this listener it
-    // escapes as an uncaught exception in whoever hosts the plugin.
     child.stdin.on("error", () => finish(null));
     child.on("close", (code) => finish(code === 0 ? stdout : null));
     try {
@@ -184,12 +189,10 @@ function runSibling(kitDir, name, payload) {
   });
 }
 
-async function resolveCwd(resolveDir, sessionID) {
-  // An empty cwd is a valid answer, not an error: the sibling treats a
-  // missing cwd as have_cwd=0 (standalone note, no restatement) or falls
-  // back to its own $PWD for the pin walkup (on-compact.sh), which may
-  // scope to the wrong repo but can never execute repo code -- only
-  // kit-owned hooks run in this process.
+async function resolveCwd(resolveDir, sessionID, preferredDir) {
+  if (typeof preferredDir === "string" && preferredDir !== "") {
+    return preferredDir;
+  }
   try {
     const dir = await resolveDir(sessionID);
     return typeof dir === "string" ? dir : "";
@@ -198,22 +201,19 @@ async function resolveCwd(resolveDir, sessionID) {
   }
 }
 
-// Goal refresh: restate the session goal (plus any pending resume note)
-// into the admitted prompt by appending a fully-formed text part, mirroring
-// the documented files.push pattern. Returns "restated" or "silent".
-async function handleChatMessage(deps, input, output) {
+// Goal refresh (`session.hook("prompt")`): restate the session goal (plus
+// any pending resume note) by appending to `input.prompt.text`.
+async function handlePrompt(deps, input) {
   try {
     if (typeof input?.sessionID !== "string") return "silent";
-    const parts = output?.parts;
-    if (!Array.isArray(parts) || parts.length === 0) return "silent";
-    const texts = parts
-      .filter((p) => p && typeof p.text === "string")
-      .map((p) => p.text);
-    if (texts.length === 0) return "silent";
+    const prompt = input?.prompt;
+    if (!prompt || typeof prompt.text !== "string" || prompt.text === "") {
+      return "silent";
+    }
     const cwd = await resolveCwd(deps.resolveDir, input.sessionID);
     const envelope = buildPromptEnvelope({
       sessionID: input.sessionID,
-      text: texts.join("\n"),
+      text: prompt.text,
       cwd,
     });
     const stdout = await runSibling(
@@ -223,32 +223,22 @@ async function handleChatMessage(deps, input, output) {
     );
     const context = extractContext(stdout);
     if (context === null) return "silent";
-    const first = parts[0];
-    parts.push({
-      type: "text",
-      text: context,
-      messageID: (first && asText(first.messageID)) || asText(input.messageID),
-      sessionID: input.sessionID,
-      id: nextPartId(),
-    });
+    if (prompt.text.includes(context)) return "silent";
+    prompt.text = `${prompt.text}\n\n${context}`;
     return "restated";
   } catch {
     return "silent";
   }
 }
 
-// Compaction guard: after context compaction or resume, loaded skills are
-// gone even when the summary says they were used. Append the sibling's
-// warning to the compaction context so the next turn re-invokes its
-// skills instead of trusting the summary. Returns "appended" or "silent".
-async function handleCompacting(deps, input, output) {
+// Compaction guard (`session.hook("compaction")`): append the on-compact
+// warning to `input.system` as a text block so the post-compaction model
+// re-invokes its skills instead of trusting the summary.
+async function handleCompaction(deps, input) {
   try {
     if (typeof input?.sessionID !== "string") return "silent";
-    if (!output || !Array.isArray(output.context)) return "silent";
+    if (!Array.isArray(input?.system)) return "silent";
     const cwd = await resolveCwd(deps.resolveDir, input.sessionID);
-    // The envelope reuses the UserPromptSubmit shape: on-compact.sh only
-    // reads session_id and cwd and never branches on hook_event_name, so a
-    // dedicated envelope would add a second shape for no behavior.
     const envelope = buildPromptEnvelope({
       sessionID: input.sessionID,
       text: "",
@@ -261,29 +251,49 @@ async function handleCompacting(deps, input, output) {
     );
     const context = extractContext(stdout);
     if (context === null) return "silent";
-    // A resumed session can fire compacting again for the same turn;
-    // repeating the identical warning would only bloat the summary.
-    if (output.context.includes(context)) return "silent";
-    output.context.push(context);
+    if (
+      input.system.some(
+        (block) => block && typeof block.text === "string" && block.text === context,
+      )
+    ) {
+      return "silent";
+    }
+    input.system.push({ type: "text", text: context });
     return "appended";
   } catch {
     return "silent";
   }
 }
 
-// Dead-turn recorder: on a provider error event, write the at-most-once
-// resume note the next prompt picks up. Observes only. Returns "recorded",
-// "ignored", or "silent" when the note could not be written.
-async function handleSessionError(deps, event) {
+// Dead-turn recorder (`session.execution.failed` or `session.error`): write
+// the at-most-once resume note that the next prompt picks up.
+async function handleSessionEvent(deps, sessions, event) {
   try {
-    if (!event || event.type !== "session.error") return "ignored";
-    const props = event.properties || {};
-    if (typeof props.sessionID !== "string") return "ignored";
-    const cwd = await resolveCwd(deps.resolveDir, props.sessionID);
+    if (!event || typeof event !== "object") return "ignored";
+    const data =
+      (event.data && typeof event.data === "object" && event.data) ||
+      (event.properties && typeof event.properties === "object" && event.properties) ||
+      {};
+    const locDir = asText(event.location?.directory);
+    if (event.type === "session.created") {
+      const sid = asText(data.sessionID) || asText(data.info?.id);
+      const dir = locDir || asText(data.info?.directory);
+      sessions.note(sid, dir);
+      return "noted";
+    }
+    if (
+      event.type !== "session.execution.failed" &&
+      event.type !== "session.error"
+    ) {
+      return "ignored";
+    }
+    const sessionID = asText(data.sessionID);
+    if (sessionID === "") return "ignored";
+    const cwd = await resolveCwd(deps.resolveDir, sessionID, locDir);
     const envelope = buildStopEnvelope({
-      sessionID: props.sessionID,
+      sessionID,
       cwd,
-      error: props.error,
+      error: data.error,
     });
     const stdout = await runSibling(
       resolveKitDir(),
@@ -296,65 +306,165 @@ async function handleSessionError(deps, event) {
   }
 }
 
-// Session working directories, learned from session.created events (whose
-// info carries the directory) with the plugin input directory as fallback.
-// The prompt and error events carry no cwd of their own.
-function createSessionDirs() {
+// Skill-load observer (`tool.hook("execute.after")`): record skill markers
+// and `skills-usage.jsonl` events with `KIT_HARNESS=opencode` when a skill
+// tool or `SKILL.md` read completes.
+async function handleToolAfter(deps, event) {
+  try {
+    if (!event || event.status !== "completed") return "ignored";
+    if (typeof event.sessionID !== "string" || event.sessionID === "") {
+      return "ignored";
+    }
+    const skill = extractSkillName(event);
+    if (skill === "") return "ignored";
+    const cwd = await resolveCwd(deps.resolveDir, event.sessionID);
+    const envelope = buildSkillLoadedEnvelope({
+      sessionID: event.sessionID,
+      skill,
+      cwd,
+    });
+    const stdout = await runSibling(
+      resolveKitDir(),
+      "skill-loaded.sh",
+      envelope,
+    );
+    return stdout === null ? "silent" : "recorded";
+  } catch {
+    return "silent";
+  }
+}
+
+// Session working directories learned from `session.created` events, optional
+// `context.session.get`, and finally `context.location.directory`.
+function createSessionDirs(context) {
   const dirs = new Map();
+  const fallbackDir =
+    asText(context?.location?.directory) || asText(context?.directory);
   return {
     note(sessionID, directory) {
       if (
         typeof sessionID === "string" &&
+        sessionID !== "" &&
         typeof directory === "string" &&
         directory !== ""
       ) {
         dirs.set(sessionID, directory);
       }
     },
-    resolve(fallbackDir) {
+    resolve() {
       return async (sessionID) => {
         if (typeof sessionID === "string" && dirs.has(sessionID)) {
           return dirs.get(sessionID);
         }
-        return typeof fallbackDir === "string" ? fallbackDir : "";
+        if (
+          typeof sessionID === "string" &&
+          sessionID !== "" &&
+          typeof context?.session?.get === "function"
+        ) {
+          try {
+            const info = await context.session.get({ sessionID });
+            const dir = asText(info?.directory) || asText(info?.location?.directory);
+            if (dir !== "") {
+              dirs.set(sessionID, dir);
+              return dir;
+            }
+          } catch {
+            // Fall through to location directory.
+          }
+        }
+        return fallbackDir;
       };
     },
   };
 }
 
-export default async (pluginInput) => {
-  const fallbackDir =
-    pluginInput && typeof pluginInput.directory === "string"
-      ? pluginInput.directory
-      : "";
-  const sessions = createSessionDirs();
-  const deps = {
-    resolveDir: sessions.resolve(fallbackDir),
-  };
-  return {
-    event: async ({ event }) => {
+async function safeDispose(handle) {
+  try {
+    if (handle && typeof handle.dispose === "function") {
+      await handle.dispose();
+    }
+  } catch {
+    // Fail open on teardown.
+  }
+}
+
+export default {
+  id: "eshu-bridge",
+  async setup(context) {
+    const sessions = createSessionDirs(context);
+    const deps = { resolveDir: sessions.resolve() };
+    const handles = [];
+    const controller = new AbortController();
+
+    if (typeof context?.session?.hook === "function") {
       try {
-        if (
-          event &&
-          event.type === "session.created" &&
-          event.properties &&
-          event.properties.info
-        ) {
-          sessions.note(
-            event.properties.info.id,
-            event.properties.info.directory,
-          );
-        }
-        await handleSessionError(deps, event);
+        handles.push(
+          await context.session.hook("prompt", async (input) => {
+            await handlePrompt(deps, input);
+          }),
+        );
       } catch {
-        // Fail open: event observation must never break the host.
+        // Fail open: hook registration must not block startup.
       }
-    },
-    "chat.message": async (input, output) => {
-      await handleChatMessage(deps, input, output);
-    },
-    "experimental.session.compacting": async (input, output) => {
-      await handleCompacting(deps, input, output);
-    },
-  };
+      try {
+        handles.push(
+          await context.session.hook("compaction", async (input) => {
+            await handleCompaction(deps, input);
+          }),
+        );
+      } catch {
+        // Fail open.
+      }
+    }
+
+    if (typeof context?.tool?.hook === "function") {
+      try {
+        handles.push(
+          await context.tool.hook("execute.after", async (event) => {
+            await handleToolAfter(deps, event);
+          }),
+        );
+      } catch {
+        // Fail open.
+      }
+    }
+
+    let eventLoop = null;
+    if (typeof context?.event?.subscribe === "function") {
+      eventLoop = (async () => {
+        try {
+          const stream = context.event.subscribe({
+            types: [
+              "session.created",
+              "session.execution.failed",
+              "session.error",
+            ],
+            signal: controller.signal,
+          });
+          if (stream && typeof stream[Symbol.asyncIterator] === "function") {
+            for await (const ev of stream) {
+              await handleSessionEvent(deps, sessions, ev);
+            }
+          }
+        } catch {
+          // Aborted or stream closed; fail open.
+        }
+      })();
+    }
+
+    return async () => {
+      // Allow any already-enqueued terminal event (e.g. session.execution.failed
+      // right before standalone exit) to be picked up before aborting the stream.
+      await new Promise((r) => setTimeout(r, 15));
+      controller.abort();
+      for (const h of handles) await safeDispose(h);
+      if (eventLoop) {
+        try {
+          await eventLoop;
+        } catch {
+          // Ignore teardown errors.
+        }
+      }
+    };
+  },
 };
