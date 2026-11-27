@@ -25,6 +25,11 @@ loaded at all, see [Trigger evals](trigger-evals.md).
    `--query REGEX` to match first prompts, and `--category golden|production|edge`.
    Re-run `mine` as new sessions accrue to refresh production evals.
 
+   Optional suite-building and calibration helpers:
+   - `bash scripts/replay-eval.sh mix --golden-edge evals/<skill>.json --production /tmp/evals-prod.json --total 20 --out /tmp/evals-mix.json` builds a deterministic 5/80/15 suite (warns and tops up from available buckets if a bucket is short).
+   - `bash scripts/replay-eval.sh from-papercut --papercut /tmp/papercut.json --out /tmp/draft.json` converts a papercut record into an unreviewed candidate draft item (`status: "draft"`) for human curation before committing.
+   - `bash scripts/replay-eval.sh calibrate --verdict /tmp/verdict.json --labels /tmp/human-labels.json` scores judge agreement (exact match, Cohen's kappa, and bias skew) against human labels.
+
 2. **Replay prompts in isolated workspaces** (`with-skill` vs `without-skill`):
 
    ```bash
