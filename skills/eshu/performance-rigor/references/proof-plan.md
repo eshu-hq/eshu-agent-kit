@@ -36,6 +36,45 @@ If a rung disproves the hypothesis, record it in the hypothesis ledger and do
 not implement or retain an optimization justified by that hypothesis. A rejected
 hypothesis is a valid result.
 
+## Ordered Optimization Mantras
+
+Try earlier categories before later ones and stop as soon as the target is met:
+
+1. Don't do it (eliminate unnecessary work).
+2. Don't do it again (cache/reuse/deduplicate).
+3. Do it less (batch, narrow scope, push down filters).
+4. Do it later (defer off the critical path).
+5. Do it when nobody is waiting (background/precompute).
+6. Do it concurrently (only after eliminating shared mutation).
+7. Do it cheaper (micro-optimize hot loops and allocations last).
+
+## Benchmark Sanity Check (Explain The Number)
+
+Before reporting or acting on any measured speedup, regression, throughput, or
+latency number, answer all seven questions (missing limiter, untuned baseline,
+or unchecked error/work counts makes the verdict `INCONCLUSIVE`):
+
+1. **Why not double?** Name the concrete limiter from an actual profile or
+   counters during a run (CPU, lock wait, network RTT, DB I/O, GC) — never from
+   reading code alone. Keep timing runs unprofiled and profile separately.
+2. **Was both sides tuned fairly?** Confirm baseline and candidate ran with
+   matched config, warmup, pool sizes, and flags.
+3. **Did it break physical or Amdahl limits?** Check the math against core
+   count, bandwidth, and the fraction of end-to-end time the stage occupies.
+4. **Did it error?** Verify error, retry, and dead-letter counters are zero (a
+   fast error path is not a speedup).
+5. **Does it reproduce?** Run at least 5 alternating A/B trials and report run
+   count, median, and spread (stop if noise exceeds the effect).
+6. **Does it matter end-to-end?** Report the stage's share of total wall time
+   beside any microbenchmark win.
+7. **Did the work actually happen?** Check work-done counters and output hashes
+   to rule out skipped, cached, lazy, or compiler-elided work.
+
+For multi-iteration optimization runs (hillclimb), freeze a sensitivity-proven
+harness first, set both a metric target and a minimum attempt floor (so a noisy
+early run cannot trigger premature stop), test one hypothesis per iteration,
+commit only wins that beat noise and pass correctness, and revert misses cleanly.
+
 ## Timing Proof Rules
 
 A wall-time or ratio gate follows three rules from #7127 PR-3d. The reasoning

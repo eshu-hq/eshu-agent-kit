@@ -1,0 +1,4 @@
+ts	phase	decision	why	evidence	result
+2026-01-01T00:00:00Z	start	goal: migrate storage helper	kickoff	branch feat/example @ abc1234	started
+2026-01-01T00:05:00Z	design	use typed wrapper instead of string map	prevents invalid state combinations	architect sketch	ok
+2026-01-01T00:20:00Z	verify	run unit and race suites	confirm behavior unchanged	go test -race ./... (0 fail)	ok

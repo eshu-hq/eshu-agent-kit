@@ -36,7 +36,10 @@ dispatching it.
 
 Read [proof-plan.md](references/proof-plan.md) to select the acceptance-driven
 proof ladder: theory, exactness or intended delta, applicable concurrency proof,
-and rebuilt-binary bounded replay. Escalate through smaller proofs to a full
+and rebuilt-binary bounded replay — plus the 7-question benchmark sanity check
+("why not double?", tuning parity, physical limits, error counts, alternating
+A/B repeats, end-to-end share, and verifying the work actually ran) and ordered
+optimization mantras. Escalate through smaller proofs to a full
 corpus only when required by acceptance or the scope of the claim. Never waive
 required evidence or infer production wall time from query shape alone.
 

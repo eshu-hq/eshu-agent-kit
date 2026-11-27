@@ -51,7 +51,8 @@ Three pieces carry that loop:
   [hooks/README.md](../../hooks/README.md) has the full table.
 
 `publish` is the last pass: issue bodies, PR descriptions, and status
-notes written so the next reader needs no other context.
+notes written so the next reader needs no other context. Portable cross-cutting
+habits live in [Engineering principles](engineering-principles.md).
 
 ## Boundaries
 

@@ -40,6 +40,8 @@ Trace the changed flow before judging it:
 | Generated, cassette, golden, or manifest | Prove source-of-truth regeneration path, watcher coverage, stale deletion behavior, and consumer readback. |
 | Queue, worker, retry, or concurrent write | Prove idempotency key, conflict domain, claim/lock ordering, duplicate delivery, retry scope, dead-letter behavior, and contention impact. |
 | Declared contract (env var, client dial, port, listener, flag) | Name the live reader, server, or listener for every declared setting, dial, and port the diff adds or enables. A declared-but-unwired contract — a setting with no reader, a dial with no live-server test, a port with no listener — is a blocking finding. Tests that pass without touching the production subject do not count. |
+| Refactor or anti-slop / reader load | Confirm a behavior-pin existed before moving structure, check the 30-second test (*where does X come from and what can change it?*), and flag single-caller wrappers, speculative guards on impossible states, or narrating/workaround comments. |
+| Blast radius (high-risk diff) | Name the single safety fact that clears the widest downstream risk (wire/DB format, goroutine teardown, 3-hop callers, feature flags) and prove it by running code against the real subject (step 4/5 of the [interrogate](../../../core/interrogate/SKILL.md) blast-radius ladder), or explicitly mark it `unproven`. |
 
 ## Output Template
 

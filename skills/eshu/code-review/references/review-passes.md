@@ -36,6 +36,18 @@ agent instructions, trace what an agent would do, including authority and proof
 boundaries. For runtime or capability changes, read the relevant sections in
 [runtime-surfaces.md](runtime-surfaces.md).
 
+Check for code slop and reader-load defects:
+
+- symptom-masking guards (nil checks, clamps, swallowed errors, or retries) on
+  impossible states instead of fixing the producer;
+- single-caller wrappers, single-implementation interfaces, speculative
+  validators, or synced shadow state that increase indirection without removing
+  branches;
+- narrating inline comments or workaround comments that should be fixed at the
+  root or encoded as a type, test, or lint;
+- pure refactors missing a pre-refactor behavior pin, or refactors that fail to
+  reduce reader load (reject and revert if clarity did not improve).
+
 ## Pass 2: Performance And Storage/Query Shape
 
 Identify whether runtime cost or backend behavior changes. When it does, apply
@@ -91,6 +103,11 @@ Ask and answer:
   green would that produce?
 - Which advertised command, flag, report field, or artifact has not been
   executed exactly as users or CI will execute it?
+
+For P0-risk diffs (concurrency, leases, schema, hot-path queries, or shared
+contracts), pair this pass with [interrogate](../../../core/interrogate/SKILL.md)
+for executable-proof-only adversarial testing and safety-fact blast-radius
+checks.
 
 Classify every hostile-read finding with one class:
 

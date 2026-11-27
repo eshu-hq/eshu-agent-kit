@@ -23,7 +23,7 @@ read its reference. Keep editing passes internal unless the user requests them.
 | Approval request (merge, deploy, data change) | [approval](references/approval.md) |
 | Commit message that grows a Go directory past 40 non-test files | [`Dirgate-Growth` trailer](references/commit-trailers.md) |
 | Design or decision record | [decision record](references/decision-record.md) |
-| Report back to the owner | [owner report](references/owner-report.md) |
+| Report or catch-up for the owner | [owner report](references/owner-report.md) (or portable [ketchup](../../core/ketchup/SKILL.md) for plain-chat catch-ups) |
 
 **Other prose.** For `doc.go`, `README.md`, `AGENTS.md`, and other package docs,
 use the Wording rules only. The Shape section below does not apply to them.
@@ -36,10 +36,10 @@ The shared voice and instruction rules live in
 `[fill-in: communication standard — this repo's writing-for-agents doc]`. The
 [wording reference](references/wording.md) gives examples for conversations,
 commits, PRs, and review comments. Write every surface — chat replies,
-commits, PRs, issues, review comments, owner reports — in plain natural
-language for a project manager or director audience: no unexplained jargon,
-comparisons read as tables, and flows read as diagrams (see Shape). Retain
-reasoning, tradeoffs, and useful uncertainty.
+commits, PRs, issues, review comments, owner reports — in plain spoken
+language for a capable colleague who may be unfamiliar with this subsystem:
+zero unexplained jargon, comparisons as tables, and flows as small diagrams
+(see Shape). Retain reasoning, tradeoffs, and useful uncertainty.
 
 - Keep the strength of a claim. "May have failed" stays uncertain; do not turn
   a theory into a fact or invent successful validation.

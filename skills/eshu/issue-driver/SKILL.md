@@ -34,16 +34,25 @@ second plan approval). Check open PRs and recent commits before claiming a leaf,
 respect peer ownership, post a claim comment naming owned files before the first
 edit, and re-read sibling claim comments at each push. Sweep every acceptance
 criterion against current `origin/main` first so already-satisfied criteria are
-not re-implemented.
+not re-implemented, **and run a premise check**: if an open PR already targets
+the issue, switch to verifying that fix instead of authoring a competing PR; if
+the issue's requested mechanism contradicts current architecture or is obsolete,
+escalate the premise to an arbiter before creating a worktree.
 
 Create one worktree per leaf and verify its path before editing. Load the minimum
-project skills matching its touched surfaces. Preserve TDD, package ownership,
-graph/query truth, performance/concurrency proof, private-data boundaries, and
-the prohibition on shared-worktree stashes. Commit before dispatching any
-subagent, pass the verified absolute worktree path (`git worktree list --porcelain`)
-and explicit file list (`git diff --name-only` / `rg --files`), and re-verify
-every subagent finding yourself before acting on it. Stop idle executors and
-arbiters immediately; stop a reviewer when its PR merges or closes.
+project skills matching its touched surfaces (for non-trivial boundary-crossing
+features, run [architect](../../core/architect/SKILL.md) before coding). Preserve
+TDD, package ownership, graph/query truth, performance/concurrency proof,
+private-data boundaries, and the prohibition on shared-worktree stashes. Commit
+before dispatching any subagent, pass the verified absolute worktree path
+(`git worktree list --porcelain`) and explicit file list (`git diff --name-only`
+/ `rg --files`), and re-verify every subagent finding yourself before acting on
+it. Keep worker bars crisp: the bar stated in a subagent's handoff is the whole
+bar (do not invent extra gates or sign-offs above it), spawn **fresh subagents
+by default** for fix rounds and retries (carrying the original brief, later
+directives, and prior branch/report), and probe liveness by side effects rather
+than status prose. Stop idle executors and arbiters immediately; stop a reviewer
+when its PR merges or closes.
 
 ## Implement And Promote Each PR
 
@@ -73,8 +82,12 @@ arbiters immediately; stop a reviewer when its PR merges or closes.
    red gate, reproduce only that gate locally.
 6. Push the reviewed head (`--force-with-lease` on authorized rebases) and verify
    remote SHA equals local HEAD. No edits between verified attestation and push.
-   An explicit owner push order overrides floor/review/receipt for that one push
-   (`code-review`, Owner push order).
+   On a busy trunk, avoid infinite rebase-CI loops: before rebasing a green PR,
+   check whether trunk touched overlapping files, callers, or lockfiles, and
+   stop to investigate on the 3rd consecutive rebase of the same PR. Never
+   loosen a gate, budget, or allowlist without independent verifier proof and
+   coordinator/arbiter countersign. An explicit owner push order overrides
+   floor/review/receipt for that one push (`code-review`, Owner push order).
 7. Arm the CI watcher in the same turn as `gh pr create`
    ([babysit-prs.md](../session-lifecycle/references/babysit-prs.md)) and follow
    [monitoring.md](references/monitoring.md). Never request a GitHub Copilot

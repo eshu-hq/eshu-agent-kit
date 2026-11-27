@@ -36,13 +36,29 @@ Ordinary passing test runs do not require this diagnostic workflow.
    observed output or is explicitly marked as a hypothesis.
 
 3. **Test one narrow hypothesis.** Form a narrow hypothesis and add telemetry if
-   existing signals cannot test it. Use focused local proof; rebuild production
-   binaries before runtime validation. Preserve correctness, bounded runtime
-   cost, and intended concurrent behavior. A performance-sensitive change needs
-   the impact declaration and applicable proof from
-   [performance-rigor](../performance-rigor/SKILL.md) before implementation;
-   this skill does not define a second proof ladder. Done when a rebuilt local
-   reproduction confirms or rejects the hypothesis.
+   existing signals cannot test it. When asking why existing code behaves a
+   certain way, answer from git and PR history rather than rationalizing the
+   code (see [explain](../../core/explain/SKILL.md)). Use focused local proof;
+   rebuild production binaries before runtime validation. Preserve correctness,
+   bounded runtime cost, and intended concurrent behavior. A
+   performance-sensitive change needs the impact declaration and applicable
+   proof from [performance-rigor](../performance-rigor/SKILL.md) before
+   implementation; this skill does not define a second proof ladder. Done when
+   a rebuilt local reproduction confirms or rejects the hypothesis.
+4. **Break loops and fix root causes, not symptoms.**
+   - **Attack the premise (2-fail circuit breaker):** when two or more fixes
+     sharing one assumption fail the same gate, stop before attempt #3. Write
+     down the shared premise in one sentence, inspect the failure
+     *distribution* (not just magnitude), and design a direct observation that
+     falsifies that premise before editing again.
+   - **Guard only legitimate states:** a nil check, clamp, fallback, or retry is
+     a fix only when the state it handles is legitimate. Guarding an impossible
+     state hides the bug — trace back to the first wrong decision and fix the
+     producer.
+   - **Leave an always-on signal:** if root-causing took a deep dig, propose a
+     cheap always-on metric or log field (`telemetry-coverage-discipline`) that
+     would have surfaced the defect immediately. Done when the root producer is
+     fixed and any needed signal is recorded.
 
 ## Read The Relevant Procedure
 

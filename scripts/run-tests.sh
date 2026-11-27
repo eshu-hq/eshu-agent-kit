@@ -23,6 +23,7 @@ suites=(
 	scripts/tests/test-skill-lint.sh
 	scripts/tests/test-skill-lint-links.sh
 	scripts/tests/test-core-portable.sh
+	scripts/tests/test-show-me-your-work-log.sh
 	scripts/tests/test-global-install.sh
 	scripts/tests/test-global-harness-selection.sh
 	scripts/tests/test-global-muse-hooks.sh

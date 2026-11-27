@@ -39,6 +39,12 @@ Candidate-core annotations (recorded, not executed): `publish` (Wording, `wordin
 | telemetry-coverage-discipline | telemetry-coverage-discipline | eshu | moved |
 | skills-debrief | debrief | external | extracted to [linuxdynasty/debrief](https://github.com/linuxdynasty/debrief) |
 | papercut | papercut | core | moved |
+| — | architect | core | added |
+| — | correct | core | added |
+| — | explain | core | added |
+| — | interrogate | core | added |
+| — | ketchup | core | added |
+| — | show-me-your-work | core | added |
 
 Rename rule: name reflects intended consumer vocabulary (drop the `eshu-` prefix when the skill is meant to be called generically). Directory reflects the layer rule above — a portably-named skill still lives in `skills/eshu/` until it passes T1–T3.
 

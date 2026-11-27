@@ -13,16 +13,46 @@ runtime boundaries; a small edit does not require an unrelated package tour.
 
 ## Behavioral proof
 
-**Pre-Commit Go Checklist:** add MIT SPDX header on every new `.go` file (`bash scripts/add-license-header.sh`), verify red-first TDD on production paths, run `cd go && go vet ./...` + focused `-race` tests, and stay under the 40-file directory cap.
+**Pre-Commit Go Checklist:** name the data shape first (`architect`), add MIT SPDX header on every new `.go` file (`bash scripts/add-license-header.sh`), verify red-first behavior TDD on production paths, run `cd go && go vet ./...` + focused `-race` tests, remove dead/wrapper slop, and stay under the 40-file directory cap.
 
 Follow the root TDD policy. Bug fixes need a regression that fails for the
 intended reason before the implementation changes. Tests must exercise the
 production path, not a copied implementation or a stand-in for the behavior
-being asserted. Cover every affected dispatch variant of shared helpers,
-query builders, replay paths, and retry classifiers. Confirm filtered tests
-actually ran. Use deliberate mutation of the production assertion when test
-sensitivity is uncertain; do not require a separate mutation exercise for every
-test whose regression failure already demonstrates that sensitivity.
+being asserted. Judge every test with two imagined edits: breaking observable
+behavior MUST fail the test, and changing internals while preserving behavior
+MUST keep it green. Assert observable contracts (`errors.Is`/`errors.As`, return
+values, durable state) rather than internal call order or error text; pair every
+negative ("never happens") test with a positive case where it does happen; and
+prefer no new test over a brittle mock-heavy test that mirrors implementation.
+Cover every affected dispatch variant of shared helpers, query builders, replay
+paths, and retry classifiers. Confirm filtered tests actually ran. Use
+deliberate mutation of the production assertion when test sensitivity is
+uncertain; do not require a separate mutation exercise for every test whose
+regression failure already demonstrates that sensitivity.
+
+## Design, simplicity, and comment discipline
+
+- **Data shape and boundaries first.** For changes crossing function or package
+  boundaries, settle types, ownership, and caller signatures first (see
+  [architect](../../core/architect/SKILL.md)). Parse and validate external inputs
+  (JSON, DB rows, CLI flags, env vars) at system boundaries into typed domain
+  values; trust internal types inside and keep business logic pure behind thin
+  adapters.
+- **Subtract before you add.** Delete dead code, unused branches, and
+  speculative validators before building on top of a package.
+- **Minimize reader load.** Pass the 30-second test (*where does X come from,
+  and what can change it?*). Collapse single-caller wrappers and single-impl
+  interfaces, keep mutable state in the tightest scope possible, and avoid
+  synchronized shadow fields.
+- **Build the lever for sweeps.** On any multi-file refactor or mechanical
+  migration, do the first unit by hand, write a small idempotent script or
+  codemod, and prove it by rerunning on the first unit before applying it across
+  the tree.
+- **Keep signal comments, delete narration.** Preserve MIT SPDX headers,
+  package/exported Go doc comments (`folder-doc-keeper`), `#nosec` justifications,
+  and external-quirk links. Delete inline comments that narrate obvious control
+  flow; for constraint comments ("do not reorder", "must match X"), encode the
+  constraint in a type, test, or lint before deleting the comment.
 
 Keep ownership boundaries intact. For workers, queues, transactions, retries,
 or shared-state changes, use `concurrency-deadlock-rigor` for the relevant proof.
