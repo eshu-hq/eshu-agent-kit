@@ -284,5 +284,24 @@ PY
 (cd "${R}/.agents" && payload "${R}" | sh -c "$(cmd_of "${R}/.agents/hooks.json" eshu-agent-kit)" >/dev/null 2>&1)
 check "a hand-edited global entry makes the repo copy fire too" test "$(events)" = 2
 
+# 11. Custom KIT_HOOK_KEY and OWNED newline/space hardening (#133).
+fresh
+KIT_HOOK_KEY=custom-kit inst --hooks --repo "${R}"
+check "KIT_HOOK_KEY overrides repo hooks.json key name" test "$(keys "${R}/.agents/hooks.json")" = custom-kit
+KIT_HOOK_KEY=custom-kit inst --uninstall --hooks --repo "${R}"
+check "KIT_HOOK_KEY uninstall removes custom repo key file" test ! -e "${R}/.agents/hooks.json"
+
+fresh
+mkdir -p "${R}/.agents"
+printf '{"eshu-agent-kit":{"Stop":[{"type":"command","command":"h=/bad path/.agy/hooks/goal-continue.sh; [ -x \\"$h\\" ] || exit 0; exec \\"$h\\""}]}}\n' >"${R}/.agents/hooks.json"
+inst --hooks --repo "${R}"
+check "OWNED rejects unquoted spaces in command path" refused
+
+fresh
+mkdir -p "${R}/.agents"
+printf '{"eshu-agent-kit":{"Stop":[{"type":"command","command":"h=../.agy/hooks/goal-continue.sh; [ -x \\"$h\\" ] || exit 0; exec \\"$h\\"\\n"}]}}\n' >"${R}/.agents/hooks.json"
+inst --hooks --repo "${R}"
+check "OWNED rejects trailing newline in command" refused
+
 printf '\n%s passed, %s failed\n' "${passed}" "${failed}"
 [ "${failed}" -eq 0 ]

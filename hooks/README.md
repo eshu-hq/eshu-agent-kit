@@ -22,7 +22,7 @@ Install them two ways. The marketplace plugin registers everything below automat
 | `goal-continue.sh` | Stop | — | Refuses to end the session while a declared goal is unfinished. Fail-open with no goal file. |
 | `stop-failure.sh` | StopFailure (Muse only) | — | Writes an at-most-once resume note when a turn dies in a model failure; the next prompt surfaces it and deletes it. Cannot re-drive the turn. |
 
-Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`). `agy/` holds the Antigravity adapters (below).
+Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`, `skill-loaded.sh` on `PostToolUse`, `skill-nudge.sh` on `PreToolUse`). `agy/` holds the Antigravity adapters (below).
 
 ## Contract
 
@@ -71,7 +71,7 @@ Every hook fails open outside its scope: missing interpreter, missing checker, n
 }
 ```
 
-Codex (`~/.codex/config.toml`): `codex/eshu-doc-staleness.sh` on `apply_patch`; the shared `codex/goal-continue.sh` on `stop`.
+Codex (`~/.codex/config.toml` / `~/.codex/hooks.json`): `codex/eshu-doc-staleness.sh` on `apply_patch`, `codex/skill-loaded.sh` on `PostToolUse`, `codex/skill-nudge.sh` on `PreToolUse`, and `codex/goal-continue.sh` on `stop`. All Codex adapters export `KIT_HARNESS=codex` so `skills-usage.jsonl` attributes events accurately.
 
 ## Muse Code
 

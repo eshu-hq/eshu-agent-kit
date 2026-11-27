@@ -24,8 +24,9 @@ AGY_HOOKS_PY='
 import json, os, re, shlex, sys, tempfile
 
 mode, path, scope, tree, template = sys.argv[1:6]
-TKEY = "eshu-agent-kit"  # the key in the shipped template; global scope installs it as KEY below
-KEY = TKEY if scope == "repo" else TKEY + "-global"  # a distinct name: agy merges same-named hooks across files undocumented
+TKEY = "eshu-agent-kit"  # the key in the shipped template
+BASE_KEY = (os.environ.get("KIT_HOOK_KEY") or TKEY).strip() or TKEY
+KEY = BASE_KEY if scope == "repo" else BASE_KEY + "-global"  # distinct name per scope
 
 def refuse(msg):
     print("refusing: " + msg, file=sys.stderr)
@@ -56,7 +57,12 @@ def want(legacy=False):
 # (any kit .agy/hooks/ wrapper name, relative or absolute path); a user command
 # that merely mentions .agy/hooks/ is never reclaimed.
 Q = chr(39)
-OWNED = re.compile("^h=" + Q + "?(?:\\.\\.|/[^;" + Q + "\"]*)/\\.agy/hooks/[A-Za-z0-9_-]+\\.sh" + Q + "?; \\[ -x \"\\$h\" \\] \\|\\| (?:exit 0|\\{ printf " + Q + "\\{\\}" + Q + "; exit 0; \\}); (?:KIT_GLOBAL_HOOK=1 )?exec \"\\$h\"$")
+OWNED = re.compile(
+    r"\Ah=(?:" + Q + r"(?:\.\.|/[^;" + Q + r"\"\n]+)/\.agy/hooks/[A-Za-z0-9_-]+\.sh" + Q
+    + r"|(?:\.\.|/[^;\s" + Q + r"\"\n]+)/\.agy/hooks/[A-Za-z0-9_-]+\.sh)"
+    + r"; \[ -x \"\$h\" \] \|\| (?:exit 0|\{ printf " + Q + r"\{\}" + Q + r"; exit 0; \}); "
+    + r"(?:KIT_GLOBAL_HOOK=1 )?exec \"\$h\"\Z"
+)
 
 def no_dupes(pairs):
     keys = [k for k, _ in pairs]
@@ -193,13 +199,16 @@ install_hooks_global_agy() {
 	prune_dir "$tree/.claude/hooks/lib" "$KIT_DIR/hooks/lib/*"
 	agy_link_tree "$tree"
 	agy_hooks_json apply "$hooks" global "$tree" || return 1
-	echo "installed global agy hooks (key eshu-agent-kit in $hooks)"
+	local gkey="${KIT_HOOK_KEY:-eshu-agent-kit}-global"
+	echo "installed global agy hooks (key ${gkey} in $hooks)"
 	echo "undo: ./install.sh --uninstall --hooks --global agy (or delete that key and $tree)"
 }
 
 # agy_uninstall_json <file> <scope> <tree> -- drop the kit key with proof.
 agy_uninstall_json() {
-	local res
+	local res key_name
+	key_name="${KIT_HOOK_KEY:-eshu-agent-kit}"
+	[ "$2" = "global" ] && key_name="${key_name}-global"
 	[ -e "$1" ] || [ -L "$1" ] || return 0
 	command -v python3 >/dev/null 2>&1 || {
 		uninstall_keeping "$1" "cannot verify the kit key without python3; remove by hand"
@@ -209,7 +218,7 @@ agy_uninstall_json() {
 	case "$res" in
 	REMOVED_FILE | REMOVED_KEY)
 		UNINSTALL_REMOVED=$((UNINSTALL_REMOVED + 1))
-		printf 'removed %s%s\n' "$([ "$res" = REMOVED_KEY ] && echo 'the eshu-agent-kit key from ')" "$1"
+		printf 'removed %s%s\n' "$([ "$res" = REMOVED_KEY ] && echo "the ${key_name} key from ")" "$1"
 		;;
 	KEPT:*) uninstall_keeping "$1" "${res#KEPT:}" ;;
 	esac
