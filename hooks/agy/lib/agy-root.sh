@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Sourced by hooks/agy/* (.agy/hooks/*) -- not run on its own.
 #
-# Every agy adapter prints EXACTLY ONE JSON object and exits 0: agy does not
+# Every agy adapter prints at most one JSON object and exits 0: agy does not
 # understand the kit's exit-2 + stderr block, and a hook crash may fail open
 # or closed (unverified), so no path here may print anything but a verdict.
-# Neutral is `{}`; "allow" is never emitted (agy treats it as an automatic
+# Neutral is EMPTY output (live: agy 1.5.18 treats a PreToolUse `{}` as a
+# deny); "allow" is never emitted (agy treats it as an automatic
 # approval that would bypass the user's permission prompts).
 #
 # Tree layout this resolves, from the calling wrapper's own location:

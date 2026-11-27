@@ -192,6 +192,18 @@ check "global install warns about the missing trust step" rg -q 'no trust step' 
 b="$(sum "${G}")"
 inst --hooks --global agy
 check "global re-run is byte-identical" test "$(sum "${G}")" = "${b}"
+python3 - "${G}" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+for groups in d["eshu-agent-kit-global"].values():
+    for g in groups:
+        for h in g["hooks"] if isinstance(g.get("hooks"), list) else [g]:
+            h["command"] = h["command"].replace("|| exit 0;", "|| { printf '{}'; exit 0; };")
+json.dump(d, open(p, "w"), indent=2)
+PY
+inst --hooks --global agy
+check "a legacy-shape global key is upgraded by a re-run" bash -c "! rg -q printf '${G}'"
 
 # 8b. Global merge keeps foreign keys; global refusals write nothing.
 fresh

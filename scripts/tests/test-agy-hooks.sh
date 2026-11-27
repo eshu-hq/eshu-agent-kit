@@ -3,7 +3,7 @@
 #
 # agy speaks camelCase JSON on stdin and JSON on stdout; the kit siblings
 # under .claude/hooks block with exit 2 + stderr, which agy does not read.
-# So every adapter must translate in and out, print EXACTLY ONE JSON object
+# So every adapter must translate in and out, print at most one JSON object
 # and exit 0 -- including on garbage input, a missing sibling and a missing
 # python3. Neutral is EMPTY stdout (live: agy 1.5.18 treats a PreToolUse `{}` as
 # a deny); "allow" is never emitted (agy defines it as an
@@ -240,6 +240,12 @@ rm -f "${repo2}/.agy/hooks/skill-nudge.sh"
 out="$(cd "${repo2}/.agents" && pl agy-pretool-edit.json | sh -c "$(hook_cmd "${repo2}" skill-nudge)" 2>/dev/null)"
 rc=$?
 check "a missing wrapper prints nothing from the hooks.json command itself" is_neutral
+for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
+	rm -rf "${work}/nolib" && mkdir -p "${work}/nolib/lib" && cp "${repo}/.agy/hooks/${w}.sh" "${work}/nolib/${w}.sh"
+	out="$(pl agy-pretool-edit.json | "${work}/nolib/${w}.sh" 2>/dev/null)"
+	rc=$?
+	check "${w}: an unreadable lib/agy-root.sh prints nothing and exits 0" is_neutral
+done
 nopy="${work}/nopy"
 mkdir -p "${nopy}"
 for t in bash sh cat dirname rm mkdir mktemp env; do ln -sf "$(command -v "${t}")" "${nopy}/${t}"; done
