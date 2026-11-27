@@ -87,7 +87,7 @@ the first 12 hex of `sha256(name + "\n" + description)`). It also lists
 
 ## In /debrief
 
-`debrief.sh aggregate --trigger-evals PATH` (repeatable, files or directories)
+Standalone [`debrief`](https://github.com/linuxdynasty/debrief) (`debrief aggregate --trigger-evals PATH`, repeatable, files or directories)
 keeps the newest `recorded_at` per skill and decider. Skill-table rows gain
 `trigger_precision`, `trigger_recall`, `trigger_f1`, and `trigger_decider` (a
 live router is preferred over the rubric). The report's Trigger Precision /

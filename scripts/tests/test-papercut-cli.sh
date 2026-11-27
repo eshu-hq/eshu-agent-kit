@@ -6,7 +6,6 @@ set -uo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLI="${KIT_DIR}/scripts/file-papercut.sh"
-DEBRIEF="${KIT_DIR}/scripts/debrief.sh"
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
@@ -265,30 +264,22 @@ else
 	fi
 fi
 
-# End-to-end schema check: feed snapshot into debrief.sh aggregate --papercuts.
-mkdir -p "${work}/cache"
-cat >"${work}/hooks.jsonl" <<'EOF'
-{"harness":"muse","session":"s1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"debrief"}}
-EOF
-bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${work}/cache" \
-	--log "${work}/hooks.jsonl" --papercuts "${snap_file}" \
-	--out "${work}/agg.json" >/dev/null && rc=0 || rc=1
-if [ "${rc}" -eq 0 ] && python3 - "${work}/agg.json" <<'PYEOF'; then
-import json, sys
-d = json.load(open(sys.argv[1], encoding="utf-8"))
-pc = d["papercuts"]
-assert pc["total_filed"] == 3, pc
-assert pc["total_fixed"] == 1, pc
-assert pc["total_open"] == 1, pc
-assert pc["unmatched_without_skill"] == 0, pc
-assert pc["per_skill"]["debrief"] == {"filed": 2, "fixed": 1, "open": 1}, pc
-assert pc["per_skill"]["issue-driver"] == {"filed": 1, "fixed": 0, "open": 0}, pc
-by_sk = {r["skill"]: r for r in d["skill_table"]}
-assert by_sk["debrief"]["papercut_filed"] == 2 and by_sk["debrief"]["papercut_fixed"] == 1 and by_sk["debrief"]["papercut_open"] == 1, by_sk["debrief"]
+# End-to-end schema check: verify snapshot JSON carries all fields expected by standalone debrief --papercuts.
+if python3 - "${snap_file}" <<'PYEOF'; then
+import json, re, sys
+rows = json.load(open(sys.argv[1], encoding="utf-8"))
+assert isinstance(rows, list) and len(rows) == 3, rows
+by_num = {r["number"]: r for r in rows}
+for num in (201, 202, 203):
+    r = by_num[num]
+    assert {"number", "title", "body", "state", "stateReason"} <= set(r), r
+    assert re.search(r"(?m)^skill:\s*\S+", r["body"]), r
+assert by_num[201]["state"] == "OPEN"
+assert by_num[202]["state"] == "CLOSED" and by_num[202]["stateReason"] == "COMPLETED"
 PYEOF
-	ok "snapshot JSON joins cleanly with debrief.sh aggregate --papercuts"
+	ok "snapshot JSON matches standalone debrief --papercuts schema"
 else
-	no "snapshot JSON joins cleanly with debrief.sh aggregate --papercuts (rc=${rc})"
+	no "snapshot JSON matches standalone debrief --papercuts schema"
 fi
 
 # 6. Regression coverage for review findings F1, F5, F6, F7.

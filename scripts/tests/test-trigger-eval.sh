@@ -7,7 +7,6 @@ set -uo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPLAY="${KIT_DIR}/scripts/replay-eval.sh"
-DEBRIEF="${KIT_DIR}/scripts/debrief.sh"
 LIB="${KIT_DIR}/scripts/lib"
 
 work="$(mktemp -d)"
@@ -379,81 +378,6 @@ for s in ("correlation-truth", "diagnostic-rigor", "golang-engineering", "perfor
     neg = [c for c in d["cases"] if c["kind"] == "negative" and (s in c["reject"] or "*" in c["reject"])]
     com = [c for c in d["cases"] if c["kind"] == "competing" and (s in c["expect"] or s in c["reject"])]
     assert pos and neg and com, (s, len(pos), len(neg), len(com))
-PYEOF
-# 12. /debrief consumes trigger JSON.
-python3 - "${work}/trig" <<'PYEOF'
-import json, os, sys
-os.makedirs(sys.argv[1])
-def row(skill, p, r, f):
-    return {"skill": skill, "tp": 1, "fp": 0, "fn": 0, "tn": 1, "precision": p, "recall": r, "f1": f, "trigger_rate": 0.5, "false_trigger_rate": 0.0}
-for name, decider, at, f1, extra in (("rubric-new", "rubric", "2026-11-20", 0.5, True), ("rubric-old", "rubric", "2026-11-01", 0.1, False), ("claude", "claude", "2026-11-10", 0.9, False)):
-    rows = [row("code-review", f1, f1, f1)] + ([row("graph-truth", True, float("nan"), 0.25)] if extra else [])
-    mode = "router-prompt" if decider == "claude" else "lexical-rubric"
-    json.dump({"kind": "trigger-eval", "version": 1, "decider": decider, "mode": mode, "recorded_at": at + "T00:00:00+00:00", "per_skill": rows}, open(os.path.join(sys.argv[1], name + ".json"), "w"))
-PYEOF
-cat >"${work}/ablation.json" <<'EOF'
-{"skill":"code-review","win_rate":0.7,"noise_band":0.1,"pass_rate_with":0.9,"cross_pairs":6,"harness":"claude","recorded_at":"2026-11-15T00:00:00+00:00"}
-EOF
-cat >"${work}/hooks.jsonl" <<'EOF'
-{"harness":"muse","session":"s1","ts":"2026-11-20T10:00:00+00:00","type":"skill-load","detail":{"skill":"code-review"}}
-{"harness":"muse","session":"s1","ts":"2026-11-20T10:01:00+00:00","type":"skill-load","detail":{"skill":"graph-truth"}}
-{"harness":"muse","session":"s1","ts":"2026-11-20T10:02:00+00:00","type":"skill-load","detail":{"skill":"debrief"}}
-EOF
-agg() { # agg OUT ARGS...
-	local out="$1"
-	shift
-	bash "${DEBRIEF}" aggregate --since 2026-11-01 --cache-dir "${work}/cache" --log "${work}/hooks.jsonl" --out "${out}" "$@" >/dev/null 2>"${work}/err"
-	rc=$?
-}
-mkdir -p "${work}/trig-inf"
-printf '{"kind":"trigger-eval","decider":"rubric","per_skill":[{"skill":"code-review","tp":Infinity,"fp":-1,"fn":"x","tn":2}]}' >"${work}/trig-inf/inf.json"
-agg "${work}/agg-inf.json" --trigger-evals "${work}/trig-inf"
-rc_is "non-finite trigger counts are tolerated, not a traceback" 0
-agg "${work}/agg.json" --trigger-evals "${work}/trig"
-rc_is "aggregate --trigger-evals accepts a directory of trigger JSON" 0
-check "rows carry trigger fields: newest per (skill, decider), live preferred over rubric, bad numbers null" "${work}/agg.json" <<'PYEOF'
-rows = {r["skill"]: r for r in d["skill_table"]}
-cr = rows["code-review"]
-assert (cr["trigger_decider"], cr["trigger_precision"], cr["trigger_recall"], cr["trigger_f1"]) == ("claude", 0.9, 0.9, 0.9), cr
-per = d["trigger_evals"]["per_skill"]["code-review"]
-assert per["rubric"]["f1"] == 0.5, per
-gt = rows["graph-truth"]
-assert (gt["trigger_decider"], gt["trigger_precision"], gt["trigger_recall"], gt["trigger_f1"]) == ("rubric", None, None, 0.25), gt
-dbf = rows["debrief"]
-assert dbf["trigger_decider"] is None and dbf["trigger_precision"] is None and dbf["trigger_f1"] is None, dbf
-PYEOF
-agg "${work}/agg-none.json"
-check "without --trigger-evals the aggregate stays backward compatible" "${work}/agg-none.json" <<'PYEOF'
-assert d["trigger_evals"] is None
-assert all(r["trigger_decider"] is None and r["trigger_f1"] is None for r in d["skill_table"])
-PYEOF
-agg "${work}/agg-abl.json" --trigger-evals "${work}/ablation.json"
-[ "${rc}" -ne 0 ] && rg -q 'trigger-eval' "${work}/err" &&
-	ok "an ablation summary passed to --trigger-evals exits non-zero naming the kind" || no "an ablation summary passed to --trigger-evals exits non-zero (rc=${rc})"
-agg "${work}/agg-miss.json" --trigger-evals "${work}/no-such-trigger.json"
-[ "${rc}" -ne 0 ] && ok "a missing --trigger-evals path exits non-zero" || no "a missing --trigger-evals path exits non-zero"
-agg "${work}/agg-evals.json" --evals "${work}/ablation.json" --evals "${work}/trig/rubric-new.json"
-check "trigger JSON passed to --evals leaves win_rate rows untouched" "${work}/agg-evals.json" <<'PYEOF'
-cr = {r["skill"]: r for r in d["skill_table"]}["code-review"]
-assert cr["eval_win_rate"] == 0.7 and cr["eval_pairs"] == 6, cr
-assert d["evals"]["per_skill"].keys() == {"code-review"}, d["evals"]
-PYEOF
-agg "${work}/agg-evals2.json" --evals "${work}/trig/rubric-new.json"
-check "trigger JSON alone through --evals creates no win_rate rows" "${work}/agg-evals2.json" <<'PYEOF'
-assert all(r["eval_win_rate"] is None for r in d["skill_table"]), d["skill_table"]
-PYEOF
-cat >"${work}/syn.json" <<'EOF'
-{"at_a_glance":{"working":"Good","hindering":"None","quick_wins":"None","ambitious":"None"},"project_areas":[],"narrative_paragraphs":[],"key_insight":"Ok","wins_intro":"","big_wins":[],"friction_intro":"","friction_categories":[],"agents_md_additions":[],"features_to_try":[],"usage_patterns":[],"horizon_intro":"","horizon_workflows":[]}
-EOF
-bash "${DEBRIEF}" render --aggregate "${work}/agg.json" --synthesis "${work}/syn.json" --out "${work}/with.html" >/dev/null 2>&1 &&
-	bash "${DEBRIEF}" render --aggregate "${work}/agg-none.json" --synthesis "${work}/syn.json" --out "${work}/without.html" >/dev/null 2>&1 &&
-	python3 - "${work}/with.html" "${work}/without.html" <<'PYEOF' && ok "render shows the trigger card naming the decider, and omits it when trigger_evals is null" || no "render shows the trigger card naming the decider, and omits it when trigger_evals is null"
-import sys
-w = open(sys.argv[1], encoding="utf-8").read()
-n = open(sys.argv[2], encoding="utf-8").read()
-assert "Trigger Precision / Recall" in w and "Trigger Precision / Recall" not in n
-card = w[w.index("Trigger Precision / Recall"):]
-assert "claude" in card and "rubric" in card and "router-prompt" in card
 PYEOF
 
 printf '\n%d passed, %d failed\n' "${passed}" "${failed}"

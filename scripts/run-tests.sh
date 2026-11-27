@@ -36,15 +36,6 @@ suites=(
 	scripts/tests/test-install-prune.sh
 	scripts/tests/test-install-ux.sh
 	scripts/tests/test-install-uninstall.sh
-	scripts/tests/test-debrief.sh
-	scripts/tests/test-debrief-codex-opencode.sh
-	scripts/tests/test-debrief-scope.sh
-	scripts/tests/test-debrief-diff.sh
-	scripts/tests/test-debrief-pareto.sh
-	scripts/tests/test-debrief-changepoints.sh
-	scripts/tests/test-debrief-papercuts.sh
-	scripts/tests/test-debrief-insights.sh
-	scripts/tests/test-debrief-trends.sh
 	scripts/tests/test-papercut-cli.sh
 	scripts/tests/test-replay-eval.sh
 	scripts/tests/test-replay-codex-opencode.sh

@@ -338,28 +338,23 @@ and need no change.
 **Coverage.** Hook telemetry (`skills-usage.jsonl`) covers all five harnesses:
 Claude, Muse, Antigravity (`agy`), Codex (`codex/skill-loaded.sh`,
 `codex/skill-nudge.sh`), and OpenCode (V2 `eshu-bridge.js` via
-`tool.hook("execute.after")` and `KIT_HARNESS=opencode`). When a harness's
-sessions appear in a window with no hook events at all, `/debrief` notes that
-hooks are opt-in. Transcript mining covers all five harnesses (Muse, `agy`,
-Claude, Codex, and OpenCode v1+v2), including skill loads, tool mix, errors,
-response gaps, subagents, models, and workspace projects. Multi-machine: each
-machine writes its own log; `scripts/debrief.sh aggregate --log a.jsonl --log b.jsonl`
-merges them.
+`tool.hook("execute.after")` and `KIT_HARNESS=opencode`). Multi-machine: each
+machine writes its own log; pass repeatable `--log` flags to `debrief aggregate`
+to merge them.
 
-**Debrief v2 pipeline.** `scripts/debrief.sh` provides a six-subcommand local pipeline across all five harnesses (`muse`, `agy`, `claude`, `codex`, `opencode`):
-- `scripts/debrief.sh sessions [--days 30|--all-time] [--harness ...] [--project SUB] [--limit 30] [--json]` — lists discoverable top-level sessions for picking exact `--session` targets.
-- `scripts/debrief.sh prepare [--days 30|--since DATE|--all-time] [--current|--session ID|--sessions-file FILE] [--no-children] [--max-new 100] [--batch-size 10] [--project SUB] [--harness muse,agy,claude,codex,opencode|all]` — extracts and mtime-caches Stage 1 session metadata and bounded digests under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`, imports native `~/.claude/usage-data/facets/*.json`, rolls child subagents into their parent coordinator digest, skips trivial sessions (unless explicit session IDs are targeted), and writes batched digests for fast-tier Stage 2 facet classification.
-- `scripts/debrief.sh cache-write <FILE|->` — validates and atomically stores Stage 2 semantic facet JSON records in the local cache (never committed or uploaded).
-- `scripts/debrief.sh aggregate [--days 30|--since DATE|--all-time|--since-last-edit] [--current|--session ID|--sessions-file FILE] [--log PATH]... [--repo PATH]... [--project SUB] [--harness ...] [--compare-prev|--compare SNAP.json] [--ignore-changepoints] [--evals PATH] [--eval-history [PATH]] [--trigger-evals PATH] [--papercuts FILE] [--out FILE]` — merges Stage 1 metadata, Stage 2 facets, hook logs (`skills-usage.jsonl`), multi-agent parallel overlap, git rollups, git change-point post-edit impact splits, 6-axis Trajectory Radar profiles, multi-objective Pareto fronts (version + portfolio), and optional report-to-report recommendation accountability diffs.
-- `scripts/debrief.sh diff --prev SNAP.json --curr AGG.json [--repo PATH]... [--skills-dir DIR]... [--out FILE]` — compares two report snapshots or aggregates directly, verifying prior recommendation implementation and metric movement.
-- `scripts/debrief.sh render --aggregate AGG.json --synthesis SYN.json [--snapshot-out FILE] [--no-snapshot] [--out FILE]` — renders an offline interactive HTML report (including overlaid inline-SVG Trajectory Radar, Pareto frontier scatter plot, Accountability table, and Session Deep-Dive view for single-session runs) to `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and `report-latest.html`, persisting a content-free snapshot under `debrief-reports/snapshots/`.
+**Standalone `/debrief` plugin.** The `/debrief` skill and multi-harness
+debrief CLI have moved to the standalone repository
+[linuxdynasty/debrief](https://github.com/linuxdynasty/debrief) so every
+harness can install it via `npx -y github:linuxdynasty/debrief install` (or
+via the Claude Code plugin marketplace `/plugin marketplace add linuxdynasty/debrief`).
+On machines running `eshu-agent-kit` hooks, set
+`DEBRIEF_DATA_DIR="$HOME/.local/share/eshu-agent-kit"` (or pass
+`--log ~/.local/share/eshu-agent-kit/skills-usage.jsonl` and
+`--aliases templates/repo-overlay/eshu-aliases.tsv`) so standalone `debrief`
+reads the kit's hook telemetry and aliases directly without overwriting or
+duplicating hook configs.
 
-**Debrief skill.** Invoke `/debrief` (loaded from `skills/core/debrief/SKILL.md`)
-to run `prepare`, classify uncached batches in parallel with fast-tier
-subagents, run `aggregate`, synthesize evidence-backed `AGENTS.md`/role/hook
-recommendations, and `render` the interactive offline HTML report.
-
-**Limits.** Hook telemetry stays strictly content-free; semantic facets stay
-local in `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`. Aggregates and model-estimated
-facets show correlation, not causation — never rank people or harnesses, and
-treat `no-progress-session share` as coincidence until corroborated.
+**Limits.** Hook telemetry stays strictly content-free. Aggregates and
+model-estimated facets show correlation, not causation — never rank people or
+harnesses, and treat `no-progress-session share` as coincidence until
+corroborated.

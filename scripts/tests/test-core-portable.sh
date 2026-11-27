@@ -18,29 +18,34 @@ no() {
 	failed=$((failed + 1))
 }
 
-# 1. debrief and papercut live in skills/core/ and pass layer-lint.sh with zero T1 hits.
-if [ -f "${KIT_DIR}/skills/core/debrief/SKILL.md" ] &&
-	[ -f "${KIT_DIR}/skills/core/papercut/SKILL.md" ] &&
+# 1. papercut lives in skills/core/, debrief is extracted (absent from both tiers), and layer-lint.sh passes with zero T1 hits.
+if [ -f "${KIT_DIR}/skills/core/papercut/SKILL.md" ] &&
+	[ ! -e "${KIT_DIR}/skills/core/debrief" ] &&
 	[ ! -e "${KIT_DIR}/skills/eshu/debrief" ] &&
 	[ ! -e "${KIT_DIR}/skills/eshu/papercut" ] &&
 	bash "${KIT_DIR}/scripts/layer-lint.sh" >/dev/null; then
-	ok "debrief and papercut live in skills/core/ and pass layer-lint.sh"
+	ok "papercut lives in skills/core/, debrief is extracted, and layer-lint.sh passes"
 else
-	no "debrief and papercut live in skills/core/ and pass layer-lint.sh"
+	no "papercut lives in skills/core/, debrief is extracted, and layer-lint.sh passes"
 fi
 
-# 2. install.sh --skills --repo links core skills cleanly into a non-Eshu consumer repo.
+# 2. install.sh --skills --repo links core skills cleanly and preserves external debrief symlinks.
 repo="${work}/non-eshu-repo"
-mkdir -p "${repo}"
+ext_debrief="${work}/external-debrief"
+mkdir -p "${repo}/.agents/skills" "${ext_debrief}"
+printf -- '---\nname: debrief\ndescription: standalone\n---\n' >"${ext_debrief}/SKILL.md"
+ln -sfn "${ext_debrief}" "${repo}/.agents/skills/debrief"
 git -C "${repo}" init -q -b main
 if bash "${KIT_DIR}/install.sh" --skills --repo "${repo}" </dev/null >/dev/null 2>&1 &&
-	[ -L "${repo}/.agents/skills/debrief" ] &&
 	[ -L "${repo}/.agents/skills/papercut" ] &&
-	target="$(readlink "${repo}/.agents/skills/debrief")" &&
-	[ "${target%/}" = "${KIT_DIR}/skills/core/debrief" ]; then
-	ok "install.sh --skills --repo links core skills into a non-Eshu consumer repo"
+	target="$(readlink "${repo}/.agents/skills/papercut")" &&
+	[ "${target%/}" = "${KIT_DIR}/skills/core/papercut" ] &&
+	[ -L "${repo}/.agents/skills/debrief" ] &&
+	ext_target="$(readlink "${repo}/.agents/skills/debrief")" &&
+	[ "${ext_target%/}" = "${ext_debrief}" ]; then
+	ok "install.sh --skills --repo links core skills and preserves external debrief symlink"
 else
-	no "install.sh --skills --repo links core skills into a non-Eshu consumer repo"
+	no "install.sh --skills --repo links core skills and preserves external debrief symlink"
 fi
 
 # 3. file-papercut.sh honors PAPERCUT_REPO override outside any git remote.
