@@ -17,6 +17,7 @@ INTERJECTION_LABELS = {
 }
 
 _SYNTHETIC_REPOS = frozenset({"(no repo recorded)", "(workflow sandbox)", "(scratch workspace)"})
+_REVIEW_DIAGNOSTIC_SKILLS = frozenset({"code-review", "diagnostic-rigor", "resolve-review-threads"})
 _WF_RE = re.compile(r"^wf_[0-9a-f-]+$", re.IGNORECASE)
 _CLAUDE_PREFIX_RE = re.compile(
     r"^-(?:Users|home|Volumes)-[^-]+-(?:(?:personal-repos|repos|projects|src|code|dev|work|workspace|git|Documents|Desktop)-)?",
@@ -171,32 +172,37 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
         sk = row.get("skill") or ""
         if not sk:
             continue
-        loads = safe_int(row.get("mined_loads"), 0) + safe_int(row.get("hook_loads"), 0)
+        mined = safe_int(row.get("mined_loads"), 0)
+        loads = mined + safe_int(row.get("hook_loads"), 0)
         if loads > 0:
             used_skills.add(sk)
         reasons = []
         suggestions = []
+        is_review_diag = sk in _REVIEW_DIAGNOSTIC_SKILLS
         fp = row.get("forced_pct")
         if fp is not None and safe_int(row.get("hook_loads"), 0) >= 3 and safe_float(fp, 0.0) >= 25.0:
             reasons.append(f"{fp}% nudged loads")
             suggestions.append("tighten frontmatter description trigger keywords")
         tax = safe_float(row.get("estimated_context_tax_tokens"), 0.0)
         if tax >= 50_000_000:
-            reasons.append(f"{_fmt_tok(tax)} skill overhead tokens")
-            suggestions.append("move reference tables/examples into references/")
+            sz = safe_int((skill_sizes or {}).get(sk), 0)
+            sz_note = f" (SKILL.md is {sz / 1024.0:.1f} KB)" if sz > 0 else ""
+            reasons.append(f"{_fmt_tok(tax)} skill overhead tokens{sz_note}")
+            suggestions.append("trim SKILL.md and move detailed tables/procedures into references/")
         err_rate = safe_float(row.get("error_rate_per_session"), 0.0)
-        if safe_int(row.get("mined_loads"), 0) >= 5 and err_rate >= 2.0:
+        if not is_review_diag and mined >= 5 and err_rate >= 2.0:
             reasons.append(f"{err_rate:.2f} errors/session")
             suggestions.append("add explicit verification commands and recovery steps")
         if safe_int(row.get("papercut_open"), 0) > 0:
             reasons.append(f"{safe_int(row.get('papercut_open'), 0)} open papercut issue(s)")
             suggestions.append("resolve open papercut issues tied to this skill")
         redirs = safe_int(row.get("redirect_interjections"), 0)
-        if redirs >= 3:
-            reasons.append(f"{redirs} goal-redirect interjections")
+        if not is_review_diag and mined >= 5 and redirs >= 5 and (redirs / float(mined)) >= 0.30:
+            reasons.append(f"{redirs} goal-redirect interjections ({redirs / float(mined):.2f}/sess)")
             suggestions.append("add a concise pre-flight checklist so the agent stays on goal")
         wr = row.get("eval_win_rate")
         nb = row.get("eval_noise_band")
+        pr = row.get("eval_pass_rate")
         if wr is not None:
             wr_f = safe_float(wr, 0.0)
             nb_f = safe_float(nb, 0.0) if nb is not None else 0.0
@@ -208,9 +214,13 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
                     "Rewrite from scratch or retire this skill and re-run scripts/replay-eval.sh.",
                 )
                 continue
-            if wr_f <= 0.5 or wr_f <= nb_f:
+            if nb_f >= 0.5:
+                pr_note = f"; deterministic pass rate {round(safe_float(pr, 0.0) * 100)}%" if pr is not None else ""
+                reasons.append(f"A/B judge noise ±{round(nb_f * 100)}% is too high{pr_note}")
+                suggestions.append("re-run replay-eval.sh judge with a stronger model (e.g., Sonnet/Opus)")
+            elif wr_f <= 0.5 or wr_f <= nb_f:
                 reasons.append(f"A/B win rate {round(wr_f * 100)}% (±{round(nb_f * 100)}% noise) inconclusive")
-                suggestions.append("re-judge with a stronger model or sharpen the skill instructions")
+                suggestions.append("sharpen skill instructions or expand eval edge cases")
         if reasons:
             add("modify", sk, "; ".join(reasons) + ".", "; ".join(dict.fromkeys(suggestions)).capitalize() + ".")
 

@@ -104,6 +104,7 @@ done < <(rg -o --no-filename 'docs/eshu/[^` )]*' "${ADAPTER}" 2>/dev/null | sort
 
 # 3. Fixed-awaiting-push transfer disposition is ported.
 REVIEW="${SKILLS}/code-review/SKILL.md"
+REBASE_WAIVER="${SKILLS}/code-review/references/rebase-waiver.md"
 MERGEBAR="${SKILLS}/code-review/references/merge-bar.md"
 VERDICT="${SKILLS}/code-review/references/verdict.md"
 REBASE="${SKILLS}/session-lifecycle/references/rebase-verify.md"
@@ -114,14 +115,14 @@ else
 fi
 for probe in \
 	"${REVIEW}|unless the [fixed-awaiting-push transfer](#fixed-awaiting-push-transfer-across-a-content-identical-rebase) holds" \
-	"${REVIEW}|git diff <base>..HEAD | git patch-id --stable" \
-	"${REVIEW}|the same commit count on both sides" \
-	"${REVIEW}|comm -12 <(git diff --name-only <new-base>..HEAD" \
-	"${REVIEW}|fixed-awaiting-push transfer above, never as a zero count" \
-	"${REVIEW}|never as a zero count" \
-	"${REVIEW}|When the floor runs on a rebase, the waiver note, the fixed-awaiting-push" \
-	"${REVIEW}|transfer note, and the scoped rebase verdict state its exit, so it runs first:" \
-	"${REVIEW}|A waiver or transfer receipt proves only that the note and the inputs did" \
+	"${REBASE_WAIVER}|git diff <base>..HEAD | git patch-id --stable" \
+	"${REBASE_WAIVER}|the same commit count on both sides" \
+	"${REBASE_WAIVER}|comm -12 <(git diff --name-only <new-base>..HEAD" \
+	"${REBASE_WAIVER}|fixed-awaiting-push transfer above, never as a zero count" \
+	"${REBASE_WAIVER}|never as a zero count" \
+	"${REBASE_WAIVER}|When the floor runs on a rebase, the waiver note, the fixed-awaiting-push" \
+	"${REBASE_WAIVER}|transfer note, and the scoped rebase verdict state its exit, so it runs first:" \
+	"${REBASE_WAIVER}|A waiver or transfer receipt proves only that the note and the inputs did" \
 	"${REVIEW}|inherited-breakage" \
 	"${MERGEBAR}|the fixed-awaiting-push" \
 	"${VERDICT}|A row 2 rebase takes the fixed-awaiting-push transfer note only" \
