@@ -354,7 +354,7 @@ text report with a four-subcommand local pipeline:
 - `scripts/debrief.sh aggregate [--days 30] [--since DATE] [--log PATH]... [--repo PATH]... [--project SUB] [--harness ...] [--out FILE]` — merges Stage 1 metadata, Stage 2 facets, hook logs (`skills-usage.jsonl`), multi-agent parallel overlap, and git rollups (anchoring bare `--since YYYY-MM-DD` at UTC midnight).
 - `scripts/debrief.sh render --aggregate AGG.json --synthesis SYN.json [--out FILE]` — renders an offline interactive HTML report to `$XDG_DATA_HOME/eshu-agent-kit/debrief-reports/report-YYYY-MM-DD-HHMMSS.html` and `report-latest.html`.
 
-**Debrief skill.** Invoke `/debrief` (loaded from `skills/eshu/debrief/SKILL.md`)
+**Debrief skill.** Invoke `/debrief` (loaded from `skills/core/debrief/SKILL.md`)
 to run `prepare`, classify uncached batches in parallel with fast-tier
 subagents, run `aggregate`, synthesize evidence-backed `AGENTS.md`/role/hook
 recommendations, and `render` the interactive offline HTML report.
