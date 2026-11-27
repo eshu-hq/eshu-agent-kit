@@ -34,6 +34,7 @@ install_hooks_repo() {
 	prune_dir "$target/.codex/hooks" "$KIT_DIR/hooks/codex/*.sh"
 	prune_dir "$target/.muse/hooks" "$KIT_DIR/hooks/muse/*.sh"
 	prune_dir "$target/.muse/hooks/lib" "$KIT_DIR/hooks/muse/lib/*"
+	install_agy_hooks_repo "$target"
 	# A consuming repo may already track its own copy of the staleness
 	# checker, and that copy can be newer than this kit's: the eshu repo
 	# carries a GNU-stat fix this kit does not have. Overwriting a tracked
@@ -45,8 +46,8 @@ install_hooks_repo() {
 	else
 		ln -sfn "$KIT_DIR/scripts/check-docs-stale.sh" "$target/scripts/check-docs-stale.sh"
 	fi
-	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex and Muse adapters)"
-	echo "wire the Claude/Codex hooks in settings.json (see hooks/README.md); Muse reads .muse/hooks.json"
+	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex, Muse and agy adapters)"
+	echo "wire the Claude/Codex hooks in settings.json (see hooks/README.md); Muse reads .muse/hooks.json, agy reads .agents/hooks.json"
 }
 
 install_hooks_mode() {
@@ -69,14 +70,15 @@ install_hooks_mode() {
 		muse/) install_hooks_global_muse ;;
 		claude/) install_hooks_global_claude ;;
 		opencode/) install_hooks_global_opencode ;;
+		agy/) install_hooks_global_agy ;;
 		*)
-			echo "usage: ./install.sh --hooks --global (muse|claude|opencode)" >&2
+			echo "usage: ./install.sh --hooks --global (muse|claude|opencode|agy)" >&2
 			return 1
 			;;
 		esac
 		;;
 	*)
-		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude|opencode)" >&2
+		echo "usage: ./install.sh --hooks --repo /path/to/repo | ./install.sh --hooks --global (muse|claude|opencode|agy)" >&2
 		return 1
 		;;
 	esac

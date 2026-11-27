@@ -23,6 +23,7 @@ from debrief_evals import (  # noqa: E402,F401
 )
 from debrief_hooks import (  # noqa: E402
     _aggregate_hooks,
+    agy_hook_caveats,
     _collect_git_stats,
     _compute_overlap,
     _read_hook_events,
@@ -283,7 +284,7 @@ def cmd_aggregate(args):
     log_paths = [p for p in (args.log or []) if p] or [default_usage_log()]
     hook_events, fixtures_dropped = _read_hook_events(log_paths, since_str)
     costs_by_skill = {r["skill"]: r for r in skill_costs["per_skill"]}
-    skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills, costs_by_skill)
+    skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills, costs_by_skill, metas)
 
     papercuts = papercut_stats(getattr(args, "papercuts", "") or "")
     filed_by_skill = papercuts["per_skill"] if papercuts else {}
@@ -377,7 +378,7 @@ def cmd_aggregate(args):
         "facet_summaries": facet_summaries,
         "not_tracked": [
             "Per-hook firing counts (volume without signal; first-fire witnesses plus transcript joins cover compliance).",
-            "Antigravity (agy) hook telemetry (kit hooks are not wired on agy yet; agy metrics come from transcript mining).",
+            *agy_hook_caveats(hooks_summary["agy"]),
             "Codex and OpenCode skill loads (no load signal exists; excluded, never ranked).",
             "Correlation is never causation: facet outcomes and satisfaction are model-estimated from bounded session digests.",
         ],

@@ -40,7 +40,7 @@ copies, and links pointing outside the kit always survive. Skill alias
 wrappers (real directories carrying `.kit-alias`) survive too unless
 you pass `--force`. Partial modes mirror the install ones
 (`--agents`, `--hooks`, `--rules` with `--repo`; `--agents` with
-`--global`; `--hooks --global (muse|claude|opencode)`). Uninstalling
+`--global`; `--hooks --global (muse|claude|opencode|agy)`). Uninstalling
 global hooks drops the kit-owned tree, except through bare
 `--uninstall --global`, which leaves hook registrations in place and
 tells you the explicit `--hooks --global` undo instead; your settings
@@ -104,6 +104,10 @@ Straight from [install.sh](../../install.sh):
   pointed at `agy` definitions. For headless runs, `agents/agent-roles.py
   agy-exec ROLE TASK` invokes `agy -p` with the tier's `cli_model`,
   `--sandbox`, and `--mode plan` for read-only roles.
+- Antigravity hooks are a separate, opt-in install: `--hooks --repo` merges the
+  kit's `eshu-agent-kit` key into `.agents/hooks.json` (your other keys stay),
+  and `--hooks --global agy` does the same in `~/.gemini/config/hooks.json`
+  with no trust step in any workspace. See [hooks/README.md](../../hooks/README.md).
 
 ## The bits you configure
 

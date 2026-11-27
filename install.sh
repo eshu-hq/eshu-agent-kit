@@ -233,6 +233,8 @@ source "$KIT_DIR/scripts/lib/install-hooks-global.sh"
 source "$KIT_DIR/scripts/lib/install-hooks-global-claude.sh"
 # shellcheck source=scripts/lib/install-hooks-global-opencode.sh
 source "$KIT_DIR/scripts/lib/install-hooks-global-opencode.sh"
+# shellcheck source=scripts/lib/install-hooks-agy.sh
+source "$KIT_DIR/scripts/lib/install-hooks-agy.sh"
 # shellcheck source=scripts/lib/install-uninstall.sh
 source "$KIT_DIR/scripts/lib/install-uninstall.sh"
 # shellcheck source=scripts/lib/install-select.sh
@@ -376,7 +378,7 @@ case "${1:-}" in
 			esac
 			;;
 		*)
-			echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude|opencode)) | ./install.sh --rules --repo /path/to/repo | ./install.sh --uninstall (--repo | --agents --repo | --hooks --repo | --rules --repo /path/to/repo | --global [harness...] | --agents --global [harness...] | --hooks --global (muse|claude|opencode)) [--force]  (harnesses: claude, codex, opencode, muse, cursor, agy, all)" >&2
+			echo "usage: ./install.sh --global [harness...] | ./install.sh --repo /path/to/repo [--aliases manifest.tsv] | ./install.sh --agents (--global [harness...] | --repo /path/to/repo) | ./install.sh --hooks (--repo /path/to/repo | --global (muse|claude|opencode|agy)) | ./install.sh --rules --repo /path/to/repo | ./install.sh --uninstall (--repo | --agents --repo | --hooks --repo | --rules --repo /path/to/repo | --global [harness...] | --agents --global [harness...] | --hooks --global (muse|claude|opencode|agy)) [--force]  (harnesses: claude, codex, opencode, muse, cursor, agy, all)" >&2
 			echo "run ./install.sh --help for the full reference" >&2
 			exit 1
 			;;

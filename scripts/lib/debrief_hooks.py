@@ -39,14 +39,15 @@ def _read_hook_events(log_paths, since_str):
     return events, dropped
 
 
-def _aggregate_hooks(hook_events, mined_skills, skill_costs_by_skill=None):
+def _aggregate_hooks(hook_events, mined_skills, skill_costs_by_skill=None, metas=None):
     """Join hook loads with mined loads; each row also carries cost fields.
 
     ``mined_skills`` maps canonical skill to mined load count (Counter or
     dict). ``skill_costs_by_skill`` maps canonical skill to its
     ``attribute_skill_costs`` per-skill row (attributed_tokens_in/out/total,
     attributed_errors, token_bearing_sessions); skills absent from it report
-    zeros. Returns ``(skill_table, hooks_summary)``.
+    zeros. ``metas`` (session metas) feeds ``hooks_summary["agy"]``. Returns
+    ``(skill_table, hooks_summary)``.
     """
     hook_loads = Counter()
     hook_forced = Counter()
@@ -137,8 +138,34 @@ def _aggregate_hooks(hook_events, mined_skills, skill_costs_by_skill=None):
         "goal_blocked_watcher": goal_blocked_watcher,
         "nudge_blocked": dict(nudge_blocked.most_common(12)),
         "model_failures": dict(model_failures.most_common(12)),
+        "agy": agy_hook_join(metas or {}, hook_events),
     }
     return skill_table, hooks_summary
+
+
+def agy_hook_join(metas, hook_events):
+    """Join agy hook events to mined agy sessions.
+
+    A hook event's ``session`` is the conversationId sanitized and cut to 12
+    characters (``si_event``), so an agy meta ``id`` is reduced the same way.
+    """
+    def key(sid):
+        return re.sub(r"[^A-Za-z0-9._-]", "-", str(sid or ""))[:12]
+
+    agy_ids = {key(m.get("id")) for m in metas.values() if m.get("harness") == "agy"}
+    agy_events = [e for e in hook_events if str(e.get("harness") or "") == "agy"]
+    joined = agy_ids & {key(e.get("session")) for e in agy_events}
+    return {"sessions": len(agy_ids), "hook_events": len(agy_events), "sessions_with_hook_events": len(joined)}
+
+
+def agy_hook_caveats(join):
+    """``not_tracked`` line when agy sessions exist but no agy hook event does."""
+    if not join["sessions"] or join["hook_events"]:
+        return []
+    return [
+        "Antigravity (agy) hook telemetry is absent from this window (agy hooks are opt-in: "
+        "./install.sh --hooks --repo, or --hooks --global agy); agy skill loads come from transcript mining."
+    ]
 
 
 PAPERCUT_SKILL_RE = re.compile(r"^\s*skill\s*:\s*[`'\"]?([A-Za-z0-9_.:-]+)", re.IGNORECASE | re.MULTILINE)

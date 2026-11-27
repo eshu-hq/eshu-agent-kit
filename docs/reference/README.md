@@ -32,7 +32,7 @@ No name means all of them.
 | --- | --- | --- | --- | --- |
 | Claude Code | plugin or installer | installer | plugin registers all 8 | yes (`--rules`) |
 | Codex, OpenCode, Muse, Cursor | installer | installer | separate install + explicit registration | no |
-| Antigravity (`agy`) | installer (`~/.gemini/config/skills`, repo `.agents/skills`) | installer (`~/.gemini/config/agents`, repo `.agy/agents`) + `agy-exec` | none yet | no |
+| Antigravity (`agy`) | installer (`~/.gemini/config/skills`, repo `.agents/skills`) | installer (`~/.gemini/config/agents`, repo `.agy/agents`) + `agy-exec` | separate install (`--hooks --repo`, or `--hooks --global agy`) | no |
 
 Installing the plugin won't break an unrelated repo, because every
 hook fails open outside its scope. See

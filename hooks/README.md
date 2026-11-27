@@ -2,7 +2,7 @@
 
 Executable enforcement for the skill system. Plain bash + python3 scripts; wiring is per harness.
 
-Install them two ways. The marketplace plugin registers everything below automatically through `hooks/hooks.json`. Everywhere else, `install.sh` symlinks the scripts and you wire them explicitly — Muse excepted, which gets its registration file written (see Muse Code below):
+Install them two ways. The marketplace plugin registers everything below automatically through `hooks/hooks.json`. Everywhere else, `install.sh` symlinks the scripts and you wire them explicitly — Muse and Antigravity (`agy`) excepted, which get their registration written (see Muse Code and Antigravity below):
 
 ```sh
 ./install.sh --hooks --repo /path/to/repo
@@ -22,7 +22,7 @@ Install them two ways. The marketplace plugin registers everything below automat
 | `goal-continue.sh` | Stop | — | Refuses to end the session while a declared goal is unfinished. Fail-open with no goal file. |
 | `stop-failure.sh` | StopFailure (Muse only) | — | Writes an at-most-once resume note when a turn dies in a model failure; the next prompt surfaces it and deletes it. Cannot re-drive the turn. |
 
-Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`).
+Shared code lives in `lib/` (skill-nudge gate, goal machinery). `tests/` mirrors the blocking hooks — run the suite after any edit. `codex/` holds the Codex adapters (`goal-continue.sh` on `stop`, `eshu-doc-staleness.sh` on `apply_patch`). `agy/` holds the Antigravity adapters (below).
 
 ## Contract
 
@@ -208,6 +208,95 @@ the default export.
   uninstall recognizes the file; otherwise it keeps it and tells you to
   remove it by hand.
 
+## Antigravity (`agy`)
+
+`./install.sh --hooks --repo /path/to/repo` also links the `agy/` wrappers
+into `.agy/hooks/` and merges one key, `eshu-agent-kit`, into
+`.agents/hooks.json`. agy's `hooks.json` is name-keyed, so the merge never
+touches your other keys or their order; a re-run is byte-identical. The
+installer refuses (file untouched, nothing agy-related linked) on invalid
+JSON, a non-object, a duplicate key, a byte-order mark, a symlink, or an
+`eshu-agent-kit` key whose commands are not the kit-generated ones.
+Project hooks run only for trusted workspaces (unverified for this install).
+
+| agy event | Matcher | Kit hook it runs |
+| --- | --- | --- |
+| `PostToolUse` | `read_file\|view_file` | `skill-loaded.sh`, only for `.../skills/<id>/SKILL.md` |
+| `PreToolUse` | `edit_file\|write_file` | `skill-nudge.sh` |
+| `PreToolUse` | `run_command` | `guard-live-gate.sh` |
+| `Stop` | none | `goal-continue.sh` |
+
+**Adapter contract.** agy speaks camelCase JSON on stdin and reads one JSON
+object on stdout; the kit siblings block with exit 2 and stderr, which agy
+does not understand. So each wrapper translates in, runs the `.claude/hooks/`
+sibling with `KIT_HARNESS=agy`, translates the verdict out, prints exactly
+one JSON object, and always exits 0. Neutral is `{}`. A sibling block becomes
+`{"decision":"deny","reason":...}` (the skill-nudge reason also tells the
+model to `read_file` the skill's `SKILL.md`, since agy has no Skill tool) or,
+for Stop, `{"decision":"continue","reason":...}`. `"allow"` is never emitted:
+agy defines it as an automatic approval that would skip the user's permission
+prompts. Garbage input, a missing sibling or a missing `python3` print `{}`.
+Tool hooks time out at 10 seconds, Stop at 30.
+
+- **Stop guards.** The hook acts only when `terminationReason` is
+  `NO_TOOL_CALL` and `continuationActive` is present (agy 1.5.6 and later);
+  without it there is no loop protection, so it prints `{}`. agy has no turn
+  id, so the adapter mints one per turn (new when `continuationActive` is
+  false, reused while true) in `$TMPDIR/agy-turn-<conversation>`.
+  *Known limit:* the no-progress scan (`goal-progress.sh`) does not
+  recognize agy transcript records, so every agy stop counts as no-progress
+  and a goal is released after the 3-stop budget per user message even if
+  the agent kept working.
+- **Telemetry.** Events go through the same `si_event` log with harness
+  `agy`; the skill-loaded marker convention is shared. Hook skill loads count
+  reads only, while the transcript extractor also counts edits and writes of
+  a `SKILL.md`, so the two totals can differ slightly.
+- **Version floor.** `hookEventName`, `cwd` and `toolCall.id` need agy 1.5.4;
+  `continuationActive` needs 1.5.6.
+- **Envelope fixtures.** `hooks/tests/testdata/agy-*.json` are synthetic,
+  built from agy's hooks doc and transcript argument names, not live
+  captures.
+
+### Global install for agy (machine-wide, opt-in)
+
+`./install.sh --hooks --global agy` links a pseudo-root tree under
+`~/.gemini/config/agent-kit-hooks/` and merges a key named
+`eshu-agent-kit-global` (the repo install uses `eshu-agent-kit`; distinct
+names, so same-named hooks never depend on how agy merges two files) into
+`~/.gemini/config/hooks.json` with absolute commands that set
+`KIT_GLOBAL_HOOK=1`. **These hooks run in every workspace with no trust
+step**, so this is an explicit command, never part of `--global`. Siblings
+never execute repo-supplied code under `KIT_GLOBAL_HOOK=1` (the Stop hook
+still reads goal files under the payload `cwd`, as the other global installs
+do).
+
+**No double firing, and no silenced guard.** The global copy always fires and
+never reads the workspace it runs in. The *repo* copy stands down only when
+`$HOME/.gemini/config/hooks.json` (a regular, non-symlink file that parses as
+strictly as Go: no `NaN`/`Infinity`, out-of-range numbers or BOM, and no two
+keys equal after case-folding at any level, because Go matches keys
+case-insensitively) holds an `eshu-agent-kit-global` key that deep-equals the
+WHOLE generated key (so no `enabled` member and no hand edit to any wrapper's
+entry), and the global tree's wrapper, sibling and lib files are in place
+(symlinks into the kit are the design). `HOME` unset, empty or relative, or
+any doubt, means the repo copy fires too. A workspace can therefore add a
+firing but never switch a global guard off. `skill-nudge` is the exception
+that keeps a repo copy useful: it still runs and exits at once unless the repo
+has its own `.agents/nudge-table.sh`, which the global copy never sources. With
+a global install, a repo table can extend the builtin nudge arms but not
+narrow or replace them; with none, the repo table applies in full.
+
+Double firing happens only with an unusable `HOME`, a hand-edited global key,
+or a repo nudge table. Costs, measured: `skill-loaded` writes its event twice,
+the nudge and live-gate deny twice (same verdict), and `goal-continue` mints a
+second turn id, so a goal's continuation budget runs double (one continuation
+fewer). It is bounded and cannot loop.
+
+The merge refuses on the same conditions as the repo install. Undo:
+`./install.sh --uninstall --hooks --global agy` removes the key only when it
+still equals what the installer wrote (a modified key is kept and reported),
+deletes the file only when nothing else is left in it, then removes the tree.
+
 ## Skills insights telemetry
 
 Which skills get loaded, which loads were forced, and how sessions end —
@@ -233,9 +322,11 @@ fixture session ids then pollute every later debrief. Export
 `ESHU_SKILLS_TELEMETRY_OFF=1` for such runs; the suites already run hermetic
 and need no change.
 
-**Coverage.** Hook telemetry (`skills-usage.jsonl`) exists on Claude and
-Muse only — `agy` hooks are not wired yet, and neither Codex nor OpenCode
-exposes a skill-load event. Transcript mining covers Claude, Muse, and
+**Coverage.** Hook telemetry (`skills-usage.jsonl`) exists on Claude, Muse
+and, once the `agy` hooks above are installed, Antigravity; neither Codex nor
+OpenCode exposes a skill-load event. When agy sessions appear in a window
+with no agy hook event at all, the debrief says so in `not_tracked` (agy
+hooks are opt-in). Transcript mining covers Claude, Muse, and
 Antigravity (`agy`), including `agy` skill loads (`read_file`/`view_file`
 reads of `SKILL.md`), tool mix, errors, response gaps, subagents, models,
 and workspace projects; Codex and OpenCode remain labeled exclusions, never

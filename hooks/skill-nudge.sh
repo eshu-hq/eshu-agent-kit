@@ -46,6 +46,10 @@ SID=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.st
 FP=$(printf '%s' "$INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input",{}).get("file_path") or "")' 2>/dev/null)
 [ -z "${FP:-}" ] && exit 0
 ROOT="$(kit_root_path "$FP")" || exit 0
+# A repo agy copy that stands down beside a working global install still owes
+# the repo's own nudge table (the global copy never sources it); with no table
+# there is nothing left for this copy to add.
+[ -n "${KIT_GLOBAL_PEER:-}" ] && [ ! -f "$ROOT/.agents/nudge-table.sh" ] && exit 0
 # Match the arms against the repo-relative path, not the absolute checkout
 # path: a worktree directory whose name contains a domain word (e.g.
 # eshu-6694-cypher-edge) would otherwise trip the broad `*cypher*` arm for

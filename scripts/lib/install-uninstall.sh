@@ -186,6 +186,7 @@ uninstall_repo() {
 		uninstall_managed_tree "$target/.codex/hooks" "$force"
 		uninstall_managed_tree "$target/.muse/hooks" "$force"
 		uninstall_managed_tree "$target/.muse/hooks/lib" "$force"
+		uninstall_agy_hooks_repo "$target" "$force"
 		uninstall_identical_copy "$target/scripts/check-docs-stale.sh" "$KIT_DIR/scripts/check-docs-stale.sh" "consumer-owned script; left in place"
 		uninstall_identical_copy "$target/.muse/hooks.json" "$KIT_DIR/hooks/muse/hooks.json" "consumer-owned hooks.json; left in place"
 		;;
@@ -376,6 +377,7 @@ uninstall_global() {
 					uninstall_keeping "$tree" "installed by --hooks --global claude; run --uninstall --hooks --global claude to remove it"
 				fi
 				;;
+			agy) uninstall_note_global_agy ;;
 			opencode)
 				bridge="$(opencode_plugin_dir)/eshu-bridge.js"
 				if [ -e "$bridge" ] || [ -L "$bridge" ]; then
@@ -397,7 +399,7 @@ uninstall_usage() {
 	echo "       ./install.sh --uninstall (--agents|--hooks|--rules) --repo /path/to/repo [--force]" >&2
 	echo "       ./install.sh --uninstall --global [harness...] [--force]" >&2
 	echo "       ./install.sh --uninstall --agents --global [harness...] [--force]" >&2
-	echo "       ./install.sh --uninstall --hooks --global (muse|claude|opencode) [--force]" >&2
+	echo "       ./install.sh --uninstall --hooks --global (muse|claude|opencode|agy) [--force]" >&2
 }
 
 uninstall_main() {
@@ -450,6 +452,8 @@ uninstall_main() {
 			uninstall_hooks_global_claude "$force"
 		elif [ "${2:-}" = --global ] && [ "${3:-}" = opencode ] && [ $# -eq 3 ]; then
 			uninstall_hooks_global_opencode
+		elif [ "${2:-}" = --global ] && [ "${3:-}" = agy ] && [ $# -eq 3 ]; then
+			uninstall_hooks_global_agy "$force"
 		else
 			uninstall_usage
 			return 1

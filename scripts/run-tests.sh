@@ -25,6 +25,8 @@ suites=(
 	scripts/tests/test-global-install.sh
 	scripts/tests/test-global-harness-selection.sh
 	scripts/tests/test-global-muse-hooks.sh
+	scripts/tests/test-global-agy-hooks.sh
+	scripts/tests/test-agy-hooks.sh
 	scripts/tests/test-global-claude-hooks.sh
 	scripts/tests/test-global-opencode-hooks.sh
 	scripts/tests/test-repo-install.sh
