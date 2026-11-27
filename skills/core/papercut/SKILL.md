@@ -38,7 +38,7 @@ bash "$KIT/scripts/file-papercut.sh" file \
   --fix "<smallest change that removes the friction>"
 ```
 
-4. When preparing inputs for `/debrief`, export a fresh papercut snapshot atomically so `scripts/debrief.sh aggregate --papercuts FILE` can join filed-vs-fixed counts offline. Done when `snapshot` exits 0 and reports the written issue count.
+4. When preparing inputs for standalone `/debrief` (`debrief aggregate --papercuts FILE`, passing `DEBRIEF_DATA_DIR`, `--log`, and `--aliases` as needed), export a fresh papercut snapshot atomically so filed-vs-fixed counts can be joined offline. Done when `snapshot` exits 0 and reports the written issue count.
 
 ```bash
 bash "$KIT/scripts/file-papercut.sh" snapshot \

@@ -117,36 +117,10 @@ printf '{"meta":{"skill":"code-review","harness":"claude"},"arms":{}}\n' >"${wor
 if (
 	bash "${REPLAY}" report --verdict "${work}/empty-v.json" --seal "${work}/empty-s.json" --history "" >/dev/null 2>&1
 	[ "$?" -eq 2 ]
-) && python3 -B - "${LIB}" "${work}" <<'PYEOF'; then
-import json, os, sys
-sys.path.insert(0, sys.argv[1])
-from debrief_evals import _eval_entry, eval_trends
-from debrief_triggers import render_trigger_card, trigger_stats
-
-bad = _eval_entry({"skill": "code-review", "win_rate": 1.5, "noise_band": -0.2, "skill_sha": "not-hex-xyz!"})
-assert bad["win_rate"] is None and bad["noise_band"] is None and bad["skill_sha"] is None, bad
-good = _eval_entry({"skill": "code-review", "win_rate": 0.75, "skill_sha": "abcdef012345"})
-assert good["win_rate"] == 0.75 and good["skill_sha"] == "abcdef012345", good
-
-r1 = (_eval_entry({"skill": "code-review", "harness": "claude", "win_rate": 0.5, "skill_sha": "abcdef01"}), True)
-r2 = (_eval_entry({"skill": "code-review", "harness": "claude", "win_rate": 0.8, "skill_sha": "abcdef01"}), True)
-tr = eval_trends([r1, r2], ["src"])
-assert tr["per_skill"]["code-review"][0]["runs"] == 2, tr
-
-tp = os.path.join(sys.argv[2], "trig-partial.json")
-json.dump({
-    "kind": "trigger-eval", "decider": "codex", "mode": "router-prompt",
-    "recorded_at": "2026-11-27T00:00:00Z", "errors": 2,
-    "per_skill": [{"skill": "code-review", "tp": 2, "fp": 0, "fn": 0, "tn": 1, "precision": 1.0, "recall": 1.0, "f1": 1.0}],
-}, open(tp, "w"))
-ts = trigger_stats([tp])
-assert ts["per_skill"]["code-review"]["codex"]["partial"] is True, ts
-card = render_trigger_card({"trigger_evals": ts, "skill_table": []})
-assert "(partial)" in card and "codex" in card, card
-PYEOF
-	ok "#115 hardening: --history '', win_rate/sha validation, undated run count, and partial trigger badge"
+); then
+	ok "#115 hardening: --history '' exits 2"
 else
-	no "#115 hardening: --history '', win_rate/sha validation, undated run count, and partial trigger badge"
+	no "#115 hardening: --history '' exits 2"
 fi
 
 if [ "${failed}" -gt 0 ]; then

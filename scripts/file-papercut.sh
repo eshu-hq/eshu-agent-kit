@@ -214,6 +214,11 @@ def cmd_snapshot(ns):
         die(1, f"gh issue list returned invalid JSON: {exc}")
     if not isinstance(data, list):
         die(1, "gh issue list snapshot must be a JSON array")
+    required_fields = {"number", "title", "body", "state", "stateReason"}
+    for idx, item in enumerate(data):
+        if not isinstance(item, dict) or not required_fields.issubset(item):
+            missing = sorted(required_fields - set(item)) if isinstance(item, dict) else sorted(required_fields)
+            die(1, f"gh issue list snapshot row {idx} missing required fields: {', '.join(missing)}")
     out_abs = os.path.abspath(out_path)
     out_dir = os.path.dirname(out_abs)
     os.makedirs(out_dir, exist_ok=True)

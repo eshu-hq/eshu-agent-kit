@@ -35,7 +35,6 @@
   {"id": "security-scan-gates-pos-1", "kind": "positive", "prompt": "security-scan.yml failed on govulncheck after a Go toolchain bump; reproduce it locally and filter the SARIF output.", "expect": ["security-scan-gates"]},
   {"id": "mcp-call-rigor-pos-1", "kind": "positive", "prompt": "Before I call the Eshu MCP tool over tools/call at POST /mcp/message, what scope, limit, and timeout should I set?", "expect": ["mcp-call-rigor"]},
   {"id": "papercut-pos-1", "kind": "positive", "prompt": "The skill told me to run a script that does not exist and failed silently; file a papercut issue for it.", "expect": ["papercut"]},
-  {"id": "debrief-pos-1", "kind": "positive", "prompt": "Run a /debrief over my last two weeks of Claude, agy, and Muse sessions and recommend skill changes.", "expect": ["debrief"]},
   {"id": "chat-neg-1", "kind": "negative", "prompt": "What is the capital of Australia?", "expect": [], "reject": ["*"]},
   {"id": "chat-neg-2", "kind": "negative", "prompt": "Convert 72 degrees Fahrenheit to Celsius and show the arithmetic.", "expect": [], "reject": ["*"]}
 ]}

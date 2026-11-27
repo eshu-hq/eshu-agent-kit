@@ -422,41 +422,18 @@ out="$(cd "${repo}/.agents" && pl agy-stop.json | env -u HOME sh -c "$(hook_cmd 
 check "an open goal continues with HOME unset" test "$(field decision)" = continue
 rm -f "${goalf}"
 
-# 8. Debrief: an agy hook event joins its agy__<conversationId> session, and the
-# not_tracked caveat is data-driven (present only with agy sessions and no agy events).
+# 8. Telemetry: an agy skill-loaded hook event emits content-free JSONL keyed by
+# conversationId[:12] and harness="agy" for standalone debrief ingestion.
 fresh
 cid="agy-conv-0001-aaaa"
-tr="${work}/tr/agy-cli/brain/${cid}/.system_generated/logs"
-mkdir -p "${tr}"
-cat >"${tr}/transcript.jsonl" <<'EOF'
-{"created_at":"2026-11-20T10:00:10Z","type":"USER_INPUT","content":"Publish the change"}
-{"created_at":"2026-11-20T10:00:15Z","type":"PLANNER_RESPONSE","model":"gemini-flash","input_tokens":500,"output_tokens":120,"cache_read_tokens":0,"tool_calls":[{"name":"read_file","args":{"Path":"/repo/skills/publish/SKILL.md"}}],"response":"Reading."}
-{"created_at":"2026-11-20T10:00:50Z","type":"USER_INPUT","content":"Go on"}
-EOF
-python3 -c 'import os,sys; os.utime(sys.argv[1], (1795168900, 1795168900))' "${tr}/transcript.jsonl"
-cache="${work}/cache"
-bash "${kit}/scripts/debrief.sh" prepare --since 2026-11-01 --harness agy --cache-dir "${cache}" --out-dir "${work}/batches" \
-	--transcript-root "${work}/tr/agy-cli/brain" >/dev/null 2>&1
-agg() { bash "${kit}/scripts/debrief.sh" aggregate --since 2026-11-01 --harness agy --cache-dir "${cache}" --log "$1" --out "${work}/agg.json" >/dev/null 2>&1; }
-: >"${work}/empty.jsonl"
-agg "${work}/empty.jsonl"
-check "agy sessions with zero agy hook events -> caveat names transcript mining" python3 - "${work}/agg.json" <<'PY'
-import json, sys
-nt = " ".join(json.load(open(sys.argv[1]))["not_tracked"])
-assert "Antigravity (agy) hook telemetry is absent" in nt and "transcript mining" in nt, nt
-assert "not wired on agy yet" not in nt, nt
-d = json.load(open(sys.argv[1]))
-assert d["hooks"]["agy"] == {"sessions": 1, "hook_events": 0, "sessions_with_hook_events": 0}, d["hooks"]["agy"]
-PY
 run skill-loaded "$(pl agy-posttool-read.json 'd["conversationId"] = "'"${cid}"'"; d["toolCall"]["args"]["Path"] = "/repo/skills/publish/SKILL.md"')"
-agg "${LOG}"
-check "an agy hook event joins its agy session and clears the caveat" python3 - "${work}/agg.json" <<'PY'
+check "an agy skill-loaded hook emits harness=agy telemetry keyed by conversationId" python3 - "${LOG}" "${cid:0:12}" <<'PY'
 import json, sys
-d = json.load(open(sys.argv[1]))
-row = {r["skill"]: r for r in d["skill_table"]}["publish"]
-assert row["hook_loads"] == 1 and row["mined_loads"] == 1, row
-assert not any("Antigravity" in s for s in d["not_tracked"]), d["not_tracked"]
-assert d["hooks"]["agy"] == {"sessions": 1, "hook_events": 1, "sessions_with_hook_events": 1}, d["hooks"]["agy"]
+rows = [json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+assert len(rows) == 1, rows
+ev = rows[0]
+assert ev["harness"] == "agy" and ev["type"] == "skill-load", ev
+assert ev["session"] == sys.argv[2] and ev["detail"].get("skill") == "publish", ev
 PY
 
 printf '\n%s passed, %s failed\n' "${passed}" "${failed}"
