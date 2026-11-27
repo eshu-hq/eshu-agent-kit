@@ -20,6 +20,7 @@ from debrief_insights import (  # noqa: E402
 )
 from debrief_render_skills import render_friction_cards, render_harness_skill_section  # noqa: E402
 from debrief_render_trends import render_skill_trends_card  # noqa: E402
+from debrief_scope import render_single_session_banner  # noqa: E402
 from debrief_triggers import render_trigger_card  # noqa: E402
 
 
@@ -246,6 +247,8 @@ def render_html(agg, syn):
   <h1>Multi-Harness Agent Debrief</h1>
   <p class="subtitle">{m_prompts:,} prompts &middot; {m_tools:,} tool calls across {m_top} top-level sessions ({m_tot} total, {m_fac} facets analyzed) &middot; {_e(meta.get("from"))} to {_e(meta.get("to"))} &middot; Harnesses: {_e(harnesses_lbl)}{proj_lbl}</p>
 
+  {render_single_session_banner(agg)}
+
   <div class="at-a-glance">
     <div class="glance-title">At a Glance</div>
     <div class="glance-sections">
@@ -293,7 +296,7 @@ def render_html(agg, syn):
     {_render_chart_card("Session Types", charts.get("session_types"), "#8b5cf6", left_col="Type", right_col="Sessions")}
   </div>
 
-  <h2 id="section-usage">How You Use Muse, Antigravity &amp; Claude</h2>
+  <h2 id="section-usage">How You Use Your Harnesses</h2>
   <div class="narrative">
     {narr_paras}
     <div class="key-insight"><strong>Key pattern:</strong> {_e(key_ins)}</div>

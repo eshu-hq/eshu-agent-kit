@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from debrief_aggregate import (  # noqa: E402
     cmd_aggregate,
     inherit_parent_projects,
-    parse_harnesses,
     project_match,
 )
 from debrief_common import (  # noqa: E402
@@ -20,9 +19,17 @@ from debrief_common import (  # noqa: E402
     configure_aliases,
     default_cache_dir,
     read_json,
-    resolve_since,
     safe_key,
     validate_facet,
+)
+from debrief_scope import (  # noqa: E402
+    build_scope_meta,
+    filter_metas_by_sessions,
+    parse_harnesses_strict,
+    parse_session_specs,
+    resolve_current_session,
+    resolve_window,
+    session_detail_rows,
 )
 import debrief_extract_agy as EX_AGY  # noqa: E402
 import debrief_extract_claude as EX_CLAUDE  # noqa: E402
@@ -167,24 +174,8 @@ def _facet_is_fresh(cache_dir, harness, sid, source_mtime):
     return abs(float(cf.get("source_mtime") or 0) - float(source_mtime or 0)) < 1.0
 
 
-def cmd_prepare(args):
-    since_str, since_ep = resolve_since(args.since, args.days)
-    harnesses = parse_harnesses(args.harness)
-    cache_dir = args.cache_dir or default_cache_dir()
-    out_dir = args.out_dir or os.path.join(cache_dir, "work-batches")
-    os.makedirs(out_dir, exist_ok=True)
-    for fn in os.listdir(out_dir):
-        if fn.startswith("batch-") and fn.endswith(".json"):
-            try:
-                os.unlink(os.path.join(out_dir, fn))
-            except OSError:
-                pass
-
-    imported_claude = 0
-    if not args.no_claude_import and "claude" in harnesses:
-        imported_claude = _sync_claude_facets(cache_dir, args.claude_facets_dir)
-
-    discovered = _discover_all(harnesses, since_ep, args.transcript_root)
+def _extract_metas_and_digests(harnesses, since_ep, cache_dir, roots_override=None):
+    discovered = _discover_all(harnesses, since_ep, roots_override)
     agy_db_cache = {}
     opencode_db_cache = {}
     metas_by_key = {}
@@ -202,11 +193,96 @@ def cmd_prepare(args):
                 con.close()
             except Exception:
                 pass
-
     inherit_parent_projects(metas_by_key)
+    return metas_by_key, digests_by_key
+
+
+def cmd_sessions(args):
+    harnesses = parse_harnesses_strict(args.harness)
+    days_explicit = args.days is not None
+    since_str, since_ep = resolve_window(
+        args.since, args.days, all_time=args.all_time, days_explicit=days_explicit
+    )
+    cache_dir = args.cache_dir or default_cache_dir()
+    metas_by_key, digests_by_key = _extract_metas_and_digests(
+        harnesses, since_ep, cache_dir, args.transcript_root
+    )
+    if args.project:
+        metas_by_key = {k: m for k, m in metas_by_key.items() if project_match(m, args.project)}
+    children = _rollup_children(metas_by_key, digests_by_key)
+    facets_dir = os.path.join(cache_dir, "facets")
+    facets = {}
+    if os.path.isdir(facets_dir):
+        for k in metas_by_key:
+            f = read_json(os.path.join(facets_dir, k + ".json"))
+            if f:
+                facets[k] = f
+    rows = session_detail_rows(metas_by_key, children, facets, limit=max(1, int(args.limit)))
+    if args.json:
+        out = {
+            "since": since_str or None,
+            "all_time": bool(args.all_time),
+            "harnesses": harnesses,
+            "project": args.project or None,
+            "total_top_sessions": len([k for k in metas_by_key if k not in children]),
+            "sessions": rows,
+        }
+        sys.stdout.write(json.dumps(out, indent=2, sort_keys=True) + "\n")
+        return
+    if not rows:
+        sys.stdout.write("No sessions found.\n")
+        return
+    sys.stdout.write(f"{'HARNESS':<9} {'SESSION_ID':<20} {'PROJECT':<20} {'PROMPTS':>7} {'TOOLS':>6} {'ERRS':>5}  LAST_TS\n")
+    for r in rows:
+        sys.stdout.write(
+            f"{r['harness']:<9} {r['session_id'][:20]:<20} {r['project'][:20]:<20} "
+            f"{r['prompts']:>7} {r['tool_calls']:>6} {r['errors']:>5}  {str(r['last_ts'])[:19]}\n"
+        )
+
+
+def cmd_prepare(args):
+    harnesses = parse_harnesses_strict(args.harness)
+    specs = parse_session_specs(args.session, args.sessions_file)
+    explicit_sessions = bool(args.current or specs)
+    days_explicit = args.days is not None
+    since_str, since_ep = resolve_window(
+        args.since,
+        args.days,
+        all_time=args.all_time,
+        explicit_sessions=explicit_sessions,
+        days_explicit=days_explicit,
+    )
+    cache_dir = args.cache_dir or default_cache_dir()
+    out_dir = args.out_dir or os.path.join(cache_dir, "work-batches")
+    os.makedirs(out_dir, exist_ok=True)
+    for fn in os.listdir(out_dir):
+        if fn.startswith("batch-") and fn.endswith(".json"):
+            try:
+                os.unlink(os.path.join(out_dir, fn))
+            except OSError:
+                pass
+
+    imported_claude = 0
+    if not args.no_claude_import and "claude" in harnesses:
+        imported_claude = _sync_claude_facets(cache_dir, args.claude_facets_dir)
+
+    metas_by_key, digests_by_key = _extract_metas_and_digests(
+        harnesses, since_ep, cache_dir, args.transcript_root
+    )
     if args.project:
         metas_by_key = {k: m for k, m in metas_by_key.items() if project_match(m, args.project)}
         digests_by_key = {k: d for k, d in digests_by_key.items() if k in metas_by_key}
+
+    matched_sids = []
+    missing_specs = []
+    if args.current:
+        specs = resolve_current_session(metas_by_key, harnesses, cwd=args.current_cwd or None) + specs
+    if specs:
+        metas_by_key, matched_keys, missing_specs = filter_metas_by_sessions(
+            metas_by_key, specs, include_children=not args.no_children
+        )
+        digests_by_key = {k: d for k, d in digests_by_key.items() if k in metas_by_key}
+        matched_sids = [metas_by_key[k]["id"] for k in matched_keys]
 
     rolled_up = _rollup_children(metas_by_key, digests_by_key)
 
@@ -216,7 +292,7 @@ def cmd_prepare(args):
     for k, m in metas_by_key.items():
         if k in rolled_up:
             continue
-        if (m.get("prompts", 0) < 2) and (m.get("tool_calls", 0) < 3):
+        if not explicit_sessions and (m.get("prompts", 0) < 2) and (m.get("tool_calls", 0) < 3):
             skipped_trivial += 1
             continue
         if _facet_is_fresh(cache_dir, m["harness"], m["id"], m.get("source_mtime")):
@@ -237,10 +313,20 @@ def cmd_prepare(args):
         atomic_write_json(bpath, {"batch_index": len(batch_files) + 1, "digests": chunk})
         batch_files.append(bpath)
 
+    scope = build_scope_meta(
+        harnesses,
+        args.project,
+        since_str,
+        args.days if days_explicit else 30,
+        args.all_time,
+        session_ids=matched_sids,
+        missing_sessions=missing_specs,
+    )
     manifest = {
-        "since": since_str,
+        "since": since_str or None,
         "harnesses": harnesses,
         "project": args.project or None,
+        "scope": scope,
         "cache_dir": cache_dir,
         "sessions_discovered": len(metas_by_key),
         "rolled_up_children": len(rolled_up),
@@ -293,17 +379,39 @@ def cmd_cache_write(args):
         raise SystemExit(1)
 
 
+def _add_scope_args(parser):
+    parser.add_argument("--since", default="")
+    parser.add_argument("--days", type=int, default=None)
+    parser.add_argument("--all-time", action="store_true", help="Include all available sessions with no time cutoff")
+    parser.add_argument("--project", default="")
+    parser.add_argument("--harness", default="", help="Comma-separated harnesses (muse,agy,claude,codex,opencode) or all")
+    parser.add_argument("--current", action="store_true", help="Scope to the active session (env var or CWD recency)")
+    parser.add_argument("--current-cwd", default="", help="Workspace path override for --current fallback resolution")
+    parser.add_argument("--session", action="append", default=[], help="Target session ID or prefix (repeatable, comma-separated, optional harness:id)")
+    parser.add_argument("--sessions-file", default="", help="File containing target session IDs (newline-delimited or JSON array)")
+    parser.add_argument("--no-children", action="store_true", help="Do not auto-include child subagent sessions for targeted --session/--current")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="debrief")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    p_sess = sub.add_parser("sessions")
+    p_sess.add_argument("--since", default="")
+    p_sess.add_argument("--days", type=int, default=None)
+    p_sess.add_argument("--all-time", action="store_true")
+    p_sess.add_argument("--project", default="")
+    p_sess.add_argument("--harness", default="")
+    p_sess.add_argument("--limit", type=int, default=30)
+    p_sess.add_argument("--json", action="store_true")
+    p_sess.add_argument("--cache-dir", default="")
+    p_sess.add_argument("--transcript-root", action="append", default=[])
+    p_sess.add_argument("--aliases", default="")
+
     p_prep = sub.add_parser("prepare")
-    p_prep.add_argument("--since", default="")
-    p_prep.add_argument("--days", type=int, default=30)
+    _add_scope_args(p_prep)
     p_prep.add_argument("--max-new", type=int, default=100)
     p_prep.add_argument("--batch-size", type=int, default=10)
-    p_prep.add_argument("--project", default="")
-    p_prep.add_argument("--harness", default="")
     p_prep.add_argument("--cache-dir", default="")
     p_prep.add_argument("--out-dir", default="")
     p_prep.add_argument("--transcript-root", action="append", default=[])
@@ -316,10 +424,7 @@ def main(argv=None):
     p_cw.add_argument("input", nargs="?", default="-")
 
     p_agg = sub.add_parser("aggregate")
-    p_agg.add_argument("--since", default="")
-    p_agg.add_argument("--days", type=int, default=30)
-    p_agg.add_argument("--project", default="")
-    p_agg.add_argument("--harness", default="")
+    _add_scope_args(p_agg)
     p_agg.add_argument("--cache-dir", default="")
     p_agg.add_argument("--log", action="append", default=[])
     p_agg.add_argument("--repo", action="append", default=[])
@@ -340,7 +445,9 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if getattr(args, "aliases", ""):
         configure_aliases(args.aliases)
-    if args.cmd == "prepare":
+    if args.cmd == "sessions":
+        cmd_sessions(args)
+    elif args.cmd == "prepare":
         cmd_prepare(args)
     elif args.cmd == "cache-write":
         cmd_cache_write(args)

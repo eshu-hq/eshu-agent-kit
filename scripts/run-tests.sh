@@ -38,6 +38,7 @@ suites=(
 	scripts/tests/test-install-uninstall.sh
 	scripts/tests/test-debrief.sh
 	scripts/tests/test-debrief-codex-opencode.sh
+	scripts/tests/test-debrief-scope.sh
 	scripts/tests/test-debrief-papercuts.sh
 	scripts/tests/test-debrief-insights.sh
 	scripts/tests/test-debrief-trends.sh

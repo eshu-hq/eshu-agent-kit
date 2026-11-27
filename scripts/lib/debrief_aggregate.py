@@ -37,14 +37,21 @@ from debrief_insights import (  # noqa: E402
     repo_stats,
 )
 from debrief_skill_costs import attribute_skill_costs, gap_stats, load_skill_sizes  # noqa: E402
+from debrief_scope import (  # noqa: E402
+    build_scope_meta,
+    filter_hook_events_by_sessions,
+    filter_metas_by_sessions,
+    parse_harnesses_strict,
+    parse_session_specs,
+    resolve_current_session,
+    resolve_window,
+    session_detail_rows,
+)
 from debrief_triggers import join_trigger_rows, trigger_stats  # noqa: E402
 
 
 def parse_harnesses(raw):
-    if not raw:
-        return list(VALID_HARNESSES)
-    out = [h.strip().lower() for h in raw.split(",") if h.strip().lower() in VALID_HARNESSES]
-    return out or list(VALID_HARNESSES)
+    return parse_harnesses_strict(raw)
 
 
 def inherit_parent_projects(metas_by_key):
@@ -150,8 +157,19 @@ def interjection_stats(top_metas):
 
 
 def cmd_aggregate(args):
-    since_str, since_ep = resolve_since(args.since, args.days)
-    harnesses = parse_harnesses(args.harness)
+    harnesses = parse_harnesses_strict(args.harness)
+    specs = parse_session_specs(getattr(args, "session", None), getattr(args, "sessions_file", "") or "")
+    is_current = bool(getattr(args, "current", False))
+    all_time = bool(getattr(args, "all_time", False))
+    explicit_sessions = bool(is_current or specs)
+    days_explicit = getattr(args, "days", None) is not None
+    since_str, since_ep = resolve_window(
+        getattr(args, "since", "") or "",
+        getattr(args, "days", None),
+        all_time=all_time,
+        explicit_sessions=explicit_sessions,
+        days_explicit=days_explicit,
+    )
     cache_dir = args.cache_dir or default_cache_dir()
     meta_dir = os.path.join(cache_dir, "meta")
     facets_dir = os.path.join(cache_dir, "facets")
@@ -175,6 +193,18 @@ def cmd_aggregate(args):
     inherit_parent_projects(metas)
     if args.project:
         metas = {k: m for k, m in metas.items() if project_match(m, args.project)}
+
+    matched_sids = []
+    missing_specs = []
+    if is_current:
+        specs = resolve_current_session(
+            metas, harnesses, cwd=getattr(args, "current_cwd", "") or None
+        ) + specs
+    if specs:
+        metas, matched_keys, missing_specs = filter_metas_by_sessions(
+            metas, specs, include_children=not bool(getattr(args, "no_children", False))
+        )
+        matched_sids = [metas[k]["id"] for k in matched_keys]
 
     by_id = {(m["harness"], m["id"]): k for k, m in metas.items()}
     children = set()
@@ -284,6 +314,8 @@ def cmd_aggregate(args):
 
     log_paths = [p for p in (args.log or []) if p] or [default_usage_log()]
     hook_events, fixtures_dropped = _read_hook_events(log_paths, since_str)
+    if explicit_sessions:
+        hook_events = filter_hook_events_by_sessions(hook_events, metas)
     costs_by_skill = {r["skill"]: r for r in skill_costs["per_skill"]}
     skill_table, hooks_summary = _aggregate_hooks(hook_events, mined_skills, costs_by_skill, metas)
 
@@ -323,15 +355,26 @@ def cmd_aggregate(args):
     days_active = max(1, len(dates))
     skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active)
     sess_health = session_health_stats(metas.values(), skill_costs)
+    scope_meta = build_scope_meta(
+        harnesses,
+        args.project,
+        since_str,
+        args.days if days_explicit else 30,
+        all_time,
+        session_ids=matched_sids,
+        missing_sessions=missing_specs,
+    )
+    sess_details = session_detail_rows(metas, children, facets, limit=25) if (explicit_sessions or len(top_metas) == 1) else []
 
     agg = {
         "meta": {
             "from": span_from,
             "to": span_to,
-            "since": since_str,
+            "since": since_str or None,
             "days_active": days_active,
             "harnesses": harnesses,
             "project": args.project or None,
+            "scope": scope_meta,
             "total_sessions": len(metas),
             "top_level_sessions": len(top_metas),
             "child_sessions": len(children),
@@ -344,6 +387,7 @@ def cmd_aggregate(args):
             "fixtures_excluded": fixtures_dropped,
             "repos": repos,
         },
+        "sessions_detail": sess_details,
         "by_harness": dict(by_harness),
         "hooks": hooks_summary,
         "charts": {

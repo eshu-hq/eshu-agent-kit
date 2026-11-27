@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# scripts/debrief.sh — Multi-harness /debrief v2 pipeline (Muse, Antigravity, Claude).
+# scripts/debrief.sh — Multi-harness /debrief v2 pipeline (Muse, Antigravity, Claude, Codex, OpenCode).
 #
 # Subcommands:
+#   sessions    List discoverable sessions (id, harness, project, prompts, tools, errors)
+#               for picking exact --session targets.
 #   prepare     Scan/cache Stage 1 session-meta, import native Claude facets,
 #               roll child subagents into parents, and emit batched digests for
 #               up to --max-new uncached non-trivial sessions (default: 30d, 100).
@@ -17,9 +19,12 @@ LIB="${SCRIPT_DIR}/lib"
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: bash scripts/debrief.sh <prepare|cache-write|aggregate|render> [options...]
+Usage: bash scripts/debrief.sh <sessions|prepare|cache-write|aggregate|render> [options...]
 
 Examples:
+  bash scripts/debrief.sh sessions --days 14 --harness opencode --limit 20
+  bash scripts/debrief.sh prepare --current
+  bash scripts/debrief.sh prepare --session abc12345 --session def67890
   bash scripts/debrief.sh prepare --days 30 --max-new 100 --batch-size 10
   bash scripts/debrief.sh cache-write facets-batch-01.json
   bash scripts/debrief.sh aggregate --days 30 --repo /path/to/repo --out agg.json
@@ -40,7 +45,7 @@ cmd="${1:-}"
 shift
 
 case "${cmd}" in
-prepare | cache-write | aggregate)
+sessions | prepare | cache-write | aggregate)
 	exec python3 -B "${LIB}/debrief_pipeline.py" "${cmd}" "$@"
 	;;
 render)
