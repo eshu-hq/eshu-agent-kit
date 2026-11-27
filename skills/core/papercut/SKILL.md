@@ -1,5 +1,6 @@
 ---
 name: papercut
+tier: core
 description: Use on any harness whenever a skill, hook, script, or doc misleads the session, fails silently, or contradicts reality. Files canonicalized, deduplicated papercut issues via scripts/file-papercut.sh and exports snapshots for /debrief.
 ---
 
@@ -7,7 +8,7 @@ description: Use on any harness whenever a skill, hook, script, or doc misleads 
 
 File small in-session friction so `/debrief` tracks each report to its owning skill and confirms when it closes. Do not bundle unrelated bugs into one papercut, and fix trivial one-line defects inline when they fit the files your current PR already edits.
 
-Scope: portable across Claude, Codex, Muse, Antigravity, and OpenCode. Resolve `$KIT` from this file's directory (`readlink -f` up three levels from `skills/eshu/papercut/SKILL.md` to the kit root holding `scripts/file-papercut.sh`). If copied without a symlink (such as a repo alias wrapper), resolve under your harness user skills directory or pass the kit checkout path.
+Scope: portable `core` layer across Claude, Codex, Muse, Antigravity, and OpenCode. Resolve `$KIT` from this file's directory (`readlink -f` up three levels from `skills/core/papercut/SKILL.md` to the kit root holding `scripts/file-papercut.sh`). Set `PAPERCUT_REPO=<owner/repo>` or pass `--repo` to target any GitHub repository outside the current git origin.
 
 ## Workflow
 

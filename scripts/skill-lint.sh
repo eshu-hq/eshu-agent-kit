@@ -160,12 +160,16 @@ for skill_file in "${files[@]}"; do
 	name_line=1
 	desc=""
 	desc_line=1
+	tier=""
+	owner=""
 	if [[ "$(head -n 1 "${skill_file}")" == "---" ]]; then
 		end="$(awk 'NR>1 && /^---$/{print NR; exit}' "${skill_file}")"
 		if [[ -n "${end}" ]]; then
 			body_start=$((end + 1))
 			name="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{sub(/^name:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
 			name_line="$(awk -v e="${end}" 'NR>1 && NR<e && /^name:[[:space:]]*/{print NR; exit}' "${skill_file}")"
+			tier="$(awk -v e="${end}" 'NR>1 && NR<e && /^tier:[[:space:]]*/{sub(/^tier:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
+			owner="$(awk -v e="${end}" 'NR>1 && NR<e && /^owner:[[:space:]]*/{sub(/^owner:[[:space:]]*/, ""); print; exit}' "${skill_file}")"
 			desc="$(awk -v e="${end}" -v sq="'" '
 				NR>1 && NR<e {
 					if (in_desc) {
@@ -201,6 +205,8 @@ for skill_file in "${files[@]}"; do
 	fi
 	name="$(printf '%s' "${name}" | sed -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 	desc="$(printf '%s' "${desc}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+	tier="$(printf '%s' "${tier}" | sed -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+	owner="$(printf '%s' "${owner}" | sed -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 	[[ -z "${name_line}" ]] && name_line=1
 	[[ -z "${desc_line}" ]] && desc_line=1
 	desc_chars=${#desc}
@@ -327,7 +333,7 @@ for skill_file in "${files[@]}"; do
 	fi
 
 	if ((json_mode == 1)); then
-		jrec M "${lines}" "${bytes}" "${desc_chars}" "${est_desc_tokens}" "${est_body_tokens}" "${has_references}" "${has_scripts}"
+		jrec M "${lines}" "${bytes}" "${desc_chars}" "${est_desc_tokens}" "${est_body_tokens}" "${has_references}" "${has_scripts}" "${tier}" "${owner}"
 	fi
 done
 
@@ -358,6 +364,8 @@ while i < len(tokens):
             "est_body_tokens": 0,
             "has_references": False,
             "has_scripts": False,
+            "tier": "",
+            "owner": "",
             "errors": [],
             "advisories": [],
         })
@@ -371,7 +379,9 @@ while i < len(tokens):
         cur["est_body_tokens"] = int(tokens[i + 5])
         cur["has_references"] = tokens[i + 6] == "true"
         cur["has_scripts"] = tokens[i + 7] == "true"
-        i += 8
+        cur["tier"] = tokens[i + 8]
+        cur["owner"] = tokens[i + 9]
+        i += 10
     elif tag in ("E", "A"):
         key = "errors" if tag == "E" else "advisories"
         skills[-1][key].append({

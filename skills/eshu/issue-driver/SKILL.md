@@ -103,7 +103,7 @@ Follow [issue-and-closeout.md](references/issue-and-closeout.md) for:
 - **Completion Evidence** (direct GitHub API `CLOSED`/`MERGED` verification, zero unresolved threads, two stable CI reads, and full local-testing proof).
 
 Small in-session friction (a skill, hook, script, or doc that misled the session)
-takes [papercut](../papercut/SKILL.md) instead of a full issue so the
+takes [papercut](../../core/papercut/SKILL.md) instead of a full issue so the
 `skill: <name>` join-key stays canonical for `/debrief`:
 
 ```bash

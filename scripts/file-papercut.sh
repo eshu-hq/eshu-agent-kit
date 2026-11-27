@@ -21,7 +21,7 @@ exec python3 -B - "${KIT_DIR}" "$@" <<'PYEOF'
 import argparse, json, os, re, subprocess, sys, tempfile
 
 KIT_DIR, ARGV = sys.argv[1], sys.argv[2:]
-DEFAULT_REPO = "eshu-hq/eshu-agent-kit"
+DEFAULT_REPO = (os.environ.get("PAPERCUT_REPO") or "").strip() or "eshu-hq/eshu-agent-kit"
 STOPWORDS = frozenset({
     "the", "and", "for", "with", "from", "that", "this", "into", "when", "not",
     "are", "was", "has", "have", "but", "use", "using", "does", "did", "can",
@@ -56,6 +56,9 @@ def canon_skill(raw):
 
 
 def detect_repo():
+    env_repo = (os.environ.get("PAPERCUT_REPO") or "").strip()
+    if env_repo:
+        return env_repo
     try:
         res = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True, check=False)
     except OSError:
