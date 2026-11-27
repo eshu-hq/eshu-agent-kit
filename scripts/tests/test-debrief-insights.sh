@@ -268,13 +268,14 @@ r3 = {r["skill"]: r for r in c3["per_skill"]}["late-skill"]
 assert r3["attributed_tokens_in"] == 5000.0 and r3["attributed_errors"] == 1.0, r3
 PYEOF
 
-# 9. Muse subagent-fallback sessions (no model_completed) still emit post-load error shares.
+# 9. Muse subagent-fallback sessions (no model_completed) attribute post-load tokens/errors and leave pre-load unattributed.
 mkdir -p "${work}/muse-fb"
 cat >"${work}/muse-fb/session.jsonl" <<'EOF'
+{"recorded_at":"2026-11-25T12:59:59Z","stream":{"id":"muse-fb"},"payload_type":"subagent.control.runtime_observed","payload":{"subagent_id":"pre","usage":{"input_tokens":300,"output_tokens":30}}}
 {"recorded_at":"2026-11-25T13:00:00Z","stream":{"id":"muse-fb"},"payload_type":"runtime.session","payload":{"event":{"kind":"skill_read_observed","skill_id":"late-skill"}}}
 {"recorded_at":"2026-11-25T13:00:01Z","stream":{"id":"muse-fb"},"payload_type":"tool_batch.effect.started","payload":{"call_id":"c1","tool_name":"run_command"}}
 {"recorded_at":"2026-11-25T13:00:02Z","stream":{"id":"muse-fb"},"payload_type":"tool_batch.effect.terminal","payload":{"call_id":"c1","outcome":{"kind":"failed"}}}
-{"recorded_at":"2026-11-25T13:00:03Z","stream":{"id":"muse-fb"},"payload_type":"subagent.control.runtime_observed","payload":{"usage":{"input_tokens":700,"output_tokens":70}}}
+{"recorded_at":"2026-11-25T13:00:03Z","stream":{"id":"muse-fb"},"payload_type":"subagent.control.runtime_observed","payload":{"subagent_id":"post","usage":{"input_tokens":700,"output_tokens":70}}}
 EOF
 python3 -B - "${KIT_DIR}/scripts/lib" "${work}/muse-fb/session.jsonl" <<'PYEOF' && ok "muse extractor emits post_load_attribution for fallback-token sessions" || no "muse extractor emits post_load_attribution for fallback-token sessions"
 import sys
@@ -282,13 +283,13 @@ sys.path.insert(0, sys.argv[1])
 from debrief_extract_muse import extract_session
 from debrief_skill_costs import attribute_skill_costs
 meta, _ = extract_session(sys.argv[2])
-assert meta["tokens_in"] == 700 and meta["skill_loads"] == ["late-skill"], meta
+assert meta["tokens_in"] == 1000 and meta["skill_loads"] == ["late-skill"], meta
 pla = meta["post_load_attribution"]
-assert pla["late-skill"]["errors"] == 1.0 and pla["late-skill"]["tokens_in"] == 0.0, pla
+assert pla["late-skill"]["errors"] == 1.0 and pla["late-skill"]["tokens_in"] == 700.0, pla
 c = attribute_skill_costs([meta])
 r = {x["skill"]: x for x in c["per_skill"]}["late-skill"]
-assert r["attributed_errors"] == 1.0 and r["attributed_tokens_in"] == 0.0, r
-assert c["unattributed"]["tokens_in"] == 700.0, c["unattributed"]
+assert r["attributed_errors"] == 1.0 and r["attributed_tokens_in"] == 700.0, r
+assert c["unattributed"]["tokens_in"] == 300.0, c["unattributed"]
 PYEOF
 
 printf '\ndebrief-insights: %d passed, %d failed\n' "${passed}" "${failed}"

@@ -40,11 +40,12 @@ def discover(roots, since_epoch):
             if "/.system_generated" in norm_dp or "/subagent/" in norm_dp:
                 continue
             for fn in fns:
-                if not fn.endswith(".jsonl") or fn in (
+                if not fn.endswith(".jsonl") or fn.startswith("rollout-") or fn in (
                     "journal.jsonl",
                     "session.jsonl",
                     "transcript.jsonl",
                     "transcript_full.jsonl",
+                    "history.jsonl",
                 ):
                     continue
                 p = os.path.join(dp, fn)

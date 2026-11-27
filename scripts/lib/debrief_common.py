@@ -318,13 +318,16 @@ def normalize_friction_key(raw):
     return k if k in VALID_FRICTION else "tool_failure"
 
 
+VALID_HARNESSES = ("muse", "agy", "claude", "codex", "opencode")
+
+
 def validate_facet(raw):
     """Validate and normalize one Stage 2 facet dict; returns (facet, err)."""
     if not isinstance(raw, dict):
         return None, "facet must be a JSON object"
     sid = str(raw.get("session_id") or "").strip()
     harness = str(raw.get("harness") or "").strip().lower()
-    if not sid or harness not in ("muse", "agy", "claude"):
+    if not sid or harness not in VALID_HARNESSES:
         return None, f"missing/invalid session_id ({sid!r}) or harness ({harness!r})"
     outcome = str(raw.get("outcome") or "unclear").strip().lower()
     if outcome not in VALID_OUTCOMES:

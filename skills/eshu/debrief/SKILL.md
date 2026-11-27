@@ -1,13 +1,13 @@
 ---
 name: debrief
-description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or workflow recommendations across Muse, Antigravity (agy), and Claude. Runs scripts/debrief.sh (Stage 1 meta + Stage 2 cached semantic facets + hook telemetry) and renders an offline interactive HTML report."
+description: "Use when asked for a skills debrief, /debrief, a usage-insights-style report, or workflow recommendations across Muse, Antigravity (agy), Claude, Codex, and OpenCode. Runs scripts/debrief.sh (Stage 1 meta + Stage 2 cached semantic facets + hook telemetry) and renders an offline interactive HTML report."
 ---
 
 # Multi-Harness Agent Debrief
 
-Generate a `/insights`-grade operational debrief across **Muse**, **Antigravity (`agy`)**, and **Claude** sessions. Deterministic scripts extract session metadata, cache semantic facets locally under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/`, merge hook telemetry (`skills-usage.jsonl`) and git history, and render an offline interactive HTML report. Your job is to orchestrate parallel fast-tier facet extraction for uncached sessions and write the high-signal narrative synthesis and actionable workflow fixes.
+Generate a `/insights`-grade operational debrief across **Muse**, **Antigravity (`agy`)**, **Claude**, **Codex**, and **OpenCode** sessions. Deterministic scripts extract session metadata, cache semantic facets locally under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/` (or `$DEBRIEF_DATA_DIR`), merge hook telemetry (`skills-usage.jsonl`) and git history, and render an offline interactive HTML report. Your job is to orchestrate parallel fast-tier facet extraction for uncached sessions and write the high-signal narrative synthesis and actionable workflow fixes.
 
-Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and hook events resolve per `skills/registry.md`. By default, debrief runs across **all harnesses (`muse,agy,claude`)** and **all repos** over the last **30 days**; pass `--since YYYY-MM-DD`, `--days N`, `--project SUB`, or `--harness muse,agy,claude` when the user asks to narrow scope.
+Scope: this is the `eshu` layer of the kit. Skill names, goal mechanics, and hook events resolve per `skills/registry.md`. By default, debrief runs across **all 5 harnesses (`muse,agy,claude,codex,opencode`)** and **all repos** over the last **30 days**; pass `--since YYYY-MM-DD`, `--days N`, `--project SUB`, or `--harness muse,agy,claude,codex,opencode` when the user asks to narrow scope.
 
 Privacy boundary: local transcripts and cached facets stay under `$XDG_DATA_HOME/eshu-agent-kit/debrief-cache/` (never committed, never uploaded). Hook telemetry in `skills-usage.jsonl` stays content-free. Cite short session IDs in the report; never paste raw message text or secrets.
 
@@ -39,7 +39,7 @@ Otherwise, dispatch **one fast-tier subagent per `batch-XX.json` in parallel** (
 ```json
 {
   "session_id": "<exact digest session_id>",
-  "harness": "muse|agy|claude",
+  "harness": "muse|agy|claude|codex|opencode",
   "source_mtime": 0,
   "underlying_goal": "1 concise sentence describing what the user wanted",
   "goal_categories": {"<snake_case_category>": 1},

@@ -10,6 +10,7 @@ from collections import Counter, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from debrief_common import (  # noqa: E402
+    VALID_HARNESSES,
     atomic_write_json,
     default_cache_dir,
     default_usage_log,
@@ -41,9 +42,9 @@ from debrief_triggers import join_trigger_rows, trigger_stats  # noqa: E402
 
 def parse_harnesses(raw):
     if not raw:
-        return ["muse", "agy", "claude"]
-    out = [h.strip().lower() for h in raw.split(",") if h.strip().lower() in ("muse", "agy", "claude")]
-    return out or ["muse", "agy", "claude"]
+        return list(VALID_HARNESSES)
+    out = [h.strip().lower() for h in raw.split(",") if h.strip().lower() in VALID_HARNESSES]
+    return out or list(VALID_HARNESSES)
 
 
 def inherit_parent_projects(metas_by_key):
@@ -379,7 +380,7 @@ def cmd_aggregate(args):
         "not_tracked": [
             "Per-hook firing counts (volume without signal; first-fire witnesses plus transcript joins cover compliance).",
             *agy_hook_caveats(hooks_summary["agy"]),
-            "Codex and OpenCode skill loads (no load signal exists; excluded, never ranked).",
+            "Codex and OpenCode hook nudge telemetry when their skill hooks or v2 bridge are not installed (transcript sessions and SKILL.md / skill tool loads ARE mined).",
             "Correlation is never causation: facet outcomes and satisfaction are model-estimated from bounded session digests.",
         ],
     }
