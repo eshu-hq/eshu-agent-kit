@@ -1,0 +1,70 @@
+[
+  {
+    "id": "telemetry-coverage-discipline-golden-1",
+    "category": "golden",
+    "skill": "telemetry-coverage-discipline",
+    "prompt": "You added a new reducer pipeline stage metric `eshu_reducer_stage_duration_seconds` in `go/internal/telemetry/`. Before opening the PR, what dashboard, documentation, and verification gate updates are required?",
+    "expectations": {
+      "must_mention": [
+        "eshu-operator-overview\\.json|dashboard|observability/",
+        "verify-telemetry-coverage\\.sh|coverage gate"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bmetrics alone are enough\\b",
+        "(?<!not )(?<!never )\\bskip dashboard updates\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "telemetry-coverage-discipline-golden-2",
+    "category": "golden",
+    "skill": "telemetry-coverage-discipline",
+    "prompt": "An engineer adds a new `slog.Info` log key for projector retries using high-cardinality raw request UUIDs as a Prometheus metric label so they can filter by request ID in Grafana. How should you correct this instrumentation?",
+    "expectations": {
+      "must_mention": [
+        "cardinality|unbounded",
+        "span|log|trace"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\buuid as a metric label is fine\\b",
+        "(?<!not )(?<!never )\\badd request id to prometheus labels\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "telemetry-coverage-discipline-golden-3",
+    "category": "golden",
+    "skill": "telemetry-coverage-discipline",
+    "prompt": "A PR removes an obsolete queue metric from Go code, and `scripts/verify-telemetry-coverage.sh` fails because a panel in `eshu-operator-overview.json` still queries it. Should you silence the script check or update the dashboard and telemetry docs?",
+    "expectations": {
+      "must_mention": [
+        "eshu-operator-overview\\.json|panel|dashboard",
+        "verify-telemetry-coverage\\.sh|sync|remove"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bsilence the script\\b",
+        "(?<!not )(?<!never )\\bdisable verify-telemetry-coverage\\b"
+      ],
+      "max_errors": 0
+    }
+  },
+  {
+    "id": "telemetry-coverage-discipline-edge-1",
+    "category": "edge",
+    "skill": "telemetry-coverage-discipline",
+    "prompt": "You add a new failure counter in `go/internal/telemetry/` and run `go test ./internal/telemetry/...` which passes. Can you claim operator observability coverage is complete without running `scripts/verify-telemetry-coverage.sh` or inspecting `observability/`?",
+    "expectations": {
+      "must_mention": [
+        "verify-telemetry-coverage\\.sh",
+        "observability|dashboard|panel"
+      ],
+      "must_not_mention": [
+        "(?<!not )(?<!never )\\bunit tests prove coverage is complete\\b",
+        "(?<!not )(?<!never )\\bno need to run verify-telemetry-coverage\\b"
+      ],
+      "max_errors": 0
+    }
+  }
+]
