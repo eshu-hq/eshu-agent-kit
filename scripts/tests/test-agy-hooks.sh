@@ -242,7 +242,10 @@ rc=$?
 check "a missing wrapper prints nothing from the hooks.json command itself" is_neutral
 for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
 	rm -rf "${work}/nolib" && mkdir -p "${work}/nolib/lib" && cp "${repo}/.agy/hooks/${w}.sh" "${work}/nolib/${w}.sh"
-	out="$(pl agy-pretool-edit.json | "${work}/nolib/${w}.sh" 2>/dev/null)"
+	# A file, not a pipe: the wrapper exits without reading stdin, and a pipe
+	# writer would die of SIGPIPE under pipefail.
+	pl agy-pretool-edit.json >"${work}/nolib/payload.json"
+	out="$("${work}/nolib/${w}.sh" <"${work}/nolib/payload.json" 2>/dev/null)"
 	rc=$?
 	check "${w}: an unreadable lib/agy-root.sh prints nothing and exits 0" is_neutral
 done
