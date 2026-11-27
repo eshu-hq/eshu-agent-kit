@@ -182,7 +182,7 @@ check "global commands are absolute into the tree with KIT_GLOBAL_HOOK=1" python
 import json, sys
 doc = json.load(open(sys.argv[1]))["eshu-agent-kit-global"]
 cmds = [h["command"] for g in doc["PreToolUse"] + doc["PostToolUse"] for h in g["hooks"]] + [h["command"] for h in doc["Stop"]]
-assert len(cmds) == 4, cmds
+assert len(cmds) == 6, cmds
 for c in cmds:
     assert "h=%s/.agy/hooks/" % sys.argv[2] in c and "KIT_GLOBAL_HOOK=1 exec" in c, c
 assert [h["timeout"] for h in doc["Stop"]] == [30] and all(h["timeout"] == 10 for g in doc["PreToolUse"] + doc["PostToolUse"] for h in g["hooks"])

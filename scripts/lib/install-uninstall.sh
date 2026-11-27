@@ -184,10 +184,12 @@ uninstall_repo() {
 		uninstall_managed_tree "$target/.claude/hooks" "$force"
 		uninstall_managed_tree "$target/.claude/hooks/lib" "$force"
 		uninstall_managed_tree "$target/.codex/hooks" "$force"
+		uninstall_managed_tree "$target/.cursor/hooks" "$force"
 		uninstall_managed_tree "$target/.muse/hooks" "$force"
 		uninstall_managed_tree "$target/.muse/hooks/lib" "$force"
 		uninstall_agy_hooks_repo "$target" "$force"
 		uninstall_identical_copy "$target/scripts/check-docs-stale.sh" "$KIT_DIR/scripts/check-docs-stale.sh" "consumer-owned script; left in place"
+		uninstall_identical_copy "$target/scripts/watch-pr.sh" "$KIT_DIR/scripts/watch-pr.sh" "consumer-owned script; left in place"
 		uninstall_identical_copy "$target/.muse/hooks.json" "$KIT_DIR/hooks/muse/hooks.json" "consumer-owned hooks.json; left in place"
 		;;
 	esac
@@ -220,6 +222,7 @@ uninstall_repo() {
 	uninstall_rmdir "$target/.codex/hooks"
 	uninstall_rmdir "$target/.opencode/agent"
 	uninstall_rmdir "$target/.cursor/agents"
+	uninstall_rmdir "$target/.cursor/hooks"
 	uninstall_rmdir "$target/.agy/agents"
 	uninstall_rmdir "$target/.muse/hooks/lib"
 	uninstall_rmdir "$target/.muse/hooks"

@@ -14,8 +14,10 @@ Install them two ways. The marketplace plugin registers everything below automat
 |---|---|---|---|
 | `skill-nudge.sh` | PreToolUse | `Edit\|MultiEdit\|Write` | Refuses edits to a governed surface until the governing skill loads. Table overridable per repo via `.agents/nudge-table.sh`. |
 | `guard-live-gate.sh` | PreToolUse | `Bash` | Refuses a second live gate while Eshu ports are bound. Silent outside Eshu checkouts. |
+| `pr-watch-guard.sh` | PreToolUse | `Bash` / Muse `monitor`, `report_progress` | Marks session PRs watched when `watch-pr.sh`/`pr-watch` starts; on Muse, blocks one-shot `gh pr view` inside `monitor` and blocks `report_progress(snooze_minutes>0)` while an opened PR is unwatched. |
 | `skill-loaded.sh` | PostToolUse | `Skill` | Records loaded skills as `/tmp` markers the nudge checks. |
 | `issue-capture.sh` | PostToolUse | `Bash` | Ledgers issues filed during a goal so the Stop gate can enforce them. |
+| `pr-watch-nudge.sh` | PostToolUse | `Bash` / `run_command` / `afterShellExecution` | Fires on `gh pr create`, records the opened PR as unwatched, logs `pr-opened`, and injects the exact `scripts/watch-pr.sh` command for the active harness. |
 | `eshu-doc-staleness.sh` | PostToolUse | `Edit\|MultiEdit\|Write` | Rebuilds the doc-drift snapshot via `<repo>/scripts/check-docs-stale.sh`. No-op when the checker is absent. |
 | `goal-refresh.sh` | UserPromptSubmit | — | Restates the active goal every turn; writes the goal file `/goal` commands create. |
 | `on-compact.sh` | SessionStart | `compact\|resume` | Clears stale markers, re-points at `session-lifecycle`. Kit-pinned checkouts only. |
@@ -71,7 +73,9 @@ Every hook fails open outside its scope: missing interpreter, missing checker, n
 }
 ```
 
-Codex (`~/.codex/config.toml` / `~/.codex/hooks.json`): `codex/eshu-doc-staleness.sh` on `apply_patch`, `codex/skill-loaded.sh` on `PostToolUse`, `codex/skill-nudge.sh` on `PreToolUse`, and `codex/goal-continue.sh` on `stop`. All Codex adapters export `KIT_HARNESS=codex` so `skills-usage.jsonl` attributes events accurately.
+Codex (`~/.codex/config.toml` / `~/.codex/hooks.json`): `codex/eshu-doc-staleness.sh` on `apply_patch`, `codex/skill-loaded.sh` on `PostToolUse`, `codex/skill-nudge.sh` on `PreToolUse`, `codex/pr-watch-nudge.sh` on shell `PostToolUse`, and `codex/goal-continue.sh` on `stop`. All Codex adapters export `KIT_HARNESS=codex` so `skills-usage.jsonl` attributes events accurately.
+
+Cursor (`.cursor/hooks.json`, template in `hooks/cursor/hooks.json`): `cursor/pr-watch-nudge.sh` on `afterShellExecution` exports `KIT_HARNESS=cursor` and returns `additional_context` with the exact `scripts/watch-pr.sh --exit-on-event` command after `gh pr create`.
 
 ## Muse Code
 

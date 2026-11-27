@@ -72,7 +72,7 @@ def entries(doc):
 
 
 me, pe = entries(managed), entries(project)
-assert me == pe and len(me) == 12, (sorted(me ^ pe), len(me))
+assert me == pe and len(me) == 16, (sorted(me ^ pe), len(me))
 for items in managed["hooks"].values():
     for item in items:
         for hook in item["hooks"]:

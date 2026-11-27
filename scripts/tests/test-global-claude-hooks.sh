@@ -79,9 +79,9 @@ for event, items in got.items():
             assert hook["type"] == "command", hook
             base = re.search(r"/\.claude/hooks/([A-Za-z0-9_-]+\.sh)", hook["command"]).group(1)
             assert hook["command"] == 'KIT_GLOBAL_HOOK=1 exec "%s/.claude/hooks/%s"' % (root, base), hook
-assert n == 8, n
+assert n == 10, n
 PY
-	ok "created settings carry the 8 entries with global commands" || no "created settings carry the 8 entries with global commands"
+	ok "created settings carry the 10 entries with global commands" || no "created settings carry the 10 entries with global commands"
 [ "$(readlink "$(tree_of "$h1")/.claude/hooks/skill-nudge.sh")" = "${kit}/hooks/skill-nudge.sh" ] &&
 	[ "$(readlink "$(tree_of "$h1")/.claude/hooks/lib/skill-nudge-lib.sh")" = "${kit}/hooks/lib/skill-nudge-lib.sh" ] &&
 	ok "pseudo-root mirrors siblings and lib as kit links" || no "pseudo-root mirrors siblings and lib as kit links"
@@ -107,9 +107,9 @@ hooks = json.load(open(sys.argv[1]))["hooks"]
 mine = [i for i in hooks["PreToolUse"] if i.get("matcher") == "Bash" and any(h.get("command") == "/mine/guard.sh" for h in i["hooks"])]
 assert len(mine) == 1 and len(mine[0]["hooks"]) == 1, hooks["PreToolUse"]
 n = sum(len(i["hooks"]) for items in hooks.values() for i in items)
-assert n == 9, n
+assert n == 11, n
 PY
-	ok "user hook entry kept verbatim beside the 8 merged" || no "user hook entry kept verbatim beside the 8 merged"
+	ok "user hook entry kept verbatim beside the 10 merged" || no "user hook entry kept verbatim beside the 10 merged"
 
 # 4. Refusals: every one leaves settings byte-identical, creates no tree,
 # and exits nonzero.
@@ -154,12 +154,12 @@ python3 - "$(settings_of "$h5")" <<'PY' &&
 import json, sys
 hooks = json.load(open(sys.argv[1]))["hooks"]
 pre = hooks["PreToolUse"]
-assert len(pre) == 2, pre
+assert len(pre) == 3, pre
 assert sum('skill-nudge' in h.get("command", "") for i in pre for h in i["hooks"]) == 1, pre
 n = sum(len(i["hooks"]) for items in hooks.values() for i in items)
-assert n == 8, n
+assert n == 10, n
 PY
-	ok "plugin-covered entry deduped, other seven merged" || no "plugin-covered entry deduped, other seven merged"
+	ok "plugin-covered entry deduped, other nine merged" || no "plugin-covered entry deduped, other nine merged"
 cp "$(settings_of "$h5")" "${work}/settings.after5"
 run_install "$h5" --hooks --global claude >/dev/null 2>&1
 cmp -s "$(settings_of "$h5")" "${work}/settings.after5" &&
@@ -203,7 +203,7 @@ run_install "$h1" --hooks --global claude --no-prune >/dev/null 2>&1 &&
 import json, sys
 settings, root = json.load(open(sys.argv[1])), sys.argv[2]
 n = sum(len(i["hooks"]) for items in settings["hooks"].values() for i in items)
-assert n == 8, n
+assert n == 10, n
 PY
 	ok "--no-prune runs the install and keeps the stale wrapper" || no "--no-prune runs the install and keeps the stale wrapper"
 

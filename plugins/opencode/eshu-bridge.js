@@ -306,9 +306,8 @@ async function handleSessionEvent(deps, sessions, event) {
   }
 }
 
-// Skill-load observer (`tool.hook("execute.after")`): record skill markers
-// and `skills-usage.jsonl` events with `KIT_HARNESS=opencode` when a skill
-// tool or `SKILL.md` read completes.
+// Skill-load and PR-watch observer (`tool.hook("execute.after")`): record
+// skill markers and PR watcher state/telemetry with `KIT_HARNESS=opencode`.
 async function handleToolAfter(deps, event) {
   try {
     if (!event || event.status !== "completed") return "ignored";
@@ -316,19 +315,42 @@ async function handleToolAfter(deps, event) {
       return "ignored";
     }
     const skill = extractSkillName(event);
-    if (skill === "") return "ignored";
-    const cwd = await resolveCwd(deps.resolveDir, event.sessionID);
-    const envelope = buildSkillLoadedEnvelope({
-      sessionID: event.sessionID,
-      skill,
-      cwd,
-    });
-    const stdout = await runSibling(
-      resolveKitDir(),
-      "skill-loaded.sh",
-      envelope,
-    );
-    return stdout === null ? "silent" : "recorded";
+    if (skill !== "") {
+      const cwd = await resolveCwd(deps.resolveDir, event.sessionID);
+      const envelope = buildSkillLoadedEnvelope({
+        sessionID: event.sessionID,
+        skill,
+        cwd,
+      });
+      const stdout = await runSibling(resolveKitDir(), "skill-loaded.sh", envelope);
+      return stdout === null ? "silent" : "recorded";
+    }
+    const tool = asText(event.tool).toLowerCase();
+    if (tool === "bash" || tool === "shell") {
+      const input = event.input && typeof event.input === "object" ? event.input : {};
+      const cmd = asText(input.command) || asText(input.cmd);
+      const out = asText(event.output);
+      if (
+        cmd !== "" &&
+        (cmd.includes("pr create") || cmd.includes("watch-pr.sh") || cmd.includes("pr-watch") || out.includes("/pull/"))
+      ) {
+        const cwd = await resolveCwd(deps.resolveDir, event.sessionID);
+        const stdout = await runSibling(resolveKitDir(), "pr-watch-nudge.sh", {
+          hook_event_name: "PostToolUse",
+          tool_name: "Bash",
+          session_id: event.sessionID,
+          cwd,
+          tool_input: { command: cmd },
+          tool_response: { stdout: out },
+        });
+        const ctx = extractContext(stdout);
+        if (ctx !== null && typeof event.output === "string" && !event.output.includes(ctx)) {
+          event.output = `${event.output}\n\n${ctx}`;
+        }
+        return stdout === null ? "silent" : "recorded";
+      }
+    }
+    return "ignored";
   } catch {
     return "silent";
   }
