@@ -41,6 +41,7 @@ suites=(
 	scripts/tests/test-debrief-scope.sh
 	scripts/tests/test-debrief-diff.sh
 	scripts/tests/test-debrief-pareto.sh
+	scripts/tests/test-debrief-changepoints.sh
 	scripts/tests/test-debrief-papercuts.sh
 	scripts/tests/test-debrief-insights.sh
 	scripts/tests/test-debrief-trends.sh

@@ -95,23 +95,27 @@ def compute_radar_profile(agg):
     else:
         axes["efficiency"] = {"score": None, "raw": "n/a", "source": None}
 
-    # 6. Cache Efficiency: weighted prompt cache hit %.
-    pc = health.get("prompt_cache") or {}
+    # 6. Cache Efficiency: weighted prompt cache hit % from cache_by_harness or skill_costs totals.
+    cbh = health.get("cache_by_harness") or {}
     c_hits = 0.0
     c_tot = 0.0
-    for hv in pc.values():
+    for hv in cbh.values():
         if not isinstance(hv, dict):
             continue
-        cr = safe_float(hv.get("cache_read"), 0.0)
-        cw = safe_float(hv.get("cache_write"), 0.0)
-        fr = safe_float(hv.get("fresh_input"), 0.0)
-        tot = cr + cw + fr
-        if tot > 0:
-            c_hits += cr
-            c_tot += tot
+        tin = safe_float(hv.get("tokens_in"), 0.0)
+        hpct = hv.get("cache_hit_pct")
+        if tin > 0 and hpct is not None:
+            c_hits += tin * (safe_float(hpct, 0.0) / 100.0)
+            c_tot += tin
+    if c_tot <= 0:
+        totals = (agg.get("skill_costs") or {}).get("totals") or {}
+        cr = safe_float(totals.get("tokens_cache_read"), 0.0)
+        tin = safe_float(totals.get("tokens_in"), 0.0)
+        if tin > 0 and cr > 0:
+            c_hits, c_tot = min(cr, tin), tin
     if c_tot > 0:
         ch = c_hits / c_tot
-        axes["cache"] = {"score": _clamp01(ch), "raw": f"{ch * 100:.1f}% cache hit", "source": "prompt_cache"}
+        axes["cache"] = {"score": _clamp01(ch), "raw": f"{ch * 100:.1f}% cache hit", "source": "cache_by_harness"}
     else:
         axes["cache"] = {"score": None, "raw": "n/a", "source": None}
 

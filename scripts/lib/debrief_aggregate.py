@@ -30,6 +30,11 @@ from debrief_hooks import (  # noqa: E402
     _read_hook_events,
     papercut_stats,
 )
+from debrief_changepoints import (  # noqa: E402
+    compute_changepoint_impact,
+    discover_changepoints,
+    latest_changepoint_epoch,
+)
 from debrief_coaching import build_coaching_playbook, session_health_stats  # noqa: E402
 from debrief_insights import (  # noqa: E402
     build_skill_recommendations,
@@ -213,6 +218,15 @@ def cmd_aggregate(args):
         )
         matched_sids = [metas[k]["id"] for k in matched_keys]
 
+    repo_paths = [r for r in (args.repo or []) if r.strip()]
+    skills_dirs = getattr(args, "skills_dir", None) or None
+    cp_raw = discover_changepoints(skills_dirs=skills_dirs, repo_paths=repo_paths)
+    if bool(getattr(args, "since_last_edit", False)):
+        loaded_sks = {sk for m in metas.values() for sk in (m.get("skill_loads") or [])}
+        lce = latest_changepoint_epoch(cp_raw, loaded_skills=loaded_sks)
+        if lce:
+            metas = {k: m for k, m in metas.items() if float(m.get("last_epoch") or m.get("first_epoch") or m.get("source_mtime") or 0) >= lce}
+
     by_id = {(m["harness"], m["id"]): k for k, m in metas.items()}
     children = set()
     for k, m in metas.items():
@@ -360,8 +374,13 @@ def cmd_aggregate(args):
     span_from = min(dates) if dates else since_str
     span_to = max(dates) if dates else today_iso
     days_active = max(1, len(dates))
+    cp_impact = compute_changepoint_impact(metas.values(), hook_events, skill_sizes, cp_raw, since_epoch=since_ep)
+    ignore_cp = bool(getattr(args, "ignore_changepoints", False))
     pareto = compute_pareto_analysis(skill_table, eval_trend_stats)
-    skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active, pareto=pareto)
+    skill_recs = build_skill_recommendations(
+        skill_table, repositories, skill_sizes, ij_unattr, days_active,
+        pareto=pareto, changepoints=None if ignore_cp else cp_impact,
+    )
     sess_health = session_health_stats(metas.values(), skill_costs)
     scope_meta = build_scope_meta(
         harnesses,
@@ -420,6 +439,7 @@ def cmd_aggregate(args):
         "projects": dict(projects.most_common(12)),
         "repositories": repositories,
         "skill_table": skill_table,
+        "changepoints": cp_impact,
         "pareto": pareto,
         "skill_recommendations": skill_recs,
         "session_health": sess_health,

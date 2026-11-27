@@ -464,6 +464,8 @@ def main(argv=None):
     p_agg.add_argument("--compare-prev", action="store_true", help="Diff against the most recent saved snapshot for this scope")
     p_agg.add_argument("--compare", default="", help="Diff against an explicit previous snapshot JSON file")
     p_agg.add_argument("--reports-dir", default="", help="Override debrief reports dir (for --compare-prev snapshot lookup)")
+    p_agg.add_argument("--ignore-changepoints", action="store_true", help="Evaluate recommendations on full window without post-edit splitting")
+    p_agg.add_argument("--since-last-edit", action="store_true", help="Restrict aggregate sessions to those after the latest skill/hook edit")
     p_agg.add_argument("--out", default="")
 
     p_diff = sub.add_parser("diff")
