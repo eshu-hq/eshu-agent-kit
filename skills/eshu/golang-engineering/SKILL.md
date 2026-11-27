@@ -1,6 +1,6 @@
 ---
 name: golang-engineering
-description: "Use when writing or changing Go code or tests under go/: package and file naming, TDD, exported contracts, lint, the 40-file directory cap, compat-surface family moves, and build-tag traps."
+description: "Use when writing or changing any *.go or *_test.go file under go/ or sdk/go/: package and file naming, SPDX license headers, TDD, exported contracts, lint, the 40-file directory cap, compat-surface moves, and build-tag traps."
 ---
 
 # Go engineering in Eshu
@@ -12,6 +12,8 @@ its contract. Read the relevant entrypoint or dispatcher when the change crosses
 runtime boundaries; a small edit does not require an unrelated package tour.
 
 ## Behavioral proof
+
+**Pre-Commit Go Checklist:** add MIT SPDX header on every new `.go` file (`bash scripts/add-license-header.sh`), verify red-first TDD on production paths, run `cd go && go vet ./...` + focused `-race` tests, and stay under the 40-file directory cap.
 
 Follow the root TDD policy. Bug fixes need a regression that fails for the
 intended reason before the implementation changes. Tests must exercise the

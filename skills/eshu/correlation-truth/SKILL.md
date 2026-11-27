@@ -1,6 +1,6 @@
 ---
 name: correlation-truth
-description: Use when reducer, projector, or query changes turn evidence into graph truth -- workload/service materialization, admission, or deployment tracing. Requires positive/negative/ambiguous proof and direct graph checks.
+description: Use when editing go/internal/reducer/, go/internal/projector/, or go/internal/query/ where evidence becomes graph truth (materialization, admission, deployment tracing). Requires positive/negative/ambiguous proof and direct graph checks.
 ---
 
 # Correlation Truth
@@ -12,6 +12,8 @@ Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` ski
 Use this skill for reducer and query work where evidence becomes canonical graph
 truth. The goal is not "tests pass"; the goal is "the graph tells the truth and
 the query surfaces say the same thing."
+
+**Pre-Edit Checklist:** trace raw evidence -> admission -> materialization -> graph write -> query surface; state falsifying negative/ambiguous edge cases before editing; verify graph truth directly, not only unit mocks.
 
 ## When to Use
 

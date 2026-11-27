@@ -8,6 +8,8 @@ description: Write or rewrite Eshu issues, PRs, commits, review comments, decisi
 Scope: this is the `eshu` layer of the kit. Relative `docs/` paths, `eshu-*` names (all renamed by now; see `skills/registry.md`), and eshu repo tooling (`scripts/dev/`, `make`, `ci-gates`, `specs/`) resolve in the consuming repo checkout (see `skills/registry.md`). The shape check ships with this skill under `scripts/`.
 
 Start with what matters, then give the context and evidence a teammate needs.
+
+**Pre-Publish Checklist:** verify every SHA, count, and command output at `HEAD`; run `bash scripts/check-shape.sh --pr <body-file>` (or `--issue`); use tables for comparisons and keep zero AI attribution in commits, PRs, and docs.
 Use the repository `[fill-in: communication standard — this repo's writing-for-agents doc]`
 for original writing and rewrites. It applies by default, including progress
 updates, without a personal humanizer or global skill. Pick the artifact, then

@@ -18,6 +18,8 @@ queue drain, bootstrap wall time, or resource use.
 
 ## Mandatory Reasoning
 
+**Pre-Edit Interleaving Checklist:** name the conflict domain and lock/claim order before editing; separate transaction vs retry scopes; re-check row-self predicates under Read Committed (`EvalPlanQual`) when relocating `FOR UPDATE`; ship repro-first producer + consumer tests and performance/observability evidence.
+
 Before proposing or implementing a non-trivial change, MUST identify:
 
 - workflow stages and entrypoint
