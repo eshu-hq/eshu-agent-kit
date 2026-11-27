@@ -15,15 +15,34 @@ those. You are a leaf agent: do not dispatch other agents.
 
 ## Steps
 
-**Pre-Handoff Checklist:** commit first and bind every check to `HEAD`; run `check-shape.sh` on any PR/issue body; re-measure every decision-bearing claim at `HEAD`; clear license/live-test/env-registry traps (if `verify-license-header.sh` fails, run `bash scripts/add-license-header.sh`; if `verify-env-registry-doc.sh` fails, run `bash scripts/generate-env-registry-doc.sh`); never run `make pre-push` as a leaf executor.
+**Pre-Handoff Checklist:** commit first and run `scripts/preflight.sh` to bind `HEAD`/`BODY_SHA256` and execute the deterministic shape, registry, and TODO checks; re-measure every decision-bearing claim at `HEAD`; clear any failing trap (if `verify-license-header.sh` fails, run `bash scripts/add-license-header.sh`; if `verify-env-registry-doc.sh` fails, run `bash scripts/generate-env-registry-doc.sh`); never run `make pre-push` as a leaf executor.
 
-1. **Bind the run.** Commit first. Record `git rev-parse HEAD`. If a PR body or
-   draft exists, record its `sha256` too. Every result below belongs to that
-   commit. A new commit voids the results; restart at this step.
+1. **Bind the run and run deterministic checks.** Run
+   [preflight.sh](scripts/preflight.sh)
+   (`.agents/skills/executor-preflight/scripts/preflight.sh` in a consumer
+   checkout) from the branch you are handing off:
 
-2. **Check the shape.** If a body or draft exists, run
-   `bash scripts/check-shape.sh --pr <body-file>` from the skill directory
-   that owns it (`skills/eshu/publish/scripts/` in-kit,
+   ```bash
+   bash .agents/skills/executor-preflight/scripts/preflight.sh --repo . --body <pr-body.md>
+   ```
+
+   Add `--issue` for an issue draft, omit `--body` when no draft exists, or pass
+   `--base <ref>` to override the diff base (`origin/main`, else `main`; an
+   explicit base that does not resolve is an error). The script prints
+   `HEAD=<sha>`, `BODY_SHA256=<sha256>` when `--body` is given, and
+   `PASS`/`FAIL`/`NOT_CHECKED` rows for `bind`, `shape`, `license-header`,
+   `live-tests-ledger`, `env-registry-doc`, `docs-cli-env-refs`, and
+   `test-todo-scan`. The `bind` row fails on a dirty tracked tree or a `HEAD`
+   that moved during the run, so every result belongs to the printed `HEAD`.
+   Exit 0 means no row failed, 1 means a row failed (its full output is on
+   stderr), 2 means bad arguments or environment. Recovery: if it exits 1, fix
+   the failing row, commit the fix, and re-run from this step. Done when the
+   script exits 0 at the commit you are handing off.
+
+2. **Check the shape.** Covered by the `shape` row of `scripts/preflight.sh`
+   when `--body` is passed; you can also invoke
+   `bash scripts/check-shape.sh --pr <body-file>` directly from the `publish`
+   skill directory (`skills/eshu/publish/scripts/` in-kit,
    `.agents/skills/publish/scripts/` in a consumer checkout).
    Use `--issue` for an issue draft. Fix every `FAIL` line. Done when the exit
    code is 0. If no body exists, record this step as `NOT_CHECKED` with that
@@ -57,21 +76,14 @@ those. You are a leaf agent: do not dispatch other agents.
    | a `.go` file, tests included | `bash scripts/verify-license-header.sh`; fix with `bash scripts/add-license-header.sh` (rule owned by `golang-engineering`). |
    | a `*_live_test.go` file | Classified row in `specs/live-tests.v1.yaml`, then `bash scripts/verify-live-tests-ledger.sh` (ledger mechanics: `generator-script-discipline`). |
    | an `ESHU_*` environment variable | `Entry` in `go/internal/envregistry/entries.go`; run `bash scripts/generate-env-registry-doc.sh`, then `scripts/verify-env-registry-doc.sh` and `scripts/verify-docs-cli-env-refs.sh` (ledger mechanics: `generator-script-discipline`). |
-   | a new test file | Run `rg -n -e TODO -e placeholder <test-files>`. A hit is real when it is a stub type, an empty assertion, or a TODO that skips behavior. SQL placeholders and ordinary prose are not hits. |
+   | a new test file | The `test-todo-scan` row from step 1. A hit is a `FAIL`: reword the line or fix the stub, not the scan. Placeholder lines that carry SQL are not hits. |
 | a newly set or provisioned env var, a new client dial, or a new listener port | Name the live code that reads it, the live server that answers it, and the listener that opens it, plus the test that proves it end to end. A setting with no reader, a dial with no live-server test, or a port with no listener blocks the handoff. |
 
    In `specs/ci-gates.v1.yaml`, `env-registry-doc` and `live-backend-tests` (the
    owner of the ledger validator) have no `local.pre_push: floor`. `make
-   pre-push` defers them, so this table is their first local run. Run the
-   commands that apply to your diff:
-
-   ```bash
-   git rev-parse HEAD
-   bash scripts/verify-license-header.sh
-   bash scripts/verify-live-tests-ledger.sh
-   bash scripts/verify-env-registry-doc.sh
-   bash scripts/verify-docs-cli-env-refs.sh
-   ```
+   pre-push` defers them, so the `license-header`, `live-tests-ledger`,
+   `env-registry-doc`, and `docs-cli-env-refs` rows from step 1 are their first
+   local run. A `NOT_CHECKED` row means that script is absent in the repo.
 
 5. **Confirm the role gates.** Rerun the registry-selected static gates your role
    names if you committed after their last run. Report each as `PASS`, `FAIL`, or
