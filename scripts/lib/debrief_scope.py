@@ -32,16 +32,16 @@ def parse_harnesses_strict(raw):
     if not raw or not str(raw).strip():
         return list(VALID_HARNESSES)
     tokens = [t.strip().lower() for t in str(raw).split(",") if t.strip()]
-    if not tokens or tokens == ["all"]:
+    if not tokens:
         return list(VALID_HARNESSES)
-    if "all" in tokens:
-        return list(VALID_HARNESSES)
-    invalid = [t for t in tokens if t not in VALID_HARNESSES]
+    invalid = [t for t in tokens if t not in VALID_HARNESSES and t != "all"]
     if invalid:
         valid = ", ".join((*VALID_HARNESSES, "all"))
         _fail(
             f"debrief: unknown --harness value(s): {', '.join(invalid)} (valid: {valid})"
         )
+    if "all" in tokens:
+        return list(VALID_HARNESSES)
     seen = []
     for t in tokens:
         if t not in seen:
@@ -233,6 +233,10 @@ def filter_metas_by_sessions(metas_by_key, specs, include_children=True):
     if not matched_roots:
         _fail(
             f"debrief: no sessions matched --session: {', '.join(missing)}"
+        )
+    if missing:
+        sys.stderr.write(
+            f"debrief: warning: unmatched --session spec(s) omitted: {', '.join(missing)}\n"
         )
 
     selected = set(matched_roots)

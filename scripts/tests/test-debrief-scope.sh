@@ -91,16 +91,18 @@ cat >"${LOG}" <<'EOF'
 {"detail":{"skill":"postgres-rigor"},"harness":"claude","session":"unrelated999","ts":"2026-11-27T10:02:00+00:00","type":"skill-load"}
 EOF
 
-# 1. Strict --harness rejects invalid names with exit 2
-set +e
-bash "${DEBRIEF}" aggregate --cache-dir "${CACHE}" --harness bogus >/dev/null 2>&1
-rc=$?
-set -e
-[ "${rc}" -eq 2 ] || {
-	echo "FAIL: invalid --harness exited ${rc}, expected 2" >&2
-	exit 1
-}
-echo "ok - invalid --harness exits 2"
+# 1. Strict --harness rejects invalid names (including alongside 'all') with exit 2
+for bad_h in bogus "all,bogus" "muse,typo"; do
+	set +e
+	bash "${DEBRIEF}" aggregate --cache-dir "${CACHE}" --harness "${bad_h}" >/dev/null 2>&1
+	rc=$?
+	set -e
+	[ "${rc}" -eq 2 ] || {
+		echo "FAIL: invalid --harness '${bad_h}' exited ${rc}, expected 2" >&2
+		exit 1
+	}
+done
+echo "ok - invalid --harness (including all,bogus) exits 2"
 
 # 2. --all-time cannot be combined with --days
 set +e
@@ -159,6 +161,18 @@ assert a["meta"]["scope"]["mode"] == "sessions"
 assert sorted(a["meta"]["scope"]["session_ids"]) == ["sessalpha1111", "sessold3333"]
 PY
 echo "ok - --sessions-file and --no-children scope cleanly across harnesses and ages"
+
+# 5b. One valid + one missing --session warns on stderr and records missing_sessions
+PARTIAL_ERR="${TMP}/partial.stderr"
+PARTIAL_OUT="${TMP}/partial.json"
+bash "${DEBRIEF}" aggregate --cache-dir "${CACHE}" --log "${LOG}" --session sessalpha1111 --session typo-missing-999 --out "${PARTIAL_OUT}" >/dev/null 2>"${PARTIAL_ERR}"
+grep -q 'typo-missing-999' "${PARTIAL_ERR}"
+python3 -B - "${PARTIAL_OUT}" <<'PY'
+import json, sys
+a = json.load(open(sys.argv[1]))
+assert a["meta"]["scope"]["missing_sessions"] == ["typo-missing-999"]
+PY
+echo "ok - partial --session miss warns on stderr and records missing_sessions"
 
 # 6. --current env var resolves cleanly; CWD ambiguity fails with exit 2; --harness disambiguates CWD
 AGG_CUR_ENV="${TMP}/agg-cur-env.json"
