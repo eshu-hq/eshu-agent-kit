@@ -262,10 +262,9 @@ def blind_traj(traj):
     """Strip arm identity and skill_count; keep behavior and cost metrics."""
     raw_tools = traj.get("tools")
     tools = [ARM_TOKEN_RE.sub("[arm]", str(t)) for t in raw_tools[:50]] if isinstance(raw_tools, list) else []
-    return {
+    out = {
         "transcript": ARM_TOKEN_RE.sub("[arm]", traj.get("transcript") or ""),
         "tools": tools,
-        "tool_calls": len(raw_tools) if isinstance(raw_tools, list) else 0,
         "errors": max(0, safe_int(traj.get("errors"), 0)),
         "tokens_in": max(0.0, safe_float(traj.get("tokens_in"), 0.0)),
         "tokens_out": max(0.0, safe_float(traj.get("tokens_out"), 0.0)),
@@ -273,6 +272,9 @@ def blind_traj(traj):
         "wall_time_s": round(max(0.0, safe_float(traj.get("wall_time_s"), 0.0)), 3),
         "cost_usd": round(max(0.0, safe_float(traj.get("cost_usd"), 0.0)), 6),
     }
+    if isinstance(raw_tools, list):  # absent means unmeasured, not zero
+        out["tool_calls"] = len(raw_tools)
+    return out
 
 
 def cmd_replay(args):
@@ -338,6 +340,7 @@ def cmd_replay(args):
     if not isinstance(evals, list):
         fail("evals file must be a JSON array")
     rng = random.Random()
+    sha_start = skill_sha(kit_dir, skill)
     pairs, arms_map = [], {}
     with tempfile.TemporaryDirectory(prefix="replay-run-") as run_tmp:
         for idx, item in enumerate(evals):
@@ -388,7 +391,11 @@ def cmd_replay(args):
         json.dump(pairs, fh, indent=1)
         fh.write("\n")
     with open(seal, "w", encoding="utf-8") as fh:
-        meta = {"skill": skill, "harness": harness, "skill_sha": skill_sha(kit_dir, skill)}
+        sha_end = skill_sha(kit_dir, skill)
+        if sha_end != sha_start:
+            print("replay: SKILL.md changed during replay; skill_sha recorded as null", file=sys.stderr)
+            sha_end = None
+        meta = {"skill": skill, "harness": harness, "skill_sha": sha_end}
         json.dump({"meta": meta, "arms": arms_map}, fh, indent=1, sort_keys=True)
         fh.write("\n")
     print("replay: %d pairs (%d evals, skill=%s, harness=%s, repeats=%d) -> %s" % (

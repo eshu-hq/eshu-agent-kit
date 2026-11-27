@@ -191,7 +191,7 @@ cases = {
         "Use git stash to park it; it is quick and easy to restore later.",
     ),
     "session-lifecycle-golden-3": (
-        "Reply STALE with the current tip def5678 and do not start the work. Messages stamp HEAD=<sha> BASE=<sha> RE:<id> so a stale request is rejected before any work begins.",
+        "Reply STALE with the printed tip def5678 and do not start the work. Messages stamp HEAD=<sha> BASE=<sha> RE:<id> so a stale request is rejected before any work begins.",
         "Start the review anyway; the tip probably only changed a little.",
     ),
     "session-lifecycle-edge-1": (

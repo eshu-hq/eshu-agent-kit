@@ -106,7 +106,11 @@ loaded at all, see [Trigger evals](trigger-evals.md).
    `replay` to get them. `skill_sha` is the sha256 of the raw `SKILL.md` bytes,
    taken at `replay` time (so it names what was injected, not what is on disk
    at report time) and stored in the seal meta, never in the pairs the judge
-   sees. It is `null` for a flat legacy seal or an unresolvable skill file.
+   sees. It is `null` for a flat legacy seal, an unresolvable skill file, or a
+   `SKILL.md` that changed while `replay` ran. A runner that reports no `tools`
+   list (or an `agy` result without one) counts as unmeasured, so the deltas are
+   `null` rather than `0`; `agy` also reports `errors` as a 0/1 status flag, not
+   a count of tool errors.
 
 5. **Keep a version history** (optional). Append the summary to a JSONL ledger:
 

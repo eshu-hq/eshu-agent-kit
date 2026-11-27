@@ -86,8 +86,11 @@ def append_history(path, summary):
     """
     line = json.dumps(summary, sort_keys=True, separators=(",", ":")) + "\n"
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o644)
     try:
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b"\n":  # torn tail: start a fresh line
+            line = "\n" + line
         os.write(fd, line.encode("utf-8"))
     finally:
         os.close(fd)

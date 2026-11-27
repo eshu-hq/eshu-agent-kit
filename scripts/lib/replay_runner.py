@@ -257,10 +257,8 @@ def _parse_agy_output(stdout, wall_time_s):
     if dur <= 0:
         dur = max(0.0, safe_float(wall_time_s, 0.0))
     status = str(data.get("status") or "").upper()
-    tools = [str(t) for t in data["tools"]] if isinstance(data.get("tools"), list) else []
-    return {
+    traj = {
         "transcript": str(data.get("response") or data.get("text") or ""),
-        "tools": tools,
         "errors": 0 if status == "SUCCESS" else 1,
         "tokens_in": max(0.0, tin),
         "tokens_out": max(0.0, tout),
@@ -268,6 +266,9 @@ def _parse_agy_output(stdout, wall_time_s):
         "wall_time_s": round(max(0.0, dur), 3),
         "cost_usd": round(max(0.0, safe_float(data.get("cost_usd"), 0.0)), 6),
     }
+    if isinstance(data.get("tools"), list):  # absent means unmeasured, not zero
+        traj["tools"] = [str(t) for t in data["tools"]]
+    return traj
 
 
 def _parse_muse_output(stdout, wall_time_s):

@@ -434,7 +434,7 @@ def cmd_report(args):
     else:
         lines.append("latency delta: no latency-bearing pairs" if seal_map else "latency delta: withheld (no --seal; judge stayed blind)")
     if tool_calls_delta is not None:
-        lines.append("tool delta (mean with-skill minus stripped): %+.1f calls / %+.1f errors over %d pairs" % (
+        lines.append("tool delta (mean with-skill minus stripped): %+.2f calls / %+.2f errors over %d pairs" % (
             tool_calls_delta, tool_errors_delta, tool_pairs))
     else:
         lines.append("tool delta: no tool-bearing pairs" if seal_map else "tool delta: withheld (no --seal; judge stayed blind)")

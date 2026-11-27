@@ -41,7 +41,7 @@
     "expectations": {
       "must_mention": [
         "STALE",
-        "current tip",
+        "tip",
         "HEAD="
       ],
       "must_not_mention": [

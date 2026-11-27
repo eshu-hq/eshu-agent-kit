@@ -39,6 +39,11 @@ if mode == "with-skill":
 else:
     traj = {"transcript": "weather chatter", "tools": ["t0"], "errors": 2}
 traj.update({"tokens_in": 10, "tokens_out": 10, "wall_time_s": 1.0})
+import os
+if os.environ.get("NO_TOOLS"):
+    traj.pop("tools")
+if mode == "with-skill" and os.environ.get("EDIT_SKILL"):
+    open(os.environ["EDIT_SKILL"], "a").write("edited mid-replay\n")
 json.dump(traj, open(out, "w"))
 PYEOF
 EOF
@@ -75,7 +80,7 @@ s = json.load(open(sys.argv[1]))
 assert s["tool_calls_delta"] == 2.0 and s["tool_errors_delta"] == -2.0, s
 assert s["tool_pairs"] == 3 and s["kind"] == "ablation", s
 line = [ln for ln in open(sys.argv[2]).read().splitlines() if ln.startswith("tool delta")]
-assert line == ["tool delta (mean with-skill minus stripped): +2.0 calls / -2.0 errors over 3 pairs"], line
+assert line == ["tool delta (mean with-skill minus stripped): +2.00 calls / -2.00 errors over 3 pairs"], line
 PYEOF
 
 # 2. Tool count is taken before the 50-entry tools[] truncation.
@@ -217,6 +222,50 @@ assert rub["tool_calls"] == {"A": 4, "B": 2} and rub["errors"] == {"A": 1, "B": 
 old = {"transcript": "x", "tools": [], "errors": 0, "tokens_in": 1, "tokens_out": 1}
 _, rub = rj.judge_pair({"pair_id": "p1", "kind": "cross", "prompt": "benchmark", "traj_a": side(4, 1), "traj_b": old})
 assert "tool_calls" not in rub and "errors" not in rub, rub
+PYEOF
+
+# 6. Unmeasured tool counts are null, never a measured 0.0 (P2: custom runner without `tools`).
+NO_TOOLS=1 run_pipeline notools demo-skill --kit-dir "${KIT}" &&
+	bash "${REPLAY}" report --verdict "${work}/verdict-notools.json" --seal "${work}/seal-notools.json" \
+		--json-out "${work}/summary-notools.json" >"${work}/report-notools.txt" &&
+	python3 - "${work}/summary-notools.json" "${work}/report-notools.txt" <<'PYEOF' && ok "a runner that reports no tools gives null deltas and tool_pairs 0" || no "a runner that reports no tools gives null deltas and tool_pairs 0"
+import json, sys
+s = json.load(open(sys.argv[1]))
+assert s["tool_calls_delta"] is None and s["tool_errors_delta"] is None and s["tool_pairs"] == 0, s
+assert "+0.0 calls" not in open(sys.argv[2]).read()
+PYEOF
+
+# 7. agy parser leaves `tools` absent when the CLI result carries none (missing is not an empty list).
+python3 -B - "${KIT_DIR}/scripts/lib" <<'PYEOF' && ok "agy output without tools yields no tools key; an explicit empty list stays measured" || no "agy output without tools yields no tools key; an explicit empty list stays measured"
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from replay_runner import _parse_agy_output
+from replay_eval import blind_traj
+missing = _parse_agy_output(json.dumps({"response": "x", "status": "SUCCESS"}), 1.0)
+assert "tools" not in missing, missing
+assert "tool_calls" not in blind_traj(missing)
+empty = _parse_agy_output(json.dumps({"response": "x", "status": "SUCCESS", "tools": []}), 1.0)
+assert empty["tools"] == [] and blind_traj(empty)["tool_calls"] == 0
+PYEOF
+
+# 8. SKILL.md edited while replay runs: the hash cannot name one version, so it is null.
+printf 'steady body\n' >"${KIT}/skills/eshu/demo-skill/SKILL.md"
+EDIT_SKILL="${KIT}/skills/eshu/demo-skill/SKILL.md" run_pipeline midedit demo-skill --kit-dir "${KIT}" 2>"${work}/midedit.err" &&
+	python3 - "${work}/seal-midedit.json" "${work}/midedit.err" <<'PYEOF' && ok "SKILL.md edited during replay gives a null skill_sha and a warning" || no "SKILL.md edited during replay gives a null skill_sha and a warning"
+import json, sys
+assert json.load(open(sys.argv[1]))["meta"]["skill_sha"] is None
+assert "changed during replay" in open(sys.argv[2]).read()
+PYEOF
+
+# 9. A torn ledger tail (no trailing newline) does not swallow the next record.
+printf '{"skill":"x","win' >"${work}/torn.jsonl"
+bash "${REPLAY}" report --verdict "${work}/verdict-base.json" --seal "${work}/seal-base.json" \
+	--history "${work}/torn.jsonl" >/dev/null &&
+	python3 - "${work}/torn.jsonl" <<'PYEOF' && ok "append after a torn tail keeps the new record parseable on its own line" || no "append after a torn tail keeps the new record parseable on its own line"
+import json, sys
+lines = open(sys.argv[1]).read().split("\n")
+assert lines[0] == '{"skill":"x","win', lines
+assert json.loads(lines[1])["kind"] == "ablation", lines
 PYEOF
 
 printf 'replay-history: %d passed, %d failed\n' "${passed}" "${failed}"
