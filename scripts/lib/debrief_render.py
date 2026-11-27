@@ -19,6 +19,7 @@ from debrief_insights import (  # noqa: E402
     render_skill_recommendations_card,
 )
 from debrief_diff import build_snapshot, save_snapshot  # noqa: E402
+from debrief_pareto import render_pareto_card  # noqa: E402
 from debrief_radar import render_diff_accountability_card, render_radar_card  # noqa: E402
 from debrief_render_skills import render_friction_cards, render_harness_skill_section  # noqa: E402
 from debrief_render_trends import render_skill_trends_card  # noqa: E402
@@ -349,6 +350,8 @@ def render_html(agg, syn):
   {render_skill_trends_card(agg)}
 
   {render_trigger_card(agg)}
+
+  {render_pareto_card(agg)}
 
   {render_skill_recommendations_card(agg)}
 
