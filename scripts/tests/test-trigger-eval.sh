@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Offline behavioral suite for trigger precision/recall evals (issue #117):
 # name+description-only catalog, zero body leak, confusion math, rubric,
-# PATH-stubbed claude/agy/muse routers, validation, starter suite, /debrief join.
+# PATH-stubbed claude/agy/muse routers, validation, and starter suite.
 # Hermetic: nothing here calls a real model or the network.
 set -uo pipefail
 

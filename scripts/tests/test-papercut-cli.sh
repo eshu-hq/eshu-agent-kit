@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Behavioral suite for scripts/file-papercut.sh (#101).
 # Runs fully offline using --dry-run, --dedupe-file, and a temp fake `gh`
-# shim in PATH. Proves snapshot compatibility end-to-end with debrief.sh.
+# shim in PATH. Proves snapshot field-contract enforcement for standalone debrief ingestion.
 set -uo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -220,7 +220,7 @@ else
 	no "live file comments on duplicate #43 instead of creating a second issue (rc=${rc}: ${comment_out})"
 fi
 
-# 5. snapshot --out writes atomic JSON compatible with scripts/debrief.sh aggregate --papercuts.
+# 5. snapshot --out writes atomic JSON with required fields for standalone debrief ingestion.
 cat >"${work}/gh-snapshot-fixture.json" <<'EOF'
 [
   {"number": 201, "title": "[papercut] debrief: gap table off by one", "state": "OPEN", "stateReason": null,
@@ -264,22 +264,28 @@ else
 	fi
 fi
 
-# End-to-end schema check: verify snapshot JSON carries all fields expected by standalone debrief --papercuts.
-if python3 - "${snap_file}" <<'PYEOF'; then
-import json, re, sys
-rows = json.load(open(sys.argv[1], encoding="utf-8"))
-assert isinstance(rows, list) and len(rows) == 3, rows
-by_num = {r["number"]: r for r in rows}
-for num in (201, 202, 203):
-    r = by_num[num]
-    assert {"number", "title", "body", "state", "stateReason"} <= set(r), r
-    assert re.search(r"(?m)^skill:\s*\S+", r["body"]), r
-assert by_num[201]["state"] == "OPEN"
-assert by_num[202]["state"] == "CLOSED" and by_num[202]["stateReason"] == "COMPLETED"
+# Field-contract check: derive expected fields from the captured gh --json argv and confirm
+# cmd_snapshot rejects a gh payload missing stateReason without overwriting the existing snapshot.
+cat >"${work}/gh-snapshot-missing-field.json" <<'EOF'
+[
+  {"number": 204, "title": "[papercut] publish: incomplete row", "state": "CLOSED", "body": "skill: publish\nmissing stateReason"}
+]
+EOF
+if python3 - "${snap_log}" "${snap_file}" <<'PYEOF' &&
+import json, sys
+calls = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
+req_fields = set(calls[0][calls[0].index("--json") + 1].split(","))
+assert req_fields == {"number", "title", "body", "state", "stateReason"}, req_fields
+rows = json.load(open(sys.argv[2], encoding="utf-8"))
+assert len(rows) == 3 and all(req_fields <= set(r) for r in rows), rows
 PYEOF
-	ok "snapshot JSON matches standalone debrief --papercuts schema"
+	! PATH="${work}/bin:${PATH}" FAKE_GH_LIST_FILE="${work}/gh-snapshot-missing-field.json" \
+		bash "${CLI}" snapshot --out "${snap_file}" --repo "eshu-hq/eshu-agent-kit" >/dev/null 2>"${work}/snap-miss.err" &&
+	grep -q "stateReason" "${work}/snap-miss.err" &&
+	python3 -c 'import json, sys; assert len(json.load(open(sys.argv[1]))) == 3' "${snap_file}"; then
+	ok "snapshot enforces required gh --json field contract and rejects rows missing stateReason"
 else
-	no "snapshot JSON matches standalone debrief --papercuts schema"
+	no "snapshot enforces required gh --json field contract and rejects rows missing stateReason"
 fi
 
 # 6. Regression coverage for review findings F1, F5, F6, F7.
