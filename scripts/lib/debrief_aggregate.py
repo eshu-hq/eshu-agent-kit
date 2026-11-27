@@ -37,6 +37,12 @@ from debrief_insights import (  # noqa: E402
     repo_stats,
 )
 from debrief_skill_costs import attribute_skill_costs, gap_stats, load_skill_sizes  # noqa: E402
+from debrief_diff import (  # noqa: E402
+    build_snapshot,
+    diff_snapshots,
+    find_previous_snapshot,
+)
+from debrief_radar import compute_radar_profile  # noqa: E402
 from debrief_scope import (  # noqa: E402
     build_scope_meta,
     filter_hook_events_by_sessions,
@@ -429,6 +435,29 @@ def cmd_aggregate(args):
         ],
     }
     agg["coaching_playbook"] = build_coaching_playbook(agg, sess_health)
+    agg["radar_profile"] = compute_radar_profile(agg)
+    compare_path = getattr(args, "compare", "") or ""
+    compare_prev = bool(getattr(args, "compare_prev", False))
+    agg["diff_from_prev"] = None
+    if compare_path or compare_prev:
+        prev_snap = None
+        if compare_path:
+            prev_snap = read_json(compare_path)
+            if not isinstance(prev_snap, dict) or not prev_snap.get("kpis"):
+                sys.stderr.write(f"debrief aggregate: invalid or missing --compare snapshot: {compare_path}\n")
+                raise SystemExit(2)
+        else:
+            _, prev_snap = find_previous_snapshot(
+                reports_dir=getattr(args, "reports_dir", "") or None,
+                scope_key=scope_meta.get("scope_key"),
+            )
+        if prev_snap:
+            repo_paths = [r for r in (args.repo or []) if r.strip()]
+            skills_dirs = getattr(args, "skills_dir", None) or None
+            curr_snap = build_snapshot(agg, repo_paths=repo_paths, skills_dirs=skills_dirs)
+            agg["diff_from_prev"] = diff_snapshots(
+                prev_snap, curr_snap, repo_paths=repo_paths, skills_dirs=skills_dirs
+            )
     if args.out:
         atomic_write_json(args.out, agg)
     sys.stdout.write(json.dumps(agg, indent=2, sort_keys=True) + "\n")

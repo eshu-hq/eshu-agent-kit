@@ -18,6 +18,8 @@ from debrief_insights import (  # noqa: E402
     render_repo_activity_section,
     render_skill_recommendations_card,
 )
+from debrief_diff import build_snapshot, save_snapshot  # noqa: E402
+from debrief_radar import render_diff_accountability_card, render_radar_card  # noqa: E402
 from debrief_render_skills import render_friction_cards, render_harness_skill_section  # noqa: E402
 from debrief_render_trends import render_skill_trends_card  # noqa: E402
 from debrief_scope import render_single_session_banner  # noqa: E402
@@ -260,6 +262,7 @@ def render_html(agg, syn):
   </div>
 
   <nav class="nav-toc">
+    <a href="#section-radar">Trajectory Radar</a>
     <a href="#section-coaching">Coaching Playbook</a>
     <a href="#section-work">What You Work On</a>
     <a href="#section-usage">How You Work</a>
@@ -279,6 +282,10 @@ def render_html(agg, syn):
     <div class="stat"><div class="stat-value">{merges if repos else m_commits}</div><div class="stat-label">{"Merge Commits" if repos else "Git Commits"}</div></div>
     <div class="stat"><div class="stat-value">{m_days}d ({m_mpd:.1f}/d)</div><div class="stat-label">Active Days</div></div>
   </div>
+
+  {render_diff_accountability_card(agg)}
+
+  {render_radar_card(agg)}
 
   {render_coaching_playbook_card(agg)}
 
@@ -397,6 +404,10 @@ def main(argv=None):
     ap.add_argument("--synthesis", required=True)
     ap.add_argument("--out", default="")
     ap.add_argument("--reports-dir", default="")
+    ap.add_argument("--snapshot-out", default="", help="Optional extra path for the content-free report snapshot JSON")
+    ap.add_argument("--no-snapshot", action="store_true", help="Skip persisting a report snapshot")
+    ap.add_argument("--repo", action="append", default=[])
+    ap.add_argument("--skills-dir", action="append", default=[])
     args = ap.parse_args(argv)
 
     agg = read_json(args.aggregate)
@@ -405,15 +416,30 @@ def main(argv=None):
         raise SystemExit("debrief-render: both --aggregate and --synthesis must be valid JSON objects")
 
     doc = render_html(agg, syn)
+    rdir = args.reports_dir or default_reports_dir()
+    snap_path = None
+    if not args.no_snapshot:
+        snap = build_snapshot(agg, syn=syn, repo_paths=args.repo, skills_dirs=args.skills_dir)
+        snap_path = save_snapshot(snap, reports_dir=rdir, explicit_out=args.snapshot_out)
+    elif args.snapshot_out:
+        snap = build_snapshot(agg, syn=syn, repo_paths=args.repo, skills_dirs=args.skills_dir)
+        os.makedirs(os.path.dirname(os.path.abspath(args.snapshot_out)), exist_ok=True)
+        with open(args.snapshot_out, "w", encoding="utf-8") as fh:
+            json.dump(snap, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+        snap_path = args.snapshot_out
+
     if args.out:
         out_path = args.out
         os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as fh:
             fh.write(doc)
-        sys.stdout.write(json.dumps({"report": out_path}) + "\n")
+        res = {"report": out_path}
+        if snap_path:
+            res["snapshot"] = snap_path
+        sys.stdout.write(json.dumps(res) + "\n")
         return
 
-    rdir = args.reports_dir or default_reports_dir()
     os.makedirs(rdir, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
     out_path = os.path.join(rdir, f"report-{ts}.html")
@@ -421,7 +447,10 @@ def main(argv=None):
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(doc)
     shutil.copyfile(out_path, latest)
-    sys.stdout.write(json.dumps({"report": out_path, "latest": latest}) + "\n")
+    res = {"report": out_path, "latest": latest}
+    if snap_path:
+        res["snapshot"] = snap_path
+    sys.stdout.write(json.dumps(res) + "\n")
 
 
 if __name__ == "__main__":
