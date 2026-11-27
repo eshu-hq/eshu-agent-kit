@@ -237,7 +237,10 @@ out="$(cd "${repo2}/.agents" && pl agy-pretool-edit.json | sh -c "$(hook_cmd "${
 rc=$?
 check "a missing .claude sibling is neutral" is_neutral
 rm -f "${repo2}/.agy/hooks/skill-nudge.sh"
-out="$(cd "${repo2}/.agents" && pl agy-pretool-edit.json | sh -c "$(hook_cmd "${repo2}" skill-nudge)" 2>/dev/null)"
+# From a file, not a pipe: the fallback exits without reading stdin, and a pipe
+# writer would die of SIGPIPE under pipefail.
+pl agy-pretool-edit.json >"${work}/missing-wrapper.json"
+out="$(cd "${repo2}/.agents" && sh -c "$(hook_cmd "${repo2}" skill-nudge)" <"${work}/missing-wrapper.json" 2>/dev/null)"
 rc=$?
 check "a missing wrapper prints nothing from the hooks.json command itself" is_neutral
 for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
@@ -247,7 +250,7 @@ for w in skill-loaded skill-nudge guard-live-gate goal-continue; do
 	pl agy-pretool-edit.json >"${work}/nolib/payload.json"
 	out="$("${work}/nolib/${w}.sh" <"${work}/nolib/payload.json" 2>/dev/null)"
 	rc=$?
-	check "${w}: an unreadable lib/agy-root.sh prints nothing and exits 0" is_neutral
+	check "${w}: a lib/ without agy-root.sh prints nothing and exits 0" is_neutral
 done
 nopy="${work}/nopy"
 mkdir -p "${nopy}"
