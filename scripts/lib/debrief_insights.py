@@ -197,12 +197,14 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
             used_skills.add(sk)
         cp_info = cp_skills.get(sk)
         cp_note = ""
+        is_post_edit = False
         if cp_info:
             if cp_info.get("verdict") == "awaiting_data":
                 # Edited recently inside the window with <3 post-edit sessions: do not nag from stale pre-edit history.
                 continue
             post = cp_info.get("post") or {}
             if safe_int(post.get("loads"), 0) >= 3:
+                is_post_edit = True
                 mined = safe_int(post.get("loads"), 0)
                 sha_lbl = cp_info.get("edited_sha") or str(cp_info.get("edited_at") or "")[:10]
                 cp_note = f" (post-edit since {sha_lbl}, {mined} sess)"
@@ -215,6 +217,7 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
                     row["redirect_interjections"] = round(post["redirects_per_session"] * mined)
                 if post.get("overhead_per_load") is not None:
                     row["estimated_context_tax_tokens"] = post["overhead_per_load"] * mined
+        need = 3 if is_post_edit else 5
         reasons = []
         suggestions = []
         is_review_diag = sk in _REVIEW_DIAGNOSTIC_SKILLS
@@ -229,14 +232,14 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
             reasons.append(f"{_fmt_tok(tax)} skill overhead tokens{sz_note}{cp_note}")
             suggestions.append("trim SKILL.md and move detailed tables/procedures into references/")
         err_rate = safe_float(row.get("error_rate_per_session"), 0.0)
-        if not is_review_diag and mined >= 3 and err_rate >= 2.0:
+        if not is_review_diag and mined >= need and err_rate >= 2.0:
             reasons.append(f"{err_rate:.2f} errors/session{cp_note}")
             suggestions.append("add explicit verification commands and recovery steps")
         if safe_int(row.get("papercut_open"), 0) > 0:
             reasons.append(f"{safe_int(row.get('papercut_open'), 0)} open papercut issue(s)")
             suggestions.append("resolve open papercut issues tied to this skill")
         redirs = safe_int(row.get("redirect_interjections"), 0)
-        if not is_review_diag and mined >= 3 and redirs >= 3 and (redirs / float(mined)) >= 0.30:
+        if not is_review_diag and mined >= need and redirs >= need and (redirs / float(mined)) >= 0.30:
             reasons.append(f"{redirs} goal-redirect interjections ({redirs / float(mined):.2f}/sess){cp_note}")
             suggestions.append("add a concise pre-flight checklist so the agent stays on goal")
         wr = row.get("eval_win_rate")
@@ -263,8 +266,12 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
         dom = pareto_dom_by_skill.get(sk)
         if dom:
             peers = ", ".join(dom.get("dominated_by") or [])
-            reasons.append(f"Pareto-dominated by {peers}")
-            suggestions.append(f"trim overhead or reduce friction to match {peers}")
+            reasons.append(
+                f"Strictly Pareto-dominated in {dom.get('stratum')} ({dom.get('quality_source')}) "
+                f"by {peers} (eff={dom.get('effectiveness'):.2f}, ov={dom.get('overhead_per_load', 0)/1e6:.2f}M/load, "
+                f"fric={dom.get('friction_per_load'):.2f})"
+            )
+            suggestions.append(f"trim overhead or reduce friction to reach the frontier defined by {peers}")
         if reasons:
             add("modify", sk, "; ".join(reasons) + ".", "; ".join(dict.fromkeys(suggestions)).capitalize() + ".")
 

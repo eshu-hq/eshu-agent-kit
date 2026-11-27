@@ -222,7 +222,8 @@ def cmd_aggregate(args):
     skills_dirs = getattr(args, "skills_dir", None) or None
     cp_raw = discover_changepoints(skills_dirs=skills_dirs, repo_paths=repo_paths)
     if bool(getattr(args, "since_last_edit", False)):
-        lce = latest_changepoint_epoch(cp_raw)
+        loaded_sks = {sk for m in metas.values() for sk in (m.get("skill_loads") or [])}
+        lce = latest_changepoint_epoch(cp_raw, loaded_skills=loaded_sks)
         if lce:
             metas = {k: m for k, m in metas.items() if float(m.get("last_epoch") or m.get("first_epoch") or m.get("source_mtime") or 0) >= lce}
 

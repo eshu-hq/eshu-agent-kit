@@ -75,6 +75,31 @@ emit("still-bad", "pre", 6, t_pre, 3, 0)
 emit("still-bad", "post", 4, t_post, 4, 0)
 PY
 
+# Edit an unused skill AFTER all sessions — --since-last-edit must ignore never-loaded skills
+mkdir -p "${REPO}/skills/unused-skill"
+printf -- '---\nname: unused-skill\ndescription: never loaded\n---\n# unused\n' >"${REPO}/skills/unused-skill/SKILL.md"
+T_LATER="$((NOW - 60))"
+GIT_AUTHOR_DATE="${T_LATER} +0000" GIT_COMMITTER_DATE="${T_LATER} +0000" git -C "${REPO}" add -A
+GIT_AUTHOR_DATE="${T_LATER} +0000" GIT_COMMITTER_DATE="${T_LATER} +0000" git -C "${REPO}" commit -q -m "touch unused skill"
+
+# Non-edited 4-load skill with 3 errs/sess must NOT get MODIFY (full-window minimum stays 5)
+python3 -B - "${CACHE}/meta" "${T_EDIT}" <<'PY'
+import json, os, sys
+md, t_edit = sys.argv[1], int(sys.argv[2])
+t_pre = t_edit - 3 * 86400
+for i in range(4):
+    sid = f"uned-pre-{i:03d}"
+    with open(os.path.join(md, f"claude__{sid}.json"), "w") as fh:
+        json.dump({
+            "meta_version": 5, "id": sid, "harness": "claude",
+            "project": "/tmp/p", "workspaces": ["/tmp/p"],
+            "first_ts": "2026-11-25T10:00:00Z", "last_ts": "2026-11-25T10:05:00Z",
+            "first_epoch": t_pre, "last_epoch": t_pre + 60, "source_mtime": t_pre + 60,
+            "prompts": 2, "tool_calls": 6, "errors": {"Bash": 3},
+            "skill_loads": ["unedited-small"],
+        }, fh)
+PY
+
 AGG_CP="${TMP}/agg-cp.json"
 AGG_RAW="${TMP}/agg-raw.json"
 AGG_POST="${TMP}/agg-post.json"
@@ -99,12 +124,14 @@ assert "fixed-skill" not in rec_targets_cp, f"improved skill should not get stal
 assert "fresh-skill" not in rec_targets_cp, f"recently edited skill (<3 post loads) should not get stale MODIFY: {rec_targets_cp}"
 assert "still-bad" in rec_targets_cp, f"still-failing post-edit skill must stay recommended: {rec_targets_cp}"
 assert "post-edit since" in rec_targets_cp["still-bad"]["reason"]
+assert "Strictly Pareto-dominated in" in rec_targets_cp["still-bad"]["reason"]
+assert "unedited-small" not in rec_targets_cp, f"non-edited 4-load skill must stay below 5-load floor: {rec_targets_cp}"
 
 # --ignore-changepoints restores raw pre-edit MODIFY nags
 rec_targets_raw = {r["target"] for r in araw["skill_recommendations"]}
 assert "fixed-skill" in rec_targets_raw and "fresh-skill" in rec_targets_raw
 
-# --since-last-edit restricts total sessions to the 9 post-edit sessions only
+# --since-last-edit restricts total sessions to the 9 post-edit sessions (ignoring unused-skill edit)
 assert apost["meta"]["total_sessions"] == 9, apost["meta"]
 PY
 echo "ok - post-edit attribution suppresses stale MODIFY nags, tracks hooks impact, and honors flags"

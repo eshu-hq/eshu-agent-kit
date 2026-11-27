@@ -104,11 +104,16 @@ def discover_changepoints(skills_dirs=None, repo_paths=None):
     return {"skills": skills_cp, "hooks": hooks_cp}
 
 
-def latest_changepoint_epoch(changepoints):
-    """Return the most recent edited_epoch across discovered skills and hooks, or None."""
+def latest_changepoint_epoch(changepoints, loaded_skills=None):
+    """Return the most recent edited_epoch across relevant loaded skills and hooks, or None."""
     if not isinstance(changepoints, dict):
         return None
-    eps = [v["edited_epoch"] for v in (changepoints.get("skills") or {}).values() if v.get("edited_epoch")]
+    skills_map = changepoints.get("skills") or {}
+    if loaded_skills is not None:
+        relevant = {canon_skill(s) for s in loaded_skills if canon_skill(s)}
+        eps = [v["edited_epoch"] for sk, v in skills_map.items() if sk in relevant and v.get("edited_epoch")]
+    else:
+        eps = [v["edited_epoch"] for v in skills_map.values() if v.get("edited_epoch")]
     hc = changepoints.get("hooks")
     if isinstance(hc, dict) and hc.get("edited_epoch"):
         eps.append(hc["edited_epoch"])
