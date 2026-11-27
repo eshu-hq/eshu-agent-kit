@@ -6,7 +6,8 @@ isolated workspace with the target `SKILL.md` injected versus stripped, then
 runs deterministic trajectory checks and blind A/B judging.
 
 Nothing in this harness runs in CI by design. Starter golden/edge suites live
-under [evals/README.md](../../evals/README.md).
+under [evals/README.md](../../evals/README.md). To check whether a skill gets
+loaded at all, see [Trigger evals](trigger-evals.md).
 
 ## Workflow
 

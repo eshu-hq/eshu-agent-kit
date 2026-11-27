@@ -35,6 +35,7 @@ from debrief_insights import (  # noqa: E402
     repo_stats,
 )
 from debrief_skill_costs import attribute_skill_costs, gap_stats, load_skill_sizes  # noqa: E402
+from debrief_triggers import join_trigger_rows, trigger_stats  # noqa: E402
 
 
 def parse_harnesses(raw):
@@ -396,6 +397,8 @@ def cmd_aggregate(args):
     filed_by_skill = papercuts["per_skill"] if papercuts else {}
     evals = eval_stats(getattr(args, "evals", None) or [])
     evals_by_skill = evals["per_skill"] if evals else {}
+    trigger_evals = trigger_stats(getattr(args, "trigger_evals", None) or [])
+    join_trigger_rows(skill_table, trigger_evals)
     for row in skill_table:
         counts = filed_by_skill.get(row["skill"], {"filed": 0, "open": 0, "fixed": 0})
         row["papercut_filed"] = counts["filed"]
@@ -469,6 +472,7 @@ def cmd_aggregate(args):
         "skill_costs": skill_costs,
         "papercuts": papercuts,
         "evals": evals,
+        "trigger_evals": trigger_evals,
         "interjections": interjections,
         "facet_summaries": facet_summaries,
         "not_tracked": [

@@ -2,7 +2,10 @@
 
 Starter evaluation suites for skills in this kit. Each `<skill>.json` file holds
 versioned golden and edge cases used with `scripts/replay-eval.sh` (see
-[replay-evals.md](../docs/guides/replay-evals.md)).
+[replay-evals.md](../docs/guides/replay-evals.md)). `triggers.json` is the
+separate trigger precision/recall suite for `replay-eval.sh trigger` (see
+[trigger-evals.md](../docs/guides/trigger-evals.md)); its top-level key is
+`cases`, so it never loads through `--evals`.
 
 ## Suite Mix (5 / 80 / 15)
 
