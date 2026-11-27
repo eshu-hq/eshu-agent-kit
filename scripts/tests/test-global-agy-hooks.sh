@@ -117,6 +117,31 @@ inst --hooks --repo "${R}"
 check "a differing kit key is replaced, order kept" test "$(keys "${R}/.agents/hooks.json")" = first,eshu-agent-kit,last
 check "the replaced key equals the template" key_equals_template "${R}/.agents/hooks.json"
 
+# 5b. A hooks.json written by the earlier release (fallback printed {}, which agy
+# treats as a PreToolUse deny) is upgraded by a re-run and removed by uninstall.
+legacy_key() { # rewrite the installed kit key to the earlier fallback shape
+	python3 - "$1" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+for groups in d["eshu-agent-kit"].values():
+    for g in groups:
+        for h in g["hooks"] if isinstance(g.get("hooks"), list) else [g]:
+            assert "|| exit 0;" in h["command"]
+            h["command"] = h["command"].replace("|| exit 0;", "|| { printf '{}'; exit 0; };")
+json.dump(d, open(p, "w"), indent=2)
+PY
+}
+fresh
+inst --hooks --repo "${R}"
+legacy_key "${R}/.agents/hooks.json"
+inst --hooks --repo "${R}"
+check "a legacy-shape kit key is upgraded to the empty-neutral commands" key_equals_template "${R}/.agents/hooks.json"
+check "the upgraded key no longer prints {} anywhere" bash -c "! rg -q \"printf\" '${R}/.agents/hooks.json'"
+legacy_key "${R}/.agents/hooks.json"
+inst --uninstall --hooks --repo "${R}"
+check "uninstall removes a legacy-shape kit key it generated" test ! -e "${R}/.agents/hooks.json"
+
 # 6. Prune: a stale kit link under .agy/hooks goes on re-run.
 fresh
 inst --hooks --repo "${R}"
@@ -225,12 +250,12 @@ for g in json.load(open(sys.argv[1]))[sys.argv[2]]["PostToolUse"]:
     print(g["hooks"][0]["command"])' "$1" "$2"
 }
 (cd "${HOME}/.gemini/config" && payload "${R}" | sh -c "$(cmd_of "${G}" eshu-agent-kit-global)" >"${B}/g.out" 2>/dev/null)
-check "the global copy fires inside a repo that registers the kit key" test "$(events)" = 1 -a "$(cat "${B}/g.out")" = "{}"
+check "the global copy fires inside a repo that registers the kit key" test "$(events)" = 1 -a -z "$(cat "${B}/g.out")"
 (cd "${R}/.agents" && payload "${R}" | sh -c "$(cmd_of "${R}/.agents/hooks.json" eshu-agent-kit)" >"${B}/r.out" 2>/dev/null)
-check "the repo copy stands down beside an exact global install (still one event)" test "$(events)" = 1 -a "$(cat "${B}/r.out")" = "{}"
+check "the repo copy stands down beside an exact global install (still one event)" test "$(events)" = 1 -a -z "$(cat "${B}/r.out")"
 mkdir -p "${B}/plain"
 (cd "${HOME}/.gemini/config" && payload "${B}/plain" | sh -c "$(cmd_of "${G}" eshu-agent-kit-global)" >"${B}/g2.out" 2>/dev/null)
-check "the global copy fires in a workspace without the key" test "$(events)" = 2 -a "$(cat "${B}/g2.out")" = "{}"
+check "the global copy fires in a workspace without the key" test "$(events)" = 2 -a -z "$(cat "${B}/g2.out")"
 check "both events are attributed to harness agy" test "$(rg -c '"harness": "agy"' "${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl")" = 2
 # Repo alone fires once; a hand-edited global entry makes the repo copy fire too (two events: fail toward firing).
 fresh

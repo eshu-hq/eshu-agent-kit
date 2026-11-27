@@ -8,7 +8,7 @@ on stdout, so each adapter translates in and out:
   agy-translate.py in  <kind>   agy payload on stdin -> sibling payload on
       stdout; nothing when the event is not applicable (a non-SKILL.md read,
       an unguarded tool, a Stop that is not a plain turn end, ...), which the
-      wrapper turns into the neutral `{}`.
+      wrapper turns into the neutral empty reply.
   agy-translate.py out <kind> <rc> <stdout-file> <stderr-file>
       sibling result -> the agy verdict JSON object on stdout.
 

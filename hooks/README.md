@@ -229,18 +229,21 @@ Project hooks run only for trusted workspaces (unverified for this install).
 **Adapter contract.** agy speaks camelCase JSON on stdin and reads one JSON
 object on stdout; the kit siblings block with exit 2 and stderr, which agy
 does not understand. So each wrapper translates in, runs the `.claude/hooks/`
-sibling with `KIT_HARNESS=agy`, translates the verdict out, prints exactly
-one JSON object, and always exits 0. Neutral is `{}`. A sibling block becomes
+sibling with `KIT_HARNESS=agy`, translates the verdict out, prints at most one
+JSON object, and always exits 0. Neutral is **empty output**: a live agy
+1.5.18 run treated a PreToolUse reply of `{}` as a deny (the tool call failed
+with an empty reason), while empty output, and `{}` from PostToolUse or Stop,
+were accepted. A sibling block becomes
 `{"decision":"deny","reason":...}` (the skill-nudge reason also tells the
 model to `read_file` the skill's `SKILL.md`, since agy has no Skill tool) or,
 for Stop, `{"decision":"continue","reason":...}`. `"allow"` is never emitted:
 agy defines it as an automatic approval that would skip the user's permission
-prompts. Garbage input, a missing sibling or a missing `python3` print `{}`.
+prompts. Garbage input, a missing sibling or a missing `python3` print nothing.
 Tool hooks time out at 10 seconds, Stop at 30.
 
 - **Stop guards.** The hook acts only when `terminationReason` is
   `NO_TOOL_CALL` and `continuationActive` is present (agy 1.5.6 and later);
-  without it there is no loop protection, so it prints `{}`. agy has no turn
+  without it there is no loop protection, so it prints nothing. agy has no turn
   id, so the adapter mints one per turn (new when `continuationActive` is
   false, reused while true) in `$TMPDIR/agy-turn-<conversation>`.
   *Known limit:* the no-progress scan (`goal-progress.sh`) does not
@@ -255,7 +258,11 @@ Tool hooks time out at 10 seconds, Stop at 30.
   `continuationActive` needs 1.5.6.
 - **Envelope fixtures.** `hooks/tests/testdata/agy-*.json` are synthetic,
   built from agy's hooks doc and transcript argument names, not live
-  captures.
+  captures. A probe hook on agy 1.5.18 in print mode did confirm: the read
+  tool is `read_file` with `args.Path`; the Stop payload spells the key
+  `continuationActive`; hooks inherit `HOME` and `TMPDIR` (`XDG_DATA_HOME` is
+  unset) and run with the `.agents` directory as cwd; and a workspace
+  `.agents/hooks.json` loads in a fresh folder with no trust step.
 
 ### Global install for agy (machine-wide, opt-in)
 
@@ -291,6 +298,13 @@ or a repo nudge table. Costs, measured: `skill-loaded` writes its event twice,
 the nudge and live-gate deny twice (same verdict), and `goal-continue` mints a
 second turn id, so a goal's continuation budget runs double (one continuation
 fewer). It is bounded and cannot loop.
+
+**Upgrading from the first agy release.** That release printed `{}` as its
+neutral reply and as the "wrapper missing" fallback, which agy treats as a
+PreToolUse deny. Re-run `./install.sh --hooks` (repo or `--global agy`): the
+installer recognizes the old command shape as its own and rewrites it.
+Until a global install is re-run its key no longer deep-equals the generated
+one, so repo copies fire beside it (the safe double fire above).
 
 The merge refuses on the same conditions as the repo install. Undo:
 `./install.sh --uninstall --hooks --global agy` removes the key only when it

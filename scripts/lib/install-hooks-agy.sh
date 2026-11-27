@@ -31,12 +31,13 @@ def refuse(msg):
     print("refusing: " + msg, file=sys.stderr)
     sys.exit(3)
 
-def command(base):
+def command(base, legacy=False):
+    fb = "{ printf %s; exit 0; }" % shlex.quote("{}") if legacy else "exit 0"
     if scope == "repo":
         h, pre = "../.agy/hooks/" + base, ""
     else:
         h, pre = tree + "/.agy/hooks/" + base, "KIT_GLOBAL_HOOK=1 "
-    return "h=%s; [ -x \"$h\" ] || { printf %s; exit 0; }; %sexec \"$h\"" % (shlex.quote(h), shlex.quote("{}"), pre)
+    return "h=%s; [ -x \"$h\" ] || %s; %sexec \"$h\"" % (shlex.quote(h), fb, pre)
 
 def handlers(key):
     for groups in key.values():
@@ -45,17 +46,17 @@ def handlers(key):
                 if isinstance(g, dict):
                     yield from (g["hooks"] if isinstance(g.get("hooks"), list) else [g])
 
-def want():
+def want(legacy=False):
     key = json.load(open(template))[TKEY]
     for h in handlers(key):
-        h["command"] = command(re.search(r"/([A-Za-z0-9_-]+\.sh)", h["command"]).group(1))
+        h["command"] = command(re.search(r"/([A-Za-z0-9_-]+\.sh)", h["command"]).group(1), legacy)
     return key
 
 # A key is ours only when every command has the exact shape command() generates
 # (any kit .agy/hooks/ wrapper name, relative or absolute path); a user command
 # that merely mentions .agy/hooks/ is never reclaimed.
 Q = chr(39)
-OWNED = re.compile("^h=" + Q + "?(?:\\.\\.|/[^;" + Q + "\"]*)/\\.agy/hooks/[A-Za-z0-9_-]+\\.sh" + Q + "?; \\[ -x \"\\$h\" \\] \\|\\| \\{ printf " + Q + "\\{\\}" + Q + "; exit 0; \\}; (?:KIT_GLOBAL_HOOK=1 )?exec \"\\$h\"$")
+OWNED = re.compile("^h=" + Q + "?(?:\\.\\.|/[^;" + Q + "\"]*)/\\.agy/hooks/[A-Za-z0-9_-]+\\.sh" + Q + "?; \\[ -x \"\\$h\" \\] \\|\\| (?:exit 0|\\{ printf " + Q + "\\{\\}" + Q + "; exit 0; \\}); (?:KIT_GLOBAL_HOOK=1 )?exec \"\\$h\"$")
 
 def no_dupes(pairs):
     keys = [k for k, _ in pairs]
@@ -118,7 +119,7 @@ if mode == "remove":
         sys.exit(0)
     if KEY not in data:
         print("NONE")
-    elif data[KEY] != want():
+    elif data[KEY] not in (want(), want(True)):
         print("KEPT:modified %s key; remove it by hand" % KEY)
     else:
         del data[KEY]

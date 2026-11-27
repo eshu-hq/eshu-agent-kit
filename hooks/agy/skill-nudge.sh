@@ -9,7 +9,6 @@ set -uo pipefail
 
 # shellcheck source=hooks/agy/lib/agy-root.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/agy-root.sh" 2>/dev/null || {
-	printf '{}\n'
 	exit 0
 }
 agy_run skill-nudge skill-nudge PreToolUse

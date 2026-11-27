@@ -75,7 +75,7 @@ try:
         for g in groups:
             for hd in g["hooks"] if isinstance(g.get("hooks"), list) else [g]:
                 base = re.search(r"/([A-Za-z0-9_-]+\.sh)", hd["command"]).group(1)
-                hd["command"] = "h=%s; [ -x \"$h\" ] || { printf %s; exit 0; }; KIT_GLOBAL_HOOK=1 exec \"$h\"" % (shlex.quote(os.path.join(tree, ".agy", "hooks", base)), shlex.quote("{}"))
+                hd["command"] = "h=%s; [ -x \"$h\" ] || exit 0; KIT_GLOBAL_HOOK=1 exec \"$h\"" % shlex.quote(os.path.join(tree, ".agy", "hooks", base))
     if strict(path).get("eshu-agent-kit-global") != want:
         raise SystemExit(1)
     for rel in (".agy/hooks/" + name + ".sh", ".claude/hooks/" + name + ".sh"):
@@ -126,8 +126,9 @@ agy_run() {
 	payload="$(cat 2>/dev/null)" || payload=""
 	_agy_pipeline "$1" "$2" "$3" "${payload}" || true
 	case "${verdict}" in
+	"{}") ;;
 	"{"*) printf '%s\n' "${verdict}" ;;
-	*) printf '{}\n' ;;
+	*) ;;
 	esac
 	exit 0
 }
