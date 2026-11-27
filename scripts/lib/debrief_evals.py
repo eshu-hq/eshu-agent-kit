@@ -3,6 +3,7 @@
 import json
 import math
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,10 +46,19 @@ def _should_replace_eval(prev, cand):
     return bool(new_ts) or not old_ts
 
 
+_HEX_SHA_RE = re.compile(r"^[0-9a-f]{7,64}$")
+
+
+def _unit_float(val):
+    num = _opt_float(val)
+    return num if (num is not None and 0.0 <= num <= 1.0) else None
+
+
 def _sha(val):
     if not isinstance(val, str):
         return None
-    return val.strip().lower()[:64] or None
+    s = val.strip().lower()[:64]
+    return s if _HEX_SHA_RE.match(s) else None
 
 
 def _eval_entry(rec):
@@ -58,10 +68,10 @@ def _eval_entry(rec):
         return None
     return {
         "skill": skill,
-        "win_rate": _opt_float(rec.get("win_rate")),
-        "noise_band": _opt_float(rec.get("noise_band")),
-        "pass_rate_with": _opt_float(rec.get("pass_rate_with")),
-        "pass_rate_without": _opt_float(rec.get("pass_rate_without")),
+        "win_rate": _unit_float(rec.get("win_rate")),
+        "noise_band": _unit_float(rec.get("noise_band")),
+        "pass_rate_with": _unit_float(rec.get("pass_rate_with")),
+        "pass_rate_without": _unit_float(rec.get("pass_rate_without")),
         "cross_pairs": _opt_int(rec.get("cross_pairs")),
         "cost_delta_in": _opt_float(rec.get("cost_delta_in")),
         "cost_delta_out": _opt_float(rec.get("cost_delta_out")),
@@ -206,14 +216,15 @@ def eval_trends(records, sources, skipped=0):
     newest VERSIONS_KEPT versions per (skill, harness).
     """
     groups, loaded = {}, 0
-    for entry, ablation in records:
+    for idx, (entry, ablation) in enumerate(records):
         if not ablation:
             skipped += 1
             continue
         loaded += 1
         key = (entry["skill"], entry["harness"], entry["skill_sha"])
         runs = groups.setdefault(key, {})
-        runs.setdefault(entry["recorded_at"], entry)
+        ts_key = entry["recorded_at"] if entry["recorded_at"] else f"__missing__{idx}"
+        runs.setdefault(ts_key, entry)
     by_series = {}
     for key, runs in groups.items():
         by_series.setdefault((key[0], key[1]), []).append(_version(key, list(runs.values())))
