@@ -37,6 +37,7 @@ auth)
 	exit 0
 	;;
 pr)
+	printf 'Working...\n' >&2
 	idx_file="${STUB_DIR}/pr.idx"
 	n=1
 	[ -f "${idx_file}" ] && n=$(( $(cat "${idx_file}") + 1 ))

@@ -168,9 +168,11 @@ poll_one() { # <pr> -> sets actionable=1 when an event fires
 	local prev_head prev_total stable prev_bad prev_conflict unk_count
 	local prev_threads prev_reviews prev_comments prev_green
 
+	local err_file="${state_dir}/${pr}.err"
 	json="$(run_gh pr view "${pr}" -R "${repo}" \
-		--json state,mergeStateStatus,mergeable,headRefOid,comments,reviews,statusCheckRollup 2>&1)" || {
-		err_msg="$(printf '%s' "${json}" | tr '\n\r\t' '   ' | cut -c1-160)"
+		--json state,mergeStateStatus,mergeable,headRefOid,comments,reviews,statusCheckRollup 2>"${err_file}")" || {
+		err_msg="$(tr '\n\r\t' '   ' <"${err_file}" 2>/dev/null | cut -c1-160)"
+		[ -n "${err_msg}" ] || err_msg="gh pr view exited non-zero"
 		if [ "$(st_get "${pr}" last_err)" != "${err_msg}" ]; then
 			st_set "${pr}" last_err "${err_msg}"
 			emit "ERROR pr=${pr} message=\"${err_msg}\""
