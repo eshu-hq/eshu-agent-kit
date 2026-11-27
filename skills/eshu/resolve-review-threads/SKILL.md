@@ -49,12 +49,11 @@ Stop and report if any prerequisite fails — do not guess.
    Capture `headRefOid` (the SHA file-state checks compare against) and
    `state`; refuse to run on a `MERGED` or `CLOSED` PR.
 
-2. **List unresolved threads.** Query `reviewThreads(first:100)` for `id`,
-   `isResolved`, `isOutdated`, `path`, `line`/`originalLine`, and the first
-   comment's author and body. Filter to `isResolved == false`; keep
-   `isOutdated == true` in scope — the concern usually outlives a line-number
-   shift. Paginate before classifying anything if there are more than 100
-   threads.
+2. **List unresolved threads.** Run the bundled script (or query `reviewThreads(first:100)` directly) to inspect `id`, `isResolved`, `isOutdated`, `path`, `line`/`originalLine`, and the first comment's author and body. Filter to `isResolved == false`; keep `isOutdated == true` in scope — the concern usually outlives a line-number shift. Paginate before classifying anything if `hasNextPage` is true (the script exits 3 on truncation):
+
+   ```bash
+   bash .agents/skills/resolve-review-threads/scripts/threads.sh list --pr <pr-number>
+   ```
 
 3. **Classify each thread:**
 
@@ -85,13 +84,10 @@ Stop and report if any prerequisite fails — do not guess.
 4. **Resolve `fixed` and `p3-no-action` threads.**
 
    ```bash
-   gh api graphql -F threadId="$THREAD_ID" \
-     -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}'
+   bash .agents/skills/resolve-review-threads/scripts/threads.sh resolve --thread-id "$THREAD_ID"
    ```
 
-   Confirm `isResolved: true` in the response before counting it resolved. A
-   200 with `isResolved: false` is a silent mutation failure (permissions,
-   stale ID, race with the reviewer) — report it, do not retry in a loop.
+   Pass `--dry-run` first to preview IDs. The script confirms `isResolved: true` in the response before counting a thread resolved; a 200 with `isResolved: false` exits non-zero as a silent mutation failure (permissions, stale ID, race with the reviewer) — report it, do not retry in a loop.
 
 5. **Report**, leading with the punchline (e.g. "Resolved 4 of 9 open
    threads; 5 still open"):

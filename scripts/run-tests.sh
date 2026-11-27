@@ -46,6 +46,7 @@ suites=(
 	scripts/tests/test-replay-codex-opencode.sh
 	scripts/tests/test-trigger-eval.sh
 	scripts/tests/test-code-mode-scripts.sh
+	scripts/tests/test-code-mode-wave3.sh
 	scripts/tests/test-replay-history.sh
 	scripts/tests/test-eval-suites.sh
 	hooks/tests/test-doc-staleness-hook.sh
