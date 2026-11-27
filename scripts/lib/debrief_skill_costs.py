@@ -225,9 +225,10 @@ def attribute_skill_costs(metas, skill_sizes=None):
                         "cw": _nonneg_float(v.get("tokens_cache_write")),
                         "err": _nonneg_float(v.get("errors")),
                     }
-        use_pla = bool(pla) and (
-            sum(v["in"] + v["out"] + v["err"] for v in pla.values()) > 0 or (tin + tout + errs) == 0
-        )
+        # A v4 meta carrying post_load_attribution keys for its skills is exact
+        # even when every share is zero (all work was pre-load); only a meta
+        # with no matching keys (legacy v3) falls back to equal-split.
+        use_pla = bool(pla)
 
         if use_pla:
             sum_in = min(tin, sum(v["in"] for v in pla.values()))

@@ -420,7 +420,7 @@ def extract_session(path, mtime=0.0):
                 "errors": round(post_err[sk], 2),
             }
             for sk in sorted(skill_loads)
-        } if (skill_loads and has_model_completed) else {},
+        } if skill_loads else {},
         "interjection_reasons": dict(interjection_reasons),
     }
     digest = {
