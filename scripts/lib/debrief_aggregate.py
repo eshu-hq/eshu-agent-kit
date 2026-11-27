@@ -42,6 +42,7 @@ from debrief_diff import (  # noqa: E402
     diff_snapshots,
     find_previous_snapshot,
 )
+from debrief_pareto import compute_pareto_analysis  # noqa: E402
 from debrief_radar import compute_radar_profile  # noqa: E402
 from debrief_scope import (  # noqa: E402
     build_scope_meta,
@@ -359,7 +360,8 @@ def cmd_aggregate(args):
     span_from = min(dates) if dates else since_str
     span_to = max(dates) if dates else today_iso
     days_active = max(1, len(dates))
-    skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active)
+    pareto = compute_pareto_analysis(skill_table, eval_trend_stats)
+    skill_recs = build_skill_recommendations(skill_table, repositories, skill_sizes, ij_unattr, days_active, pareto=pareto)
     sess_health = session_health_stats(metas.values(), skill_costs)
     scope_meta = build_scope_meta(
         harnesses,
@@ -418,6 +420,7 @@ def cmd_aggregate(args):
         "projects": dict(projects.most_common(12)),
         "repositories": repositories,
         "skill_table": skill_table,
+        "pareto": pareto,
         "skill_recommendations": skill_recs,
         "session_health": sess_health,
         "skill_costs": skill_costs,

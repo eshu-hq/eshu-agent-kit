@@ -156,7 +156,7 @@ def interjection_reason_stats(top_metas, all_metas):
     )
 
 
-def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_reasons, days_active=14):
+def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_reasons, days_active=14, pareto=None):
     """Generate evidence-backed Create / Modify / Remove skill recommendations."""
     recs = []
     seen = set()
@@ -167,6 +167,25 @@ def build_skill_recommendations(skill_table, repos, skill_sizes, unattributed_re
             return
         seen.add(key)
         recs.append({"action": action, "target": target, "reason": reason, "suggestion": suggestion})
+
+    # 0. PARETO: surface HEAD version regressions and strictly dominated portfolio skills first.
+    if isinstance(pareto, dict):
+        for reg in pareto.get("head_regressions") or []:
+            peers = ", ".join(reg.get("dominated_by") or [])
+            add(
+                "modify",
+                reg.get("skill") or "",
+                f"Pareto HEAD regression on {reg.get('harness')}: current SHA {reg.get('head_sha')} is strictly dominated by prior version(s) {peers}.",
+                f"Revert to {peers} or beat its quality/cost/friction frontier before keeping this edit.",
+            )
+        for dom in pareto.get("portfolio_dominated") or []:
+            peers = ", ".join(dom.get("dominated_by") or [])
+            add(
+                "modify",
+                dom.get("skill") or "",
+                f"Strictly Pareto-dominated in {dom.get('stratum')} ({dom.get('quality_source')}) by {peers} (eff={dom.get('effectiveness'):.2f}, ov={dom.get('overhead_per_load', 0)/1e6:.2f}M/load, fric={dom.get('friction_per_load'):.2f}).",
+                f"Trim overhead or reduce friction to reach the frontier defined by {peers}.",
+            )
 
     # 1. MODIFY: existing skills with concrete quality, overhead, nudge, error, redirect, or eval issues.
     used_skills = set()
