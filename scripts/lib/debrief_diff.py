@@ -108,14 +108,21 @@ def _extract_kpis(agg):
     tot_errs = sum(safe_int(v.get("errors"), 0) for v in by_h.values())
     hook_blk = safe_int((charts.get("tool_error_categories") or {}).get("Hook Blocked"), 0)
     redirs = safe_int((charts.get("interjection_reasons") or {}).get("redirect_goal"), 0)
-    tot_tokens = safe_int(((agg.get("skill_costs") or {}).get("totals") or {}).get("total_tokens"), 0)
+    totals = (agg.get("skill_costs") or {}).get("totals") or {}
+    tot_tokens = safe_int(totals.get("tokens_in"), 0) + safe_int(totals.get("tokens_out"), 0)
     c_hits = c_tot = 0.0
-    for hv in (health.get("prompt_cache") or {}).values():
+    for hv in (health.get("cache_by_harness") or {}).values():
         if isinstance(hv, dict):
-            cr = safe_float(hv.get("cache_read"), 0.0)
-            tot = cr + safe_float(hv.get("cache_write"), 0.0) + safe_float(hv.get("fresh_input"), 0.0)
-            c_hits += cr
-            c_tot += tot
+            tin = safe_float(hv.get("tokens_in"), 0.0)
+            hpct = hv.get("cache_hit_pct")
+            if tin > 0 and hpct is not None:
+                c_hits += tin * (safe_float(hpct, 0.0) / 100.0)
+                c_tot += tin
+    if c_tot <= 0:
+        cr = safe_float(totals.get("tokens_cache_read"), 0.0)
+        tin = safe_float(totals.get("tokens_in"), 0.0)
+        if tin > 0 and cr > 0:
+            c_hits, c_tot = min(cr, tin), tin
     eval_wrs = [safe_float(r.get("eval_win_rate"), -1.0) for r in skills if r.get("eval_win_rate") is not None]
     eval_wrs = [w for w in eval_wrs if 0.0 <= w <= 1.0]
     f1s = [safe_float(r.get("trigger_f1"), -1.0) for r in skills if r.get("trigger_f1") is not None]
