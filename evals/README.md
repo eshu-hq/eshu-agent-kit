@@ -32,7 +32,7 @@ Target a balanced eval distribution across three categories:
 - **15% `edge`** (committed here): boundary, adversarial, or refusal cases where
   an unguided model commonly slips.
 
-Build a local 5/80/15 suite with `scripts/replay-eval.sh mix --golden-edge FILE --production FILE --out FILE` (warns and tops up from available buckets when a bucket is short; never fails on shortfall). Draft a candidate item from a filed papercut JSON with `scripts/replay-eval.sh from-papercut --papercut FILE --out FILE` (output is an unreviewed draft requiring human curation before committing), and check judge agreement against human labels with `scripts/replay-eval.sh calibrate --verdict FILE --labels FILE`. See [replay-evals.md](../docs/guides/replay-evals.md#workflow) for examples.
+Build a local 5/80/15 suite with `scripts/replay-eval.sh mix --suite evals/<skill>.json --mined /tmp/mined.json --out /tmp/mixed.json` (warns and tops up from available buckets when a bucket is short; never fails on shortfall). Draft unreviewed candidate items from a papercuts snapshot with `scripts/replay-eval.sh from-papercut --papercuts /tmp/papercuts.json --mode ablation|trigger --out /tmp/draft.json` (human curation required before committing), and check judge agreement, decisive accuracy, and verbosity bias with `scripts/replay-eval.sh calibrate --verdict /tmp/verdict.json --runs /tmp/pairs.json [--truth /tmp/truth.json] [--json-out /tmp/cal.json]`. See [replay-evals.md](../docs/guides/replay-evals.md#workflow) for examples.
 
 ## Privacy Rule
 
