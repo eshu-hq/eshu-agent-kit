@@ -239,15 +239,9 @@ def is_control_file(cand, ledger, goal_file):
 
 
 def defer_problem(path, number, cwd, ledger, goal_file="", expected_repo=""):
-    """Returns why a DEFER target is not acceptable, or "" when it is.
-
-    Accepts a verified GitHub issue comment URL for expected_repo#number
-    (confirmed via gh api that the comment exists, belongs to #number, and is
-    non-empty) or an existing non-empty local ruling file naming #number.
-    """
+    """Returns why a DEFER target is not acceptable, or "" when it is."""
     m = re.match(
-        r"^https://github\.com/(" + NAME + "/" + NAME + r")/issues/"
-        + re.escape(number) + r"#issuecomment-([0-9]+)$",
+        r"^https://github\.com/(" + NAME + "/" + NAME + r")/issues/" + re.escape(number) + r"#issuecomment-([0-9]+)$",
         path,
     )
     if m:
@@ -257,12 +251,9 @@ def defer_problem(path, number, cwd, ledger, goal_file="", expected_repo=""):
         meta = gh_json(["api", "repos/%s/issues/comments/%s" % (url_repo, comment_id)], CALL_TIMEOUT)
         if not isinstance(meta, dict):
             return "could not verify issue comment %s via gh" % comment_id
-        issue_url = meta.get("issue_url") or ""
-        if not issue_url.rstrip("/").endswith("/issues/%s" % number):
+        if not (meta.get("issue_url") or "").rstrip("/").endswith("/issues/%s" % number):
             return "comment %s does not belong to #%s" % (comment_id, number)
-        if not (meta.get("body") or "").strip():
-            return "issue comment %s is empty" % comment_id
-        return ""
+        return "" if (meta.get("body") or "").strip() else "issue comment %s is empty" % comment_id
     if path.startswith(("http://", "https://")):
         return "URL must be a GitHub issue comment URL for #%s" % number
     roots = [cwd] if cwd and cwd != "-" else []
