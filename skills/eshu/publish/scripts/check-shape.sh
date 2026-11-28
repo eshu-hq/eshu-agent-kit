@@ -120,7 +120,7 @@ function flush(   first, w, len) {
     if (full_low !~ /(review-attest|(verdict|receipt|head|sha)[[:space:]:=`#-]+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+)/) unbacked_rev_claim = 1
   }
   if (full_low ~ /(full([[:space:]]+[a-z0-9_.\/-]+)?[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)/) {
-    if (full_low !~ /(live[- ]?(db|postgres|neo4j|backend|test)|dsn|skip|hermetic)/) unscoped_full_suite = 1
+    if (full_low !~ /(live[- ]?(db|postgres|neo4j|backend|test)|dsn|hermetic|t\.skip|skipped[[:space:]]+(live|db|postgres|integration)|[0-9]+[[:space:]]+skip)/) unscoped_full_suite = 1
   }
   if (!infence && !indet) {
     low = tolower(t)

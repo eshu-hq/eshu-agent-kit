@@ -10,8 +10,8 @@ prw_is_git_push_cmd() { # <command> -> 0 if real git push, 1 otherwise
 	PRW_CMD="$1" python3 -c '
 import os, re
 cmd = os.environ.get("PRW_CMD", "").strip()
-# Match a command segment invoking `git ... push` (ignoring dry-run/delete/tags).
-if not re.search(r"(?:^|[;&|]\s*|&&\s*|\|\|\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*git(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+push\b", cmd):
+# Match a command segment invoking `git ... push` (including -C/-c/--no-pager flags, ignoring dry-run/delete/tags).
+if not re.search(r"(?:^|[;&|]\s*|&&\s*|\|\|\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*git(?:\s+(?:-[Cc]\s+\S+|--[a-z0-9-]+(?:=\S+)?))*\s+push\b", cmd):
     raise SystemExit(1)
 if re.search(r"\bgit\b[^;&|]*\bpush\b[^;&|]*(?:--dry-run|-n\b|--delete\b|-d\b|--tags\b|--help\b|-h\b)", cmd):
     raise SystemExit(1)
@@ -106,10 +106,10 @@ sev_re = re.compile(
     re.I | re.M,
 )
 zero_count_re = re.compile(r"(?:\b0\s+P[01]\b|\bP[01]\s*[=:]\s*0\b)", re.I)
+timing_cat_re = re.compile(r"\b(?:runtime-proof-gap|missing-proof)\b", re.I)
 timing_phrases = (
     "ci pending", "live lanes pending", "sandbox has no database", "blocked offline",
-    "pending in ci", "ci shards pending", "pending on this head", "no observed live",
-    "not yet observed", "needs eshu_postgres_test_dsn", "ci still pending",
+    "pending in ci", "ci shards pending", "pending on this head", "ci still pending",
 )
 
 for t in nodes or []:
@@ -124,7 +124,9 @@ for t in nodes or []:
     if not sev_re.search(cleaned_body):
         continue
     low = body.lower()
-    if any(p in low for p in timing_phrases):
+    # Only exempt pure CI-pending / offline-sandbox timing-gap notices (never
+    # genuine P0/P1 defect threads that merely mention a DSN or test skip).
+    if timing_cat_re.search(body[:300]) and any(p in low for p in timing_phrases):
         continue
     path = str(t.get("path") or "")
     if path and path in pushed:

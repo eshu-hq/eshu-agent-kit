@@ -204,7 +204,7 @@ if [ "${1:-}" = "pr" ] && [ "${2:-}" = "view" ]; then
 	exit 0
 fi
 if [ "${1:-}" = "api" ] && [ "${2:-}" = "graphql" ]; then
-	printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"isResolved":false,"path":"a.go","line":1,"originalLine":1,"comments":{"totalCount":1,"nodes":[{"body":"P1: Wrong statement measured."}]}}]}}}}}\n'
+	printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"isResolved":false,"path":"a.go","line":1,"originalLine":1,"comments":{"totalCount":1,"nodes":[{"body":"P1: live assertions skipped, needs ESHU_POSTGRES_TEST_DSN to verify."}]}}]}}}}}\n'
 	exit 0
 fi
 exit 1
@@ -217,10 +217,24 @@ printf '%s' "${push_payload}" | PATH="${fake_gh_bin}:${PATH}" bash "${repo}/.mus
 p_blk_rc=$?
 set -e
 if [ "${p_blk_rc}" -eq 2 ]; then
-	ok "PreToolUse blocks git push when unanswered P1 thread cites untouched file"
+	ok "PreToolUse blocks git push when unanswered P1 thread (even mentioning DSN) cites untouched file"
 else
-	no "PreToolUse blocks git push when unanswered P1 thread cites untouched file (rc=${p_blk_rc})"
+	no "PreToolUse blocks git push when unanswered P1 thread (even mentioning DSN) cites untouched file (rc=${p_blk_rc})"
 fi
+
+# Flagged git push forms (-c and --no-pager) must also hit the guard.
+for flagged_cmd in "git -c core.pager=cat push origin feat/p1-guard" "git --no-pager push origin feat/p1-guard"; do
+	fp='{"hook_event_name":"PreToolUse","tool_name":"bash","session_id":"'"${msid}"'","cwd":"'"${push_repo}"'","tool_input":{"command":"'"${flagged_cmd}"'"}}'
+	set +e
+	printf '%s' "${fp}" | PATH="${fake_gh_bin}:${PATH}" bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null
+	f_rc=$?
+	set -e
+	if [ "${f_rc}" -eq 2 ]; then
+		ok "PreToolUse blocks flagged push: ${flagged_cmd}"
+	else
+		no "PreToolUse blocks flagged push: ${flagged_cmd} (rc=${f_rc})"
+	fi
+done
 
 # Now commit a fix touching a.go -> push is allowed.
 printf 'a3\n' >"${push_repo}/a.go"

@@ -388,6 +388,8 @@ printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| 
 expect "unscoped-full-suite: bare full postgres suite green fails even with NOT_CHECKED CI" 1 "FAIL unscoped-full-suite" pr "${tmp}/unscoped-suite.md"
 printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Proof | Full suite green |\n\n**NOT_CHECKED:** CI.\n' >"${tmp}/unscoped-bare-suite.md"
 expect "unscoped-full-suite: bare Full suite green fails" 1 "FAIL unscoped-full-suite" pr "${tmp}/unscoped-bare-suite.md"
+printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Proof | Full suite green, skip the details |\n\n**NOT_CHECKED:** CI.\n' >"${tmp}/unscoped-skip-word.md"
+expect "unscoped-full-suite: bare English skip word still fails" 1 "FAIL unscoped-full-suite" pr "${tmp}/unscoped-skip-word.md"
 printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Proof | Full postgres suite green (hermetic unit pass; live-DB tests SKIP without DSN) |\n\n**NOT_CHECKED:** live-DB.\n' >"${tmp}/scoped-suite.md"
 expect_not "unscoped-full-suite: qualified scope on same line passes" 0 "unscoped-full-suite" pr "${tmp}/scoped-suite.md"
 

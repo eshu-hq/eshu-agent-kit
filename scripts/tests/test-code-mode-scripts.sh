@@ -328,6 +328,10 @@ rc=$?
 assert_eq "${rc}" "1" "live-test-refs exits 1 on bare Full suite green claim with untouched live test"
 assert_contains "${out}" "live-test-refs | FAIL |" "live-test-refs reports FAIL row"
 assert_contains "${out}" "pkg/store/query_live_test.go" "live-test-refs names untouched *_live_test.go"
+printf 'Refs #1.\n\n**Change query.**\n\n| At a glance | |\n|---|---|\n| Proof | Full suite green, skip the details |\n\n**NOT_CHECKED:** CI.\n' >"${work}/pr-live-skip-word.md"
+out="$(bash "${PREFLIGHT}" --repo "${r_live}" --base main --body "${work}/pr-live-skip-word.md" 2>&1)"
+rc=$?
+assert_eq "${rc}" "1" "live-test-refs exits 1 even when bare English skip word appears on claim line"
 
 # --- E. branch-head --base nope is a usage error, never BASE=none ---
 out="$(bash "${BRANCH_HEAD}" --repo "${r4}" --base nope 2>&1)"

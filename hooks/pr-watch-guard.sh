@@ -25,7 +25,7 @@ payload="$(cat)"
 
 # Fast-path skip for unrelated PreToolUse calls.
 case "${payload}" in
-*"monitor"* | *"report_progress"* | *"snooze_minutes"* | *"watch-pr.sh"* | *"pr-watch"* | *"gh pr"* | *"git push"* | *"git -C"*"push"*) ;;
+*"monitor"* | *"report_progress"* | *"snooze_minutes"* | *"watch-pr.sh"* | *"pr-watch"* | *"gh pr"* | *"git"*"push"*) ;;
 *) exit 0 ;;
 esac
 

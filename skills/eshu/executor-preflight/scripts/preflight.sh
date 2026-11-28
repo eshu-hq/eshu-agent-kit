@@ -273,7 +273,7 @@ run_live_test_refs_scan() {
 		row "live-test-refs" "PASS" "no untouched *_live_test.go siblings in changed Go packages"
 		return 0
 	fi
-	if [[ -n "${body_file}" ]] && grep -Ei '(full([[:space:]]+[a-z0-9_./-]+)?[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)' "${body_file}" | grep -Eivq '(live[- ]?(db|postgres|neo4j|backend|test)|ESHU_POSTGRES_TEST_DSN|SKIP|hermetic)'; then
+	if [[ -n "${body_file}" ]] && grep -Ei '(full([[:space:]]+[a-z0-9_./-]+)?[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)' "${body_file}" | grep -Eivq '(live[- ]?(db|postgres|neo4j|backend|test)|ESHU_POSTGRES_TEST_DSN|dsn|hermetic|t\.skip|skipped[[:space:]]+(live|db|postgres|integration)|[0-9]+[[:space:]]+skip)'; then
 		row "live-test-refs" "FAIL" "PR body claims full suite green while ${n_live} untouched *_live_test.go sibling(s) exist in changed package(s); inspect assertions or state live-DSN run/skip" "${live_files}"
 	else
 		row "live-test-refs" "PASS" "${n_live} untouched *_live_test.go sibling(s) in changed Go package(s) — verify assertions before claiming full suite green"
