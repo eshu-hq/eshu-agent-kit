@@ -23,6 +23,7 @@ read its reference. Keep editing passes internal unless the user requests them.
 | Approval request (merge, deploy, data change) | [approval](references/approval.md) |
 | Commit message that grows a Go directory past 40 non-test files | [`Dirgate-Growth` trailer](references/commit-trailers.md) |
 | Design or decision record | [decision record](references/decision-record.md) |
+| Public or internal documentation (`docs/public/**`, `docs/internal/**`) | `docs/public/documentation-style-guide.md` (Diátaxis page type, voice, nav) + [wording](references/wording.md) (humanizer / anti-slop pass) |
 | Report or catch-up for the owner | [owner report](references/owner-report.md) (or portable [ketchup](../../core/ketchup/SKILL.md) for plain-chat catch-ups) |
 
 **Other prose.** For `doc.go`, `README.md`, `AGENTS.md`, and other package docs,
@@ -47,6 +48,12 @@ zero unexplained jargon, comparisons as tables, and flows as small diagrams
 - Use consistent names for the same technical concept. Explain shorthand such as
   "initial measurements" instead of leaving a reader to decode "T0 census".
   The first time a term appears, say what it means in plain words.
+- **Anti-slop prose pass (mandatory on all docs and prose):** strip AI filler,
+  canned introductions, corporate padding, inflated claims, forced triples,
+  repetitive summaries, and internal session shorthand (such as "Lane-1b",
+  "T0 census", or "arbiter delta"). Read the finished page as a capable
+  colleague who was not in the session, while preserving exact technical
+  identifiers, caveats, and claims.
 - Preserve required formats and an explicit request to keep an existing shape.
   Style advice does not change engineering, evidence, privacy, or approval rules.
 

@@ -2,7 +2,7 @@
 
 ## Hypothesis Ledger
 
-Keep a durable table in the issue, ADR, or package evidence note:
+Keep a durable table in the issue, PR body, or ADR under `docs/public/decisions/`:
 
 | candidate | stage seconds | expected saving | cheapest proof | old | new | accuracy | concurrency | disposition |
 | --- | ---: | ---: | --- | ---: | ---: | --- | --- | --- |
@@ -53,28 +53,32 @@ is proven.
 
 ## Concrete Repo Gates
 
-Before finishing any hot-path runtime PR, run:
+Before finishing any hot-path runtime PR, put the performance and observability
+markers in the **PR description** (never commit ephemeral evidence files into
+`docs/internal/evidence/` or `go/**/evidence-*.md`, and never append PR logs to
+`go/**/README.md`). Verify the PR body locally:
 
 ```bash
-scripts/test-verify-performance-evidence.sh
-scripts/verify-performance-evidence.sh
+scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
 ```
 
-The gate fails when changed Go files introduce or modify Cypher, graph writes,
-worker claims, leases, batching, goroutines, channels, queue behavior, or
-runtime stages without a tracked docs/ADR/package note containing:
+CI runs the same check against the PR description when changed Go files
+introduce or modify Cypher, graph writes, worker claims, leases, batching,
+goroutines, channels, queue behavior, or runtime stages, requiring:
 
 - `Performance Evidence:`, `Benchmark Evidence:`, or
   `No-Regression Evidence:`
 - `Observability Evidence:` or `No-Observability-Change:`
 
-The note must name the measurement, backend/version, input shape, queue or row
-counts, and the metrics/spans/logs/status fields that let an operator diagnose
-the path. PR text alone is not durable evidence.
+The PR body must name the measurement, backend/version, input shape, queue or
+row counts, and the metrics/spans/logs/status fields that let an operator
+diagnose the path. Put raw `EXPLAIN` plans and timing logs in CI workflow
+artifacts, not git.
 
 ## ADR Evidence
 
-Update the active ADR with:
+When a change alters a durable architecture decision, update the ADR under
+`docs/public/decisions/` with:
 
 - commit id
 - run id

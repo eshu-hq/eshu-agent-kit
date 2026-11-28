@@ -152,16 +152,19 @@ fails, reproduce only that failing gate locally.
 - Changed packages under `go/internal` or `go/cmd` need `doc.go`, `README.md`,
   and `AGENTS.md`; run `scripts/verify-package-docs.sh`. Update their contents
   when contracts or contributor guidance change, using `folder-doc-keeper`.
-- Run `scripts/verify-performance-evidence.sh` for Cypher, graph-write, runtime
-  stage, worker, queue, lease, batching, or concurrency changes, including new
-  collectors that introduce those patterns. Use the reviewed branch base.
+- For Cypher, graph-write, runtime stage, worker, queue, lease, batching, or
+  concurrency changes, include `Performance Evidence:` / `Benchmark Evidence:` /
+  `No-Regression Evidence:` and `Observability Evidence:` /
+  `No-Observability-Change:` markers in the **PR body** (never commit ephemeral
+  evidence files or append PR logs to `go/**/README.md`). Verify locally with
+  `bash scripts/verify-performance-evidence.sh --pr-body <pr-body-file>`.
 - Report commands, actual results, and unverified scope.
 
 ```bash
 bash scripts/add-license-header.sh
 (cd go && go test -list '.*' ./<pkg>/... && go test -count=1 ./<pkg>/...)
 bash scripts/verify-package-docs.sh
-bash scripts/verify-performance-evidence.sh
+bash scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
 ```
 
 When running Go tools on a shared host or with concurrent agents, read

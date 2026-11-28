@@ -1,6 +1,6 @@
 ---
 name: performance-rigor
-description: "Use when editing *_bench_test.go, scripts/run-remote-e2e-*, docs/internal/remote-validation/, or docs/internal/evidence/, or proving/improving Eshu latency, throughput, resource, or wall-time claims. Find unknown causes first with diagnostic-rigor."
+description: "Use when editing *_bench_test.go, scripts/run-remote-e2e-*, or proving/improving Eshu latency, throughput, resource, or wall-time claims. Find unknown causes first with diagnostic-rigor."
 ---
 
 # Performance Rigor
@@ -105,12 +105,14 @@ Read [scaled-runs.md](references/scaled-runs.md) before launching these runs.
    only the measured level of improvement and name the next measured bottleneck.
    Done when the before/after table and markers match the exact tested commit.
 2. **Run focused and performance-evidence gates.** Run focused reproduction and
-   required integration/golden and performance-evidence gates:
+   required integration/golden checks, and put the performance and
+   observability markers in the PR body (CI verifies them with
+   `scripts/verify-performance-evidence.sh --pr-body`; never commit ephemeral
+   evidence files into git):
 
    ```bash
    git merge-base --is-ancestor <merge-commit> origin/main
-   bash scripts/test-verify-performance-evidence.sh
-   bash scripts/verify-performance-evidence.sh
+   bash scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
    ```
 
    Done when every required gate exits 0 on the reviewed branch base.

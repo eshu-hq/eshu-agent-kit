@@ -35,16 +35,18 @@ proven bug surface (see "The two hooks must decide alike" in
 new branch in both hooks.
 
 ```text
-owner/repo#N <created-iso> <open|closed|deferred> [<ruling path>]
-DEFER: [owner/repo]#N <ruling path>
+owner/repo#N <created-iso> <open|closed|deferred> [<ruling url or path>]
+DEFER: [owner/repo]#N <ruling url or path>
 ```
 
 The first form is a record. The second is written by the agent to ask for a
-deferral and is consumed by the next check, which rewrites the matching record to
-`deferred <path>`. Lines that match neither form are ignored and kept. Writers
-take a lock file beside the ledger (`<ledger>.lock`, gitignored with the rest of
-`.claude/`), because parallel subagents capture while the lead's Stop hook
-rewrites.
+deferral—preferring a GitHub issue comment URL for that issue
+(`https://github.com/<owner>/<repo>/issues/<N>#issuecomment-<id>`) so arbiter
+rulings stay on GitHub rather than being committed into git—and is consumed by
+the next check, which rewrites the matching record to `deferred <target>`. Lines
+that match neither form are ignored and kept. Writers take a lock file beside
+the ledger (`<ledger>.lock`, gitignored with the rest of `.claude/`), because
+parallel subagents capture while the lead's Stop hook rewrites.
 
 ## What counts as "created an issue"
 
@@ -142,7 +144,8 @@ state` for each record still open:
 
 - **closed** rewrites the record `closed`.
 - **open** refuses the stop with `{"decision":"block","reason":...}` naming the
-  issues and the two exits: work it, or write `DEFER: #N <path>`.
+  issues and the two exits: work it, or write `DEFER: #N <issue-comment-url>`
+  (or an untracked local ruling file path).
 - **gh unreachable or over the cap** allows the stop and prints
   `goal-continue: NOT_CHECKED issues: ...` on stderr.
 
@@ -150,16 +153,23 @@ state` for each record still open:
 
 The agent writes the ledger, so a bare `DEFER` would be a self-issued permission
 slip, the same trap `BLOCKED:` fell into before it required a live `WATCH=<pid>`.
-`<path>` must exist, be non-empty, and mention `#N` (`#9101` does not satisfy
-`#91011`). A relative path is tried against the session's cwd, then the directory
-above `.claude/`. The path must also not be the ledger, its `.lock` or `.tmp.*`
-files, the goal file, or any other `.claude/active-goal*` file. Every ledger record
-names its own issue and the goal file can too, so either would pass "names the
-issue" for free. Paths are compared by file identity (device and inode), not
-spelling, so a symlink, a hardlink, `..`, or another letter case on a
-case-insensitive volume does not get around it. A plain copy of the ledger is still
-honoured; the stderr echo of every honoured `DEFER` is the mitigation. A `DEFER` that
-fails the check is refused, and the refusal names the path and the reason.
+Two verified targets are accepted:
+
+- **GitHub issue-comment URL (preferred):**
+  `https://github.com/<owner>/<repo>/issues/<N>#issuecomment-<id>`. The hook
+  verifies that `<owner>/<repo>` matches the ledger entry's repo, queries
+  `gh api repos/<owner>/<repo>/issues/comments/<id>`, and confirms the comment
+  exists, belongs to `#N`, and has a non-empty body. This keeps arbiter rulings
+  on GitHub instead of committed repo files.
+- **Untracked local ruling file (fallback):** `<path>` must exist, be non-empty,
+  and mention `#N` (`#9101` does not satisfy `#91011`). A relative path is tried
+  against the session's cwd, then the directory above `.claude/`. The path must
+  also not be the ledger, its `.lock` or `.tmp.*` files, the goal file, or any
+  other `.claude/active-goal*` file (compared by file identity, device and inode,
+  so symlinks, hardlinks, `..`, or case differences do not bypass it).
+
+A `DEFER` that fails either check is refused, and the refusal names the target
+and the reason. Every honoured `DEFER` is echoed on stderr for auditability.
 
 ### Timeouts
 

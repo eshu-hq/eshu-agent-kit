@@ -119,21 +119,20 @@ Concurrency-sensitive paths MUST expose enough telemetry to answer:
 
 Concurrency changes are not complete with only a safety argument. If the diff
 touches workers, leases, queues, batching, channels, goroutines, retry loops, or
-claim behavior, run:
+claim behavior, include one of `Performance Evidence:`, `Benchmark Evidence:`,
+or `No-Regression Evidence:` plus either `Observability Evidence:` or
+`No-Observability-Change:` in the **PR description** (never commit ephemeral
+evidence files or append PR logs to `go/**/README.md`) and verify locally:
 
 ```bash
-scripts/test-verify-performance-evidence.sh
-scripts/verify-performance-evidence.sh
+scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
 ```
 
-The PR must include a tracked evidence note with one of `Performance Evidence:`,
-`Benchmark Evidence:`, or `No-Regression Evidence:` plus either
-`Observability Evidence:` or `No-Observability-Change:`. The note must name the
-conflict domain, worker/lease settings, before/after queue or row counts, and
-the metric/span/log/status signal that shows progress, blocking, retries, and
-failure class. If the cited scripts do not exist in the checkout, stop and
-report which gate you could not run — do not declare conformance by
-inspection.
+The PR description must name the conflict domain, worker/lease settings,
+before/after queue or row counts, and the metric/span/log/status signal that
+shows progress, blocking, retries, and failure class. If the cited script does
+not exist in the checkout, stop and report which gate you could not run — do
+not declare conformance by inspection.
 
 ## Done Criteria
 

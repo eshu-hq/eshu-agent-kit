@@ -110,17 +110,17 @@ matching spec in the same change or this gate fails closed.
 
 When adding or changing an MCP/API tool that introduces graph Cypher, a
 graph-backed query handler, broad traversal, queue-backed materialization, or a
-new runtime stage, also run:
-
-```bash
-scripts/test-verify-performance-evidence.sh
-scripts/verify-performance-evidence.sh
-```
-
-Add tracked `Performance Evidence:`, `Benchmark Evidence:`, or
+new runtime stage, include `Performance Evidence:`, `Benchmark Evidence:`, or
 `No-Regression Evidence:` plus `Observability Evidence:` or
 `No-Observability-Change:` (exact marker format owned by
 telemetry-coverage-discipline — name real `eshu_dp_*` signals; a blank or
-invented signal is invalid) to a docs/ADR/package note. Name the scope, limit,
-timeout, result cardinality, backend/query shape, and the metric/span/log/status
-signal that proves the tool is bounded and diagnosable.
+invented signal is invalid) in the **PR description** (never in ephemeral repo
+files or appended to `go/**/README.md`), and verify locally:
+
+```bash
+scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
+```
+
+Name the scope, limit, timeout, result cardinality, backend/query shape, and
+the metric/span/log/status signal that proves the tool is bounded and
+diagnosable.

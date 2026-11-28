@@ -49,15 +49,14 @@ answer all three of these explicitly (paths are consuming-repo-relative):
    the bottleneck.
 
 CI enforces this for the repo: any PR touching hot-path Cypher or graph-write
-code must pass the content-based gate (a file that *contains*
-`MATCH`/`MERGE`/`UNWIND` is flagged even for a comment-only diff) with
-benchmark plus observability markers in a tracked docs/ADR/package note.
-Gate mechanics, fixture contract, and worked evidence text:
+code must include benchmark plus observability markers in the **PR description**
+(never in ephemeral repo files or appended to `go/**/README.md`). Gate
+mechanics and worked evidence text:
 Cypher Performance: CI Evidence Gate (`docs/public/reference/cypher-performance.md#ci-evidence-gate`).
-Reproduce the CI diff window locally before pushing:
+Check your PR body locally before pushing:
 
 ```bash
-ESHU_PERFORMANCE_EVIDENCE_BASE=origin/main scripts/verify-performance-evidence.sh
+ESHU_PERFORMANCE_EVIDENCE_BASE=origin/main scripts/verify-performance-evidence.sh --pr-body <pr-body-file>
 ```
 
 ## Workflow

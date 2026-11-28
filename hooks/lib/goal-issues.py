@@ -8,8 +8,8 @@ grammar through one implementation. See ../../../docs/eshu/agent-hooks-issues.md
 
 Ledger grammar, one record per line:
 
-    owner/repo#N <created-iso> <open|closed|deferred> [<ruling path>]
-    DEFER: [owner/repo]#N <ruling path>        (written by the agent)
+    owner/repo#N <created-iso> <open|closed|deferred> [<ruling url or path>]
+    DEFER: [owner/repo]#N <ruling url or path> (written by the agent)
 
 Payload extraction (what a Bash call created) lives in goal-issues-extract.py.
 
@@ -230,15 +230,7 @@ def control_files(ledger, goal_file):
 
 
 def is_control_file(cand, ledger, goal_file):
-    """Reports whether a DEFER path is the ledger, a goal file, or their scratch.
-
-    Every ledger record contains `owner/repo#N`, and a goal file can name the
-    issue too, so either would satisfy "names the issue" for free. Both are
-    written by the agent, which makes them a self-issued permission slip. The
-    test is file identity, not spelling: a symlink, a hardlink, `..`, or another
-    letter case all reach the same file. A `.claude/active-goal*` name elsewhere
-    (the per-user goal) is refused by name.
-    """
+    """Reports whether a DEFER path is the ledger, a goal file, or their scratch."""
     if any(same_file(cand, f) for f in control_files(ledger, goal_file)):
         return True
     real = os.path.realpath(cand)
@@ -246,14 +238,24 @@ def is_control_file(cand, ledger, goal_file):
             and os.path.basename(real).casefold().startswith("active-goal"))
 
 
-def defer_problem(path, number, cwd, ledger, goal_file=""):
-    """Returns why a DEFER path is not acceptable, or "" when it is.
-
-    The agent writes the ledger, so a bare DEFER would be a self-issued
-    permission slip. The path must exist, be non-empty, name the issue, and not
-    be the ledger or a goal file (compared by file identity, so a symlink,
-    hardlink, `..` or another letter case does not get around it).
-    """
+def defer_problem(path, number, cwd, ledger, goal_file="", expected_repo=""):
+    """Returns why a DEFER target is not acceptable, or "" when it is."""
+    m = re.match(
+        r"^https://github\.com/(" + NAME + "/" + NAME + r")/issues/" + re.escape(number) + r"#issuecomment-([0-9]+)$",
+        path,
+    )
+    if m:
+        url_repo, comment_id = m.groups()
+        if expected_repo and url_repo.casefold() != expected_repo.casefold():
+            return "URL repo %s does not match %s" % (url_repo, expected_repo)
+        meta = gh_json(["api", "repos/%s/issues/comments/%s" % (url_repo, comment_id)], CALL_TIMEOUT)
+        if not isinstance(meta, dict):
+            return "could not verify issue comment %s via gh" % comment_id
+        if not (meta.get("issue_url") or "").rstrip("/").endswith("/issues/%s" % number):
+            return "comment %s does not belong to #%s" % (comment_id, number)
+        return "" if (meta.get("body") or "").strip() else "issue comment %s is empty" % comment_id
+    if path.startswith(("http://", "https://")):
+        return "URL must be a GitHub issue comment URL for #%s" % number
     roots = [cwd] if cwd and cwd != "-" else []
     ledger_dir = os.path.dirname(os.path.abspath(ledger))
     if os.path.basename(ledger_dir) == ".claude":
@@ -303,19 +305,19 @@ def apply_defers(ledger, cwd, goal_file=""):
                        if e[2] == number and (repo is None or e[1] == repo) and e[4] == "open"]
             if not targets:
                 continue
-            problem = defer_problem(path, number, cwd, ledger, goal_file)
+            all_ok = True
             for j in targets:
                 _, r, n, created, _, _ = entries[j]
+                problem = defer_problem(path, number, cwd, ledger, goal_file, expected_repo=r)
                 if problem:
+                    all_ok = False
                     refused[ref_of(r, n)] = "DEFER path %s refused: %s" % (path, problem)
                 else:
                     lines[j] = entry_line(r, n, created, "deferred", path)
                     entries[j] = parse_entry(lines[j])
-                    # Echoed the way CONSENT is: the path is agent-writable, so
-                    # the owner reads the exact words on stderr.
                     sys.stderr.write("goal-continue: DEFER honoured for %s: %s\n"
                                      % (ref_of(r, n), path))
-            if not problem:
+            if all_ok:
                 drop.add(i)
         kept = [ln for i, ln in enumerate(lines) if i not in drop]
         if kept != original:
@@ -417,8 +419,8 @@ def cmd_gate(ledger, cwd, goal_file, opts=None):
         "",
         "An issue filed during a goal belongs to the goal; filing it is not a way to defer it. For each one, either:",
         "  1. work it now: dispatch a lane, land the fix, and close it; or",
-        "  2. defer it on the record: add the line `DEFER: %s <path>` to %s, where <path> is an existing, non-empty file "
-        "(a ruling, an arbiter verdict, an issue-comment export) that names the issue. A DEFER whose path fails that check is refused." % (first, ledger),
+        "  2. defer it on the record: add `DEFER: %s <issue-comment-url>` to %s (pointing at the GitHub comment "
+        "recording the arbiter ruling on that issue, or an untracked local ruling file naming the issue). Never commit ruling files to git." % (first, ledger),
         "",
         "Open: %s. Then end the turn again." % numbers,
     ]
@@ -447,9 +449,9 @@ def cmd_list(ledger):
         print("- " + r)
     print(
         "Each one belongs to this goal: work it now (dispatch a lane), or add "
-        "`DEFER: %s <ruling path>` to the ledger, where the path is an existing, "
-        "non-empty file that names the issue. The Stop hook refuses DONE while "
-        "any of these is open." % first
+        "`DEFER: %s <issue-comment-url>` to the ledger (GitHub comment URL on "
+        "that issue, or an untracked local ruling file naming the issue). The "
+        "Stop hook refuses DONE while any of these is open." % first
     )
 
 

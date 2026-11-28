@@ -67,7 +67,6 @@ ROOT="$(kit_root_path "$FP")" || exit 0
 # directory name here would not match what the consumer's census sees, and
 # the consuming repo's drift check would report the skill as unrouted.
 #   eshu-code-review        runs against a final diff, not a path
-#   eshu-publish            runs over prose headed for a human reader
 #   eshu-issue-driver       invoked with an issue or epic number
 #   eshu-release            invoked by release intent
 #   resolve-review-threads  invoked with a PR number
@@ -94,7 +93,7 @@ nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
 		;;
 	*/internal/telemetry/* | */scripts/verify-telemetry-coverage.sh | *eshu-operator-overview.json | */observability/*) IDS="telemetry-coverage-discipline" ;;
 	*/internal/queue/*) IDS="concurrency-deadlock-rigor eshu-postgres-rigor" ;;
-	*/docs/internal/remote-validation/* | */docs/internal/evidence/* | */scripts/run-remote-e2e-* | *_bench_test.go) IDS="eshu-performance-rigor" ;;
+	*/scripts/run-remote-e2e-* | *_bench_test.go) IDS="eshu-performance-rigor" ;;
 	*/storage/cypher/* | *cypher* | */storage/neo4j/*) IDS="cypher-query-rigor" ;;
 	*/internal/reducer/* | */internal/projector/*) IDS="eshu-correlation-truth eshu-diagnostic-rigor" ;;
 	*/storage/postgres/* | *.sql) IDS="eshu-postgres-rigor" ;;
@@ -113,7 +112,18 @@ nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
 		IDS="golang-engineering eshu-folder-doc-keeper"
 		NOTE="cobra wrapper vs package split; doc.go/README/AGENTS lockstep"
 		;;
-	*/doc.go | */AGENTS.md | */README.md) IDS="eshu-folder-doc-keeper" ;;
+	*/doc.go | */AGENTS.md | */README.md)
+		IDS="eshu-folder-doc-keeper eshu-publish"
+		NOTE="durable package contract/architecture only; follow writing-for-agents.md and never append PR evidence markers"
+		;;
+	*/docs/public/*.md)
+		IDS="eshu-publish"
+		NOTE="apply publish wording rules and docs/public/documentation-style-guide.md (Diátaxis page type, plain colleague voice, docs-catalog metadata, docs/mkdocs.yml nav)"
+		;;
+	*/docs/internal/*.md)
+		IDS="eshu-publish"
+		NOTE="apply publish wording rules and docs/internal/writing-for-agents.md; durable handbooks and active designs only (never commit ephemeral PR proof or arbiter rulings)"
+		;;
 	*.go) IDS="golang-engineering" ;;
 	esac
 }

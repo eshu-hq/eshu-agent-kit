@@ -149,10 +149,10 @@ prose count is P3 unless a decision rests on it. The pin in a test keeps its
 grade (item 6).
 
 A measured number copied into the PR body is P3 only when two conditions hold.
-The gap is within the rounding or noise that the evidence note states. The
-conclusion is unchanged. If the note states no rounding, any gap is P2. Replace
-the copy with a link to the note, or with `ledger:<id>` when the number is in
-`docs/internal/measurements.jsonl`. Make the replacement before you capture the
+The gap is within the rounding or noise that the measurement source states. The
+conclusion is unchanged. If the source states no rounding, any gap is P2. Replace
+the copy with a link to the CI workflow run/artifact or exact command output in
+the PR body. Make the replacement before you capture the
 receipt. After capture, make it at the next body edit, because a body edit voids
 the receipt.
 
