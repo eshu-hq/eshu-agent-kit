@@ -55,10 +55,11 @@ if HOME="$work/home3" "$kit/install.sh" --global all nope >/dev/null 2>&1; then
 fi
 
 # 4. A piped answer overrides the OpenCode agent model and the config entry.
+role_count="$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["roles"]))' "$kit/agents/roles.json")"
 home4="$work/home4"
 model="clankerbox/qwen3.8-flash-next"
 answers="$model\n"
-for _ in 1 2 3 4 5 6 7 8 9 10; do answers="$answers$model\n"; done
+for _ in $(seq 1 "$role_count"); do answers="$answers$model\n"; done
 # shellcheck disable=SC2059  # \n separators are the point here.
 printf "$answers" | HOME="$home4" "$kit/install.sh" --agents --global opencode >/dev/null
 grep -q "^model: $model$" "$home4/.config/opencode/agents/scan-eshu.md"
@@ -87,7 +88,7 @@ cat >"$home5/.config/opencode/opencode.jsonc" <<'JSONC'
 }
 JSONC
 answers="$model\n"
-for _ in 1 2 3 4 5 6 7 8 9 10; do answers="$answers$model\n"; done
+for _ in $(seq 1 "$role_count"); do answers="$answers$model\n"; done
 # shellcheck disable=SC2059  # \n separators are the point here.
 printf "$answers" | HOME="$home5" "$kit/install.sh" --agents --global opencode >/dev/null
 seeded="$home5/.config/opencode/opencode.jsonc"
@@ -150,7 +151,7 @@ grep -q '^model: pro$' "$home10/.gemini/config/agents/arbiter-eshu.md"
 [ ! -e "$home10/.claude/skills" ]
 [ ! -e "$home10/.config/muse/agents" ]
 agy_answers=""
-for _ in 1 2 3 4 5 6 7 8 9 10; do agy_answers="${agy_answers}pro\n"; done
+for _ in $(seq 1 "$role_count"); do agy_answers="${agy_answers}pro\n"; done
 # shellcheck disable=SC2059  # \n separators are the point here.
 printf "$agy_answers" | HOME="$home10" "$kit/install.sh" --agents --global agy >/dev/null
 grep -q '^model: pro$' "$home10/.gemini/config/agents/scan-eshu.md"
