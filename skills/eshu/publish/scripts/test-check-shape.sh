@@ -379,6 +379,16 @@ printf 'Fixture r_0a1b2c3d on the QA environment.\n' | with id-clean
 expect_not "identifier: fixture id and plain prose are quiet" 0 "private-identifier" pr "${tmp}/id-clean.md"
 expect_not "identifier: the clean fixture passes" 0 "FAIL" pr "${good}"
 
+# --- Unbacked review and unscoped full-suite claims must fail under --pr.
+printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Review | Clean preliminary review: 0 P0, 0 P1 |\n\n**NOT_CHECKED:** CI.\n' >"${tmp}/unbacked-rev.md"
+expect "unbacked-review-claim: bare 0 P0/0 P1 fails" 1 "FAIL unbacked-review-claim" pr "${tmp}/unbacked-rev.md"
+printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Review | Clean preliminary review: 0 P0, 0 P1 (verdict at HEAD 991c112) |\n\n**NOT_CHECKED:** CI.\n' >"${tmp}/backed-rev.md"
+expect_not "unbacked-review-claim: verdict + SHA passes" 0 "unbacked-review-claim" pr "${tmp}/backed-rev.md"
+printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Proof | Full postgres suite green |\n\n**NOT_CHECKED:** none.\n' >"${tmp}/unscoped-suite.md"
+expect "unscoped-full-suite: bare full suite green fails" 1 "FAIL unscoped-full-suite" pr "${tmp}/unscoped-suite.md"
+printf 'Refs #1.\n\n**Tighten queue check.**\n\n| At a glance | |\n|---|---|\n| Proof | Full postgres suite green (hermetic unit pass; live-DB tests SKIP without DSN) |\n\n**NOT_CHECKED:** live-DB.\n' >"${tmp}/scoped-suite.md"
+expect_not "unscoped-full-suite: qualified scope passes" 0 "unscoped-full-suite" pr "${tmp}/scoped-suite.md"
+
 # --- The documented templates and worked examples must pass the checker they point to.
 tpl_count=0
 for f in "${tmp}"/tpl-*.md; do

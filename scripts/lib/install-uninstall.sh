@@ -190,6 +190,7 @@ uninstall_repo() {
 		uninstall_agy_hooks_repo "$target" "$force"
 		uninstall_identical_copy "$target/scripts/check-docs-stale.sh" "$KIT_DIR/scripts/check-docs-stale.sh" "consumer-owned script; left in place"
 		uninstall_identical_copy "$target/scripts/watch-pr.sh" "$KIT_DIR/scripts/watch-pr.sh" "consumer-owned script; left in place"
+		uninstall_identical_copy "$target/scripts/cross-review.sh" "$KIT_DIR/scripts/cross-review.sh" "consumer-owned script; left in place"
 		uninstall_identical_copy "$target/.muse/hooks.json" "$KIT_DIR/hooks/muse/hooks.json" "consumer-owned hooks.json; left in place"
 		;;
 	esac

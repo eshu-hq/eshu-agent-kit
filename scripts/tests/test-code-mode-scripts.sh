@@ -311,7 +311,23 @@ assert_contains "${out}" "bind | FAIL |" "D: HEAD moving during the run FAILs bi
 # --- row order is fixed ---
 out="$(bash "${PREFLIGHT}" --repo "${r2}" --body "${pr_ok}" 2>/dev/null)"
 order="$(printf '%s\n' "${out}" | awk -F' [|] ' 'NF >= 3 {printf "%s,", $1}')"
-assert_eq "${order}" "bind,shape,license-header,live-tests-ledger,env-registry-doc,docs-cli-env-refs,test-todo-scan," "preflight rows print in the fixed order"
+assert_eq "${order}" "bind,shape,license-header,live-tests-ledger,env-registry-doc,docs-cli-env-refs,test-todo-scan,live-test-refs," "preflight rows print in the fixed order"
+
+# --- live-test-refs fails when PR claims full suite green with untouched *_live_test.go sibling ---
+r_live="$(make_git_repo case-live-refs)"
+mkdir -p "${r_live}/pkg/store"
+printf 'package store\nfunc Query() int { return 1 }\n' >"${r_live}/pkg/store/query.go"
+printf 'package store\nfunc TestQueryLive() {}\n' >"${r_live}/pkg/store/query_live_test.go"
+git -C "${r_live}" add pkg && git -C "${r_live}" commit -q -m "seed store"
+git -C "${r_live}" checkout -q -b feat/live-refs
+printf 'package store\nfunc Query() int { return 2 }\n' >"${r_live}/pkg/store/query.go"
+git -C "${r_live}" add pkg/store/query.go && git -C "${r_live}" commit -q -m "change query"
+printf 'Refs #1.\n\n**Change query.**\n\n| At a glance | |\n|---|---|\n| Proof | Full store suite green |\n\n**NOT_CHECKED:** none.\n' >"${work}/pr-live-bad.md"
+out="$(bash "${PREFLIGHT}" --repo "${r_live}" --base main --body "${work}/pr-live-bad.md" 2>&1)"
+rc=$?
+assert_eq "${rc}" "1" "live-test-refs exits 1 on unscoped full-suite claim with untouched live test"
+assert_contains "${out}" "live-test-refs | FAIL |" "live-test-refs reports FAIL row"
+assert_contains "${out}" "pkg/store/query_live_test.go" "live-test-refs names untouched *_live_test.go"
 
 # --- E. branch-head --base nope is a usage error, never BASE=none ---
 out="$(bash "${BRANCH_HEAD}" --repo "${r4}" --base nope 2>&1)"

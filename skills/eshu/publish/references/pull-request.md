@@ -79,7 +79,7 @@ also deletes the one test that the other now covers.**
 | Behavior change | None in product code. All changes are tests. |
 | Size | 6 files, +283 and -372 lines |
 | Proof | The ported scale test passes: 100 generations, 50,000 facts pruned, 3.4 s |
-| Review | Author self-review of a test-only diff: P0=0, P1=0, P2-blocking=0 |
+| Review | Author self-review of a test-only diff: P0=0, P1=0, P2-blocking=0 (verdict at HEAD a1b2c3d) |
 
 ## Problem
 

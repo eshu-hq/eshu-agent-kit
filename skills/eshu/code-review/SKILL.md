@@ -64,6 +64,9 @@ This skill runs at **Workhorse tier** through `review-eshu`, and at **Deep
 tier** through `review-eshu-deep` for the final review of a difficult diff
 (concurrency, locking, queues, schema, or hot-path Cypher and SQL); see
 `[fill-in: model bindings — this repo's default model bindings by tier]`.
+For high-risk diffs or after a repeat finding, also run a cold cross-family pass
+via `review-adversarial` (`bash scripts/cross-review.sh --base origin/main`) so
+the authoring model family never grades its own diff alone.
 An orchestrator dispatches it to a reviewer role rather than reviewing inline.
 Every harness has both roles and each role carries its model binding, so this
 skill never names a model and a subagent never changes its own.

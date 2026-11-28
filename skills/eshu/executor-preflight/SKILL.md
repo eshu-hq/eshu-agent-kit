@@ -31,8 +31,8 @@ those. You are a leaf agent: do not dispatch other agents.
    explicit base that does not resolve is an error). The script prints
    `HEAD=<sha>`, `BODY_SHA256=<sha256>` when `--body` is given, and
    `PASS`/`FAIL`/`NOT_CHECKED` rows for `bind`, `shape`, `license-header`,
-   `live-tests-ledger`, `env-registry-doc`, `docs-cli-env-refs`, and
-   `test-todo-scan`. The `bind` row fails on a dirty tracked tree or a `HEAD`
+   `live-tests-ledger`, `env-registry-doc`, `docs-cli-env-refs`,
+   `test-todo-scan`, and `live-test-refs`. The `bind` row fails on a dirty tracked tree or a `HEAD`
    that moved during the run, so every result belongs to the printed `HEAD`.
    Exit 0 means no row failed, 1 means a row failed (its full output is on
    stderr), 2 means bad arguments or environment. Recovery: if it exits 1, fix
@@ -78,6 +78,9 @@ those. You are a leaf agent: do not dispatch other agents.
    | an `ESHU_*` environment variable | `Entry` in `go/internal/envregistry/entries.go`; run `bash scripts/generate-env-registry-doc.sh`, then `scripts/verify-env-registry-doc.sh` and `scripts/verify-docs-cli-env-refs.sh` (ledger mechanics: `generator-script-discipline`). |
    | a new test file | The `test-todo-scan` row from step 1. A hit is a `FAIL`: reword the line or fix the stub, not the scan. Placeholder lines that carry SQL are not hits. |
 | a newly set or provisioned env var, a new client dial, or a new listener port | Name the live code that reads it, the live server that answers it, and the listener that opens it, plus the test that proves it end to end. A setting with no reader, a dial with no live-server test, or a port with no listener blocks the handoff. |
+| a changed `.go` file in a package containing `*_live_test.go` | Check the `live-test-refs` row from step 1 and grep sibling `*_live_test.go` files for assertions affected by the behavior change. Never claim "full suite green" from a DSN-less `go test` that silently `SKIP`s live tests. |
+| a performance, EXPLAIN, buffer, or latency claim | Trace the production caller to the exact SQL statement or function measured. Measuring a whole-chunk helper or test-only twin that the production path never executes blocks the handoff (`evidence-overclaim`). |
+| a PR body claiming `0 P0`/`0 P1`, "clean preliminary review", or "full suite green" | Name the verifiable receipt, verdict/HEAD SHA, or executed command + live/skip scope; `check-shape.sh` fails unbacked hand-typed claims (`unbacked-review-claim`, `unscoped-full-suite`). |
 
    In `specs/ci-gates.v1.yaml`, `env-registry-doc` and `live-backend-tests` (the
    owner of the ledger validator) have no `local.pre_push: floor`. `make

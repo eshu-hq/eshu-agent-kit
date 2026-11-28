@@ -175,7 +175,67 @@ if command -v node >/dev/null 2>&1; then
 	fi
 fi
 
-# 8. Telemetry recorded across harnesses in skills-usage.jsonl.
+# 8. Pre-push unanswered P0/P1 review thread guard blocks unrelated push, allows fix push.
+push_repo="${work}/push-repo"
+bare_remote="${work}/bare.git"
+fake_gh_bin="${work}/fake-gh"
+mkdir -p "${push_repo}" "${fake_gh_bin}"
+git init -q --bare "${bare_remote}"
+git -C "${push_repo}" init -q -b main
+git -C "${push_repo}" config user.email "test@example.com"
+git -C "${push_repo}" config user.name "Test"
+git -C "${push_repo}" remote add origin "${bare_remote}"
+printf 'a\n' >"${push_repo}/a.go"
+printf 'b\n' >"${push_repo}/b.go"
+git -C "${push_repo}" add a.go b.go && git -C "${push_repo}" commit -q -m "base"
+git -C "${push_repo}" push -q -u origin main
+git -C "${push_repo}" checkout -q -b feat/p1-guard
+printf 'a2\n' >"${push_repo}/a.go"
+git -C "${push_repo}" add a.go && git -C "${push_repo}" commit -q -m "feat"
+git -C "${push_repo}" push -q -u origin feat/p1-guard
+# Commit touching unrelated b.go while open P1 thread cites a.go.
+printf 'b2\n' >"${push_repo}/b.go"
+git -C "${push_repo}" add b.go && git -C "${push_repo}" commit -q -m "unrelated"
+
+cat >"${fake_gh_bin}/gh" <<'GH'
+#!/usr/bin/env bash
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "view" ]; then
+	printf '{"number":77,"state":"OPEN","url":"https://github.com/acme/app/pull/77"}\n'
+	exit 0
+fi
+if [ "${1:-}" = "api" ] && [ "${2:-}" = "graphql" ]; then
+	printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false,"path":"a.go","line":1,"originalLine":1,"comments":{"totalCount":1,"nodes":[{"body":"**P1** · evidence-overclaim\\nWrong statement measured."}]}}]}}}}}\n'
+	exit 0
+fi
+exit 1
+GH
+chmod +x "${fake_gh_bin}/gh"
+
+push_payload='{"hook_event_name":"PreToolUse","tool_name":"bash","session_id":"'"${msid}"'","cwd":"'"${push_repo}"'","tool_input":{"command":"git push origin feat/p1-guard"}}'
+set +e
+printf '%s' "${push_payload}" | PATH="${fake_gh_bin}:${PATH}" bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null
+p_blk_rc=$?
+set -e
+if [ "${p_blk_rc}" -eq 2 ]; then
+	ok "PreToolUse blocks git push when unanswered P1 thread cites untouched file"
+else
+	no "PreToolUse blocks git push when unanswered P1 thread cites untouched file (rc=${p_blk_rc})"
+fi
+
+# Now commit a fix touching a.go -> push is allowed.
+printf 'a3\n' >"${push_repo}/a.go"
+git -C "${push_repo}" add a.go && git -C "${push_repo}" commit -q -m "fix a.go"
+set +e
+printf '%s' "${push_payload}" | PATH="${fake_gh_bin}:${PATH}" bash "${repo}/.muse/hooks/pr-watch-guard.sh" 2>/dev/null
+p_ok_rc=$?
+set -e
+if [ "${p_ok_rc}" -eq 0 ]; then
+	ok "PreToolUse allows git push once commits touch the P1-cited file"
+else
+	no "PreToolUse allows git push once commits touch the P1-cited file (rc=${p_ok_rc})"
+fi
+
+# 9. Telemetry recorded across harnesses in skills-usage.jsonl.
 log="${XDG_DATA_HOME}/eshu-agent-kit/skills-usage.jsonl"
 if [ -f "${log}" ] &&
 	grep -q '"type": "pr-opened"' "${log}" &&

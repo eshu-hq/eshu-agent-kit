@@ -9,7 +9,7 @@
 # Prints HEAD=<sha>, BODY_SHA256=<sha256> (when --body is given), and one
 # table row per check: <check> | PASS|FAIL|NOT_CHECKED | <detail>.
 # Rows: bind, shape, license-header, live-tests-ledger, env-registry-doc,
-# docs-cli-env-refs, test-todo-scan. Full output of a failing check goes to
+# docs-cli-env-refs, test-todo-scan, live-test-refs. Full output of a failing check goes to
 # stderr. Base: --base, else origin/main, else main.
 # Exit 0 when no check fails, 1 on any FAIL, 2 on usage or environment error.
 set -euo pipefail
@@ -229,6 +229,57 @@ run_test_todo_scan() {
 	fi
 }
 
+# Detect untouched *_live_test.go siblings in packages whose non-test .go files
+# changed, so DSN-less `go test` passes cannot silently mask broken live tests.
+run_live_test_refs_scan() {
+	local base_sha rel dir live_files="" changed_set="" n_live=0
+	if [[ -z "${base_resolved}" ]]; then
+		row "live-test-refs" "NOT_CHECKED" "pass --base (neither origin/main nor main resolves)"
+		return 0
+	fi
+	if ! base_sha="$(git_repo merge-base HEAD "${base_resolved}" 2>/dev/null)"; then
+		row "live-test-refs" "NOT_CHECKED" "pass --base (no merge-base with ${base_resolved})"
+		return 0
+	fi
+	changed_set="$(git_repo diff --name-only "${base_sha}" HEAD)"
+	local dirs=""
+	while IFS= read -r rel; do
+		case "${rel}" in
+		*.go)
+			case "${rel}" in
+			*_test.go) continue ;;
+			esac
+			dir="${rel%/*}"
+			[ "${dir}" = "${rel}" ] && dir="."
+			dirs="${dirs:+${dirs}$'\n'}${dir}"
+			;;
+		esac
+	done <<<"${changed_set}"
+	[ -n "${dirs}" ] || {
+		row "live-test-refs" "PASS" "no non-test .go files changed"
+		return 0
+	}
+	while IFS= read -r dir; do
+		[ -n "${dir}" ] || continue
+		while IFS= read -r lf; do
+			[ -n "${lf}" ] || continue
+			if ! printf '%s\n' "${changed_set}" | grep -Fxq "${lf}"; then
+				live_files="${live_files:+${live_files}$'\n'}${lf}"
+				n_live=$((n_live + 1))
+			fi
+		done < <(git_repo ls-files "${dir}/*_live_test.go")
+	done < <(printf '%s\n' "${dirs}" | sort -u)
+	if ((n_live == 0)); then
+		row "live-test-refs" "PASS" "no untouched *_live_test.go siblings in changed Go packages"
+		return 0
+	fi
+	if [[ -n "${body_file}" ]] && grep -Eiq '(full[[:space:]]+[a-z0-9_./-]+[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)' "${body_file}" && ! grep -Eiq '(live[- ]?(db|postgres|neo4j|backend|test)|ESHU_POSTGRES_TEST_DSN|SKIP|hermetic)' "${body_file}"; then
+		row "live-test-refs" "FAIL" "PR body claims full suite green while ${n_live} untouched *_live_test.go sibling(s) exist in changed package(s); inspect assertions or state live-DSN run/skip" "${live_files}"
+	else
+		row "live-test-refs" "PASS" "${n_live} untouched *_live_test.go sibling(s) in changed Go package(s) — verify assertions before claiming full suite green"
+	fi
+}
+
 if [[ -z "${body_file}" ]]; then
 	row "shape" "NOT_CHECKED" "no --body provided"
 elif shape_script="$(resolve_check_shape)"; then
@@ -249,6 +300,7 @@ run_repo_script "live-tests-ledger" "scripts/verify-live-tests-ledger.sh"
 run_repo_script "env-registry-doc" "scripts/verify-env-registry-doc.sh"
 run_repo_script "docs-cli-env-refs" "scripts/verify-docs-cli-env-refs.sh"
 run_test_todo_scan
+run_live_test_refs_scan
 
 # bind: every result above belongs to head_sha only if HEAD never moved and no
 # tracked file differs from it, before or after the checks ran.

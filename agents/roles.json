@@ -86,6 +86,13 @@
       "description": "Use for the final independent review of a difficult diff (concurrency, locking, queues, schema, or hot-path Cypher and SQL) with code-review; read-only.",
       "tier": "deep"
     },
+    "review-adversarial": {
+      "description": "Use for a cold, zero-chat-history adversarial review (preferring a different model family via scripts/cross-review.sh) to hunt false-green tests, evidence overclaims, skipped live tests, and production-caller mismatches; read-only.",
+      "tier": "deep",
+      "access": "read",
+      "skill": "interrogate",
+      "instructions": "Run a cold, read-only adversarial diff review with zero reliance on author summaries. Prefer invoking a different model family via `bash scripts/cross-review.sh --base origin/main` when another family CLI is installed, and report only verified defects: false-green tests (silently skipped *_live_test.go or helper-only tests), evidence overclaims (benchmarks/EXPLAIN plans measured on a statement production does not execute), contract mismatches, and concurrency/rollback bugs. Do not edit files, push, or resolve threads."
+    },
     "arbiter-eshu": {
       "description": "Use to decide a design fork, a disputed finding, a waiver, or an irreversible act (merge, deploy, data change) that evidence alone cannot settle; returns a binding ruling, read-only.",
       "tier": "arbiter",
