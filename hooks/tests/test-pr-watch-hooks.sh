@@ -204,7 +204,7 @@ if [ "${1:-}" = "pr" ] && [ "${2:-}" = "view" ]; then
 	exit 0
 fi
 if [ "${1:-}" = "api" ] && [ "${2:-}" = "graphql" ]; then
-	printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false,"path":"a.go","line":1,"originalLine":1,"comments":{"totalCount":1,"nodes":[{"body":"**P1** · evidence-overclaim\\nWrong statement measured."}]}}]}}}}}\n'
+	printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"isResolved":false,"path":"a.go","line":1,"originalLine":1,"comments":{"totalCount":1,"nodes":[{"body":"P1: Wrong statement measured."}]}}]}}}}}\n'
 	exit 0
 fi
 exit 1

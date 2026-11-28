@@ -13,7 +13,7 @@
 #    still has an unwatched PR opened by `gh pr create`, blocks (exit 2) with
 #    the exact `monitor` + `watch-pr.sh` command.
 #
-# Override escape: KIT_PR_WATCH_OFF=1 or CLAUDE_HOOK_ALLOW=1.
+# Override escape: KIT_PR_WATCH_OFF=1, KIT_PR_THREADS_GUARD_OFF=1 (push guard only), or CLAUDE_HOOK_ALLOW=1.
 set -uo pipefail
 
 [ "${KIT_PR_WATCH_OFF:-0}" = "1" ] && exit 0

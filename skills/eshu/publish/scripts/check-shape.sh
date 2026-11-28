@@ -116,10 +116,12 @@ function flush(   first, w, len) {
   gsub(/`[^`]*`/, "", t)
   if (t ~ /REPLACE:/) replace++
   full_low = tolower(line)
-  if (full_low ~ /(clean preliminary review|0 p0[^a-z0-9]*0 p1|p0=0[^a-z0-9]*p1=0)/) claim_clean_rev = 1
-  if (full_low ~ /(review-attest|verdict|receipt|head[[:space:]:=`]+[0-9a-f]{7,}|[0-9a-f]{7,40})/) has_rev_backing = 1
-  if (full_low ~ /(full[[:space:]]+[a-z0-9_.\/-]+[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)/) claim_full_suite = 1
-  if (full_low ~ /(live[- ]?(db|postgres|neo4j|backend|test)|dsn|skip|hermetic|go test|ci)/) has_suite_scope = 1
+  if (full_low ~ /(clean preliminary review|0 p0[^a-z0-9]*0 p1|p0=0[^a-z0-9]*p1=0)/) {
+    if (full_low !~ /(review-attest|(verdict|receipt|head|sha)[[:space:]:=`#-]+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]+)/) unbacked_rev_claim = 1
+  }
+  if (full_low ~ /(full([[:space:]]+[a-z0-9_.\/-]+)?[[:space:]]+suite[[:space:]]+(green|pass)|all[[:space:]]+tests[[:space:]]+pass)/) {
+    if (full_low !~ /(live[- ]?(db|postgres|neo4j|backend|test)|dsn|skip|hermetic)/) unscoped_full_suite = 1
+  }
   if (!infence && !indet) {
     low = tolower(t)
     if (low ~ /(i hope this helps|let me know if|great question|happy to help)/) slop_chat++
@@ -187,8 +189,8 @@ END {
     }
     if (total > 1200 && h2 < 2) warn("headings", "a body over 1200 characters should have at least 2 ## headings")
     if (!notchecked) warn("notchecked", "no NOT_CHECKED line; say what you did not run")
-    if (claim_clean_rev && !has_rev_backing) fail("unbacked-review-claim", "PR body claims a clean review (0 P0/0 P1) without naming a verdict, receipt, or reviewed HEAD SHA")
-    if (claim_full_suite && !has_suite_scope) fail("unscoped-full-suite", "PR body claims full suite green without stating command/scope or whether env-gated live tests ran or skipped")
+    if (unbacked_rev_claim) fail("unbacked-review-claim", "PR body claims a clean review (0 P0/0 P1) without naming review-attest or a verdict/receipt/HEAD SHA on the same line")
+    if (unscoped_full_suite) fail("unscoped-full-suite", "PR body claims full suite green without qualifying live/DSN/SKIP/hermetic scope on the same line")
   } else if (mode == "issue") {
     if (!problem) fail("problem", "no ## Problem heading")
     if (!accept) fail("acceptance", "no ## Acceptance criteria heading")

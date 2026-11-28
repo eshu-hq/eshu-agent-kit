@@ -322,10 +322,10 @@ git -C "${r_live}" add pkg && git -C "${r_live}" commit -q -m "seed store"
 git -C "${r_live}" checkout -q -b feat/live-refs
 printf 'package store\nfunc Query() int { return 2 }\n' >"${r_live}/pkg/store/query.go"
 git -C "${r_live}" add pkg/store/query.go && git -C "${r_live}" commit -q -m "change query"
-printf 'Refs #1.\n\n**Change query.**\n\n| At a glance | |\n|---|---|\n| Proof | Full store suite green |\n\n**NOT_CHECKED:** none.\n' >"${work}/pr-live-bad.md"
+printf 'Refs #1.\n\n**Change query.**\n\n| At a glance | |\n|---|---|\n| Proof | Full suite green |\n\n**NOT_CHECKED:** CI.\n' >"${work}/pr-live-bad.md"
 out="$(bash "${PREFLIGHT}" --repo "${r_live}" --base main --body "${work}/pr-live-bad.md" 2>&1)"
 rc=$?
-assert_eq "${rc}" "1" "live-test-refs exits 1 on unscoped full-suite claim with untouched live test"
+assert_eq "${rc}" "1" "live-test-refs exits 1 on bare Full suite green claim with untouched live test"
 assert_contains "${out}" "live-test-refs | FAIL |" "live-test-refs reports FAIL row"
 assert_contains "${out}" "pkg/store/query_live_test.go" "live-test-refs names untouched *_live_test.go"
 

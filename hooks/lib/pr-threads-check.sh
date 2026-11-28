@@ -63,10 +63,11 @@ if not (num and m):
 owner, repo = m.group(1), m.group(2)
 
 q = """
-query($owner: String!, $repo: String!, $num: Int!) {
+query($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $num) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           isResolved
           path
@@ -82,17 +83,29 @@ query($owner: String!, $repo: String!, $num: Int!) {
   }
 }
 """
-try:
-    raw = subprocess.check_output(
-        ["gh", "api", "graphql", "-f", f"query={q}", "-f", f"owner={owner}", "-f", f"repo={repo}", "-F", f"num={num}"],
-        cwd=os.environ["PRW_CWD"], stderr=subprocess.DEVNULL, text=True, timeout=8,
-    )
-    nodes = json.loads(raw)["data"]["repository"]["pullRequest"]["reviewThreads"]["nodes"]
-except Exception:
-    raise SystemExit(0)
+nodes = []
+cursor = None
+for _ in range(5):
+    cmd = ["gh", "api", "graphql", "-f", f"query={q}", "-f", f"owner={owner}", "-f", f"repo={repo}", "-F", f"num={num}"]
+    if cursor:
+        cmd += ["-f", f"cursor={cursor}"]
+    try:
+        raw = subprocess.check_output(cmd, cwd=os.environ["PRW_CWD"], stderr=subprocess.DEVNULL, text=True, timeout=8)
+        rt = json.loads(raw)["data"]["repository"]["pullRequest"]["reviewThreads"]
+    except Exception:
+        raise SystemExit(0)
+    nodes.extend(rt.get("nodes") or [])
+    pi = rt.get("pageInfo") or {}
+    if not (pi.get("hasNextPage") and pi.get("endCursor")):
+        break
+    cursor = pi["endCursor"]
 
 pushed = {ln.strip() for ln in os.environ.get("PRW_PUSHED", "").splitlines() if ln.strip()}
-sev_re = re.compile(r"(?:\*\*(P[01])\*\*|img\.shields\.io/badge/(P[01])|\[(P[01])\])", re.I)
+sev_re = re.compile(
+    r"(?:\*\*(P[01])\*\*|img\.shields\.io/badge/(P[01])|\[(P[01])\]|(?:^|[\s:(\-])(P[01])(?=[\s:).,;\-]|$))",
+    re.I | re.M,
+)
+zero_count_re = re.compile(r"(?:\b0\s+P[01]\b|\bP[01]\s*[=:]\s*0\b)", re.I)
 timing_phrases = (
     "ci pending", "live lanes pending", "sandbox has no database", "blocked offline",
     "pending in ci", "ci shards pending", "pending on this head", "no observed live",
@@ -107,7 +120,8 @@ for t in nodes or []:
         continue
     c0 = (cm.get("nodes") or [{}])[0]
     body = str(c0.get("body") or "")
-    if not sev_re.search(body[:400]):
+    cleaned_body = zero_count_re.sub(" ", body)
+    if not sev_re.search(cleaned_body):
         continue
     low = body.lower()
     if any(p in low for p in timing_phrases):

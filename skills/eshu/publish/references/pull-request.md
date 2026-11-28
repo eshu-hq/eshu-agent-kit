@@ -137,7 +137,7 @@ flowchart LR
 - Readiness `verify-ledger`: 45 files, 96 tests
 - `test-run-live-postgres-readiness-tests.sh`: PASS
 - `make pre-push`: all local gates pass
-- Review: author self-review (test-only diff). P0=0, P1=0, P2-blocking=0.
+- Review: author self-review (test-only diff). P0=0, P1=0, P2-blocking=0 (verdict at HEAD a1b2c3d).
 
 </details>
 
