@@ -76,7 +76,7 @@ msg=""
 while IFS= read -r ref; do
 	[ -n "${ref}" ] || continue
 	number="${ref#*#}"
-	msg="${msg}Issue ${ref} is in ${where}. Work it now (dispatch a lane), or write \`DEFER: #${number} <ruling path>\` in ${GI_LEDGER} -- the path must be an existing, non-empty file that names #${number}. The Stop hook refuses DONE while it is open.
+	msg="${msg}Issue ${ref} is in ${where}. Work it now (dispatch a lane), or write \`DEFER: #${number} <issue-comment-url>\` in ${GI_LEDGER} (the GitHub comment URL recording the arbiter ruling on #${number}). The Stop hook refuses DONE while it is open.
 "
 	printf 'issue-capture: %s -> %s (%s)\n' "${ref}" "${GI_LEDGER}" "${GI_KIND}" >&2
 done <<<"${added}"

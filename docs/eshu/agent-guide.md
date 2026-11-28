@@ -155,8 +155,9 @@ report these separately:
 
 Hot-path changes touching Cypher, graph writes, reducers, projectors, queues,
 workers, leases, batching, runtime stages, collectors, Compose, Helm, pprof, or
-NornicDB knobs must update a tracked repo file with one benchmark marker and
-one observability marker:
+NornicDB knobs must include one benchmark marker and one observability marker
+in the **PR description** (never in ephemeral repo files or appended to
+`go/**/README.md`):
 
 - `Performance Evidence:`
 - `Benchmark Evidence:`
@@ -164,8 +165,9 @@ one observability marker:
 - `Observability Evidence:`
 - `No-Observability-Change:`
 
-PR text alone is not proof. Review acceptance requires the exact command, run,
-or measurement that proves the changed behavior.
+Claims without commands or measurements are not proof. Review acceptance
+requires the exact command, run, or measurement in the PR body (with raw logs
+or `EXPLAIN` plans in CI workflow artifacts, not git).
 
 The five evidence markers above are the per-PR audit trail. The
 **telemetry discipline** — the X1 contract doc, X2 verifier, X3 CI gate,
@@ -368,11 +370,11 @@ NOT reformat the whole changed set in one commit; commit the pure reformat
 first (formatting-only, verifiable with `--list-different`), then the real
 change on top. Never `--no-verify` past a format hook.
 
-## Measurement Ledger
+## Measurement Provenance
 
-Cite a `docs/internal/measurements.jsonl` row id (`ledger:<id>`) instead of
-restating a number; `scripts/verify-measurement-citations.sh` enforces it.
-See [Measurement Ledger](https://github.com/eshu-hq/eshu/blob/main/docs/internal/measurement-ledger.md) for schema and gate details.
+Record numeric measurements (benchmark timings, trial counts, before/after
+tables) in the PR body or CI workflow artifacts with the exact command and
+commit SHA. Do not commit ephemeral measurement notes or ledgers to git.
 
 ## API, MCP, And Query Reads
 

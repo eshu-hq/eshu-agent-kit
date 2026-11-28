@@ -57,4 +57,4 @@ Re-check the run logs after any toolchain bump; version pins below rot fast.
 
 ## Touching hot-path files triggers the performance-evidence gate
 
-Edits under hot-path locations also trigger `scripts/verify-performance-evidence.sh` — `performance-rigor` owns the marker format and recognized evidence files; follow it. Note: a PR first past the hot-path step can surface pre-existing golangci-lint debt (oversized files, unused funcs) — fix that debt in the same PR.
+Edits under hot-path locations also trigger `scripts/verify-performance-evidence.sh` against the PR description — `performance-rigor` owns the PR-body marker format; follow it (never commit ephemeral evidence files into git). Note: a PR first past the hot-path step can surface pre-existing golangci-lint debt (oversized files, unused funcs) — fix that debt in the same PR.

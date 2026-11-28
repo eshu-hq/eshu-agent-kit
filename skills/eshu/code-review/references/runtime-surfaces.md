@@ -45,7 +45,8 @@ Check:
   worker knobs, and full-corpus or no-regression evidence;
 - missing instrumentation or missing `Performance Evidence:`,
   `Benchmark Evidence:`, `No-Regression Evidence:`, `Observability Evidence:`,
-  or `No-Observability-Change:` markers when required;
+  or `No-Observability-Change:` markers in the PR body when required (never
+  committed as ephemeral files or appended to `go/**/README.md`);
 - for a claim/lock/lease/queue rewrite: a concurrency proof (contention /
   EvalPlanQual recheck / lease-safety), not only a row-set equivalence
   differential — the differential drops `FOR UPDATE` and cannot catch lease theft;

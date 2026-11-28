@@ -39,9 +39,10 @@ turn that creates it and before work on it starts:
    state that explicitly in the inventory.
 4. Be worked as in-goal work, in a parallel lane where safe, now, not at the
    end. "Filed for later" is not an outcome. The only other exit is a
-   `DEFER: #N <path>` line in the ledger, where `<path>` is an arbiter ruling
-   file that names `#N` and says why it waits. The Stop hook refuses `DONE`
-   while a ledger issue is open with neither.
+   `DEFER: #N <issue-comment-url>` line in the ledger pointing at the GitHub
+   comment recording the arbiter ruling on `#N` (or an untracked local ruling
+   file; never commit ruling files under `docs/internal/arbiter/`). The Stop
+   hook refuses `DONE` while a ledger issue is open with neither.
 
 Tell every subagent/workflow on the goal to follow this for issues it creates.
 
