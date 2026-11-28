@@ -47,6 +47,7 @@ suites=(
 	scripts/tests/test-eval-suites.sh
 	scripts/tests/test-eval-flywheel.sh
 	scripts/tests/test-watch-pr.sh
+	scripts/tests/test-cross-review.sh
 	hooks/tests/test-doc-staleness-hook.sh
 	hooks/tests/test-goal-refresh-nudge-cases.sh
 	hooks/tests/test-goal-continue-hook.sh

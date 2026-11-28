@@ -53,7 +53,12 @@ install_hooks_repo() {
 	else
 		ln -sfn "$KIT_DIR/scripts/watch-pr.sh" "$target/scripts/watch-pr.sh"
 	fi
-	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex, Cursor, Muse and agy adapters, scripts/watch-pr.sh)"
+	if [ -e "$target/scripts/cross-review.sh" ] && [ ! -L "$target/scripts/cross-review.sh" ]; then
+		echo "preserving existing script: $target/scripts/cross-review.sh" >&2
+	else
+		ln -sfn "$KIT_DIR/scripts/cross-review.sh" "$target/scripts/cross-review.sh"
+	fi
+	echo "installed kit hook scripts into $target/.claude/hooks (+ Codex, Cursor, Muse and agy adapters, scripts/watch-pr.sh, scripts/cross-review.sh)"
 	echo "wire the Claude/Codex/Cursor hooks in settings/hooks.json (see hooks/README.md); Muse reads .muse/hooks.json, agy reads .agents/hooks.json"
 }
 

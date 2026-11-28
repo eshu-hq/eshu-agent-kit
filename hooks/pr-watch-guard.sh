@@ -13,7 +13,7 @@
 #    still has an unwatched PR opened by `gh pr create`, blocks (exit 2) with
 #    the exact `monitor` + `watch-pr.sh` command.
 #
-# Override escape: KIT_PR_WATCH_OFF=1 or CLAUDE_HOOK_ALLOW=1.
+# Override escape: KIT_PR_WATCH_OFF=1, KIT_PR_THREADS_GUARD_OFF=1 (push guard only), or CLAUDE_HOOK_ALLOW=1.
 set -uo pipefail
 
 [ "${KIT_PR_WATCH_OFF:-0}" = "1" ] && exit 0
@@ -25,13 +25,15 @@ payload="$(cat)"
 
 # Fast-path skip for unrelated PreToolUse calls.
 case "${payload}" in
-*"monitor"* | *"report_progress"* | *"snooze_minutes"* | *"watch-pr.sh"* | *"pr-watch"* | *"gh pr"*) ;;
+*"monitor"* | *"report_progress"* | *"snooze_minutes"* | *"watch-pr.sh"* | *"pr-watch"* | *"gh pr"* | *"git"*"push"*) ;;
 *) exit 0 ;;
 esac
 
 libdir="$(dirname "${BASH_SOURCE[0]}")/lib"
 # shellcheck source=hooks/lib/pr-watch-state.sh
 . "${libdir}/pr-watch-state.sh" 2>/dev/null || exit 0
+# shellcheck source=hooks/lib/pr-threads-check.sh
+. "${libdir}/pr-threads-check.sh" 2>/dev/null || true
 # shellcheck source=hooks/lib/skills-insights-events.sh
 # shellcheck disable=SC1091
 . "${libdir}/skills-insights-events.sh" 2>/dev/null || true
@@ -63,9 +65,11 @@ try:
 except (TypeError, ValueError):
     snooze_num = 0
 
+cwd = str(d.get("cwd") or "").strip()
 print(sid)
 print(tool)
 print(snooze_num)
+print(cwd)
 print(cmd)
 ' 2>/dev/null)" || exit 0
 [ -n "${parsed}" ] || exit 0
@@ -73,7 +77,8 @@ print(cmd)
 sid="$(printf '%s\n' "${parsed}" | sed -n '1p')"
 tool="$(printf '%s\n' "${parsed}" | sed -n '2p')"
 snooze="$(printf '%s\n' "${parsed}" | sed -n '3p')"
-cmd="$(printf '%s\n' "${parsed}" | sed -n '4p')"
+cwd="$(printf '%s\n' "${parsed}" | sed -n '4p')"
+cmd="$(printf '%s\n' "${parsed}" | sed -n '5p')"
 
 [ -n "${sid}" ] || exit 0
 ws="$(prw_watch_script)"
@@ -83,6 +88,23 @@ bash | run_command | shell)
 	if [ "$(prw_classify_cmd "${cmd}")" = "valid" ]; then
 		prw_mark_armed "${sid}" "${cmd}"
 		command -v si_event >/dev/null 2>&1 && si_event "pr-watch-armed" "${sid}"
+		exit 0
+	fi
+	if [ "${KIT_PR_THREADS_GUARD_OFF:-0}" != "1" ] && command -v prw_is_git_push_cmd >/dev/null 2>&1 && prw_is_git_push_cmd "${cmd}"; then
+		unanswered="$(prw_unanswered_p01_threads "${cwd:-${PWD}}")"
+		if [ -n "${unanswered}" ]; then
+			command -v si_event >/dev/null 2>&1 && si_event "pr-watch-block" "${sid}" "reason=unanswered-p01"
+			printf 'pr-watch-guard: REFUSED git push — open PR still has unanswered P0/P1 review thread(s) whose cited files are untouched in the commits being pushed:\n' >&2
+			pr_num=""
+			while IFS=$'\t' read -r pnum tpath tline tsum; do
+				[ -n "${pnum}" ] || continue
+				pr_num="${pnum}"
+				printf '  - PR #%s %s:%s — %s\n' "${pnum}" "${tpath}" "${tline}" "${tsum}" >&2
+			done <<<"${unanswered}"
+			printf 'Read and fix (or reply to) every P0/P1 thread before pushing again:\n  bash .agents/skills/resolve-review-threads/scripts/threads.sh list --pr %s\n' "${pr_num}" >&2
+			printf 'Override with CLAUDE_HOOK_ALLOW=1 only if this push intentionally addresses the finding in another file.\n' >&2
+			exit 2
+		fi
 	fi
 	exit 0
 	;;

@@ -41,6 +41,8 @@ git diff --stat "${BASE}..${HEAD}"
 ```bash
 WORK="$(mktemp -d)"
 git worktree add --detach "${WORK}/target" "${HEAD}"
+# Optional: run a cold cross-family pass when another model CLI is installed:
+bash scripts/cross-review.sh --base origin/main
 ```
 
 3. **Re-run every candidate finding and audit blast radius.** Execute each finding's repro command yourself in the isolated worktree. Confirm two things: (a) the command actually fails on `HEAD`, and (b) the failure genuinely breaks the restated intent rather than an artificial assumption. Merge findings that share one root cause. Run the rung-4/5 check for the primary blast-radius safety fact. Done when every surviving finding has an independently observed failing command output.
