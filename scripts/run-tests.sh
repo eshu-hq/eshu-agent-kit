@@ -55,6 +55,7 @@ suites=(
 	hooks/tests/test-guard-live-gate.sh
 	hooks/tests/test-muse-wrappers.sh
 	hooks/tests/test-pr-watch-hooks.sh
+	hooks/tests/test-skill-nudge-docs.sh
 	hooks/tests/test-stop-failure.sh
 )
 
