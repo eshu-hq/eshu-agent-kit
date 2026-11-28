@@ -118,11 +118,11 @@ nudge_ids_for() { # /repo-relative-path -> sets IDS and NOTE
 		;;
 	*/docs/public/*.md)
 		IDS="eshu-publish"
-		NOTE="follow docs/public/documentation-style-guide.md (Diátaxis page type, plain colleague voice, docs-catalog metadata, and docs/mkdocs.yml nav)"
+		NOTE="apply publish wording rules and docs/public/documentation-style-guide.md (Diátaxis page type, plain colleague voice, docs-catalog metadata, docs/mkdocs.yml nav)"
 		;;
 	*/docs/internal/*.md)
 		IDS="eshu-publish"
-		NOTE="keep docs/internal/ to durable maintainer handbooks and active designs (follow docs/internal/writing-for-agents.md; never commit ephemeral PR proof or arbiter rulings)"
+		NOTE="apply publish wording rules and docs/internal/writing-for-agents.md; durable handbooks and active designs only (never commit ephemeral PR proof or arbiter rulings)"
 		;;
 	*.go) IDS="golang-engineering" ;;
 	esac
