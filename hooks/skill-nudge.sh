@@ -72,6 +72,7 @@ ROOT="$(kit_root_path "$FP")" || exit 0
 #   resolve-review-threads  invoked with a PR number
 #   eshu-session-lifecycle  session events; nudged by on-compact.sh
 #   eshu-executor-preflight run by an executor at handoff, not on a path
+#   papercut                invoked on agent friction events, not a file path
 # NUDGE_EXEMPT_END
 
 # IDS is the canonical, space-separated list this hook enforces. NOTE is the
